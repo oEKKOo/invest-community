@@ -1,0 +1,108 @@
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
+
+// 导入页面组件
+const MainLayout = () => import('../components/layout/MainLayout.vue')
+const Dashboard = () => import('../views/Dashboard.vue')
+const Community = () => import('../views/Community.vue')
+const Portfolios = () => import('../views/Portfolios.vue')
+const AdminPanel = () => import('../views/AdminPanel.vue')
+const Profile = () => import('../views/Profile.vue')
+const Login = () => import('../views/Login.vue')
+const PostDetail = () => import('../views/PostDetail.vue')
+const PortfolioDetail = () => import('../views/PortfolioDetail.vue')
+
+const routes: RouteRecordRaw[] = [
+  {
+    path: '/login',
+    name: 'Login',
+    component: Login,
+    meta: { requiresAuth: false }
+  },
+  {
+    path: '/',
+    component: MainLayout,
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'Dashboard',
+        component: Dashboard,
+        meta: { title: 'Dashboard' }
+      },
+      {
+        path: '/community',
+        name: 'Community',
+        component: Community,
+        meta: { title: 'Community' }
+      },
+      {
+        path: '/portfolios',
+        name: 'Portfolios',
+        component: Portfolios,
+        meta: { title: 'Portfolios' }
+      },
+      {
+        path: '/admin',
+        name: 'AdminPanel',
+        component: AdminPanel,
+        meta: { 
+          title: 'Admin Panel',
+          requiresAdmin: true
+        }
+      },
+      {
+        path: '/profile',
+        name: 'Profile',
+        component: Profile,
+        meta: { title: 'My Profile' }
+      },
+      {
+        path: '/posts/:id',
+        name: 'PostDetail',
+        component: PostDetail,
+        meta: { title: 'Post Detail' },
+        props: true
+      },
+      {
+        path: '/portfolios/:id',
+        name: 'PortfolioDetail',
+        component: PortfolioDetail,
+        meta: { title: 'Portfolio Detail' },
+        props: true
+      }
+    ]
+  }
+]
+
+const router = createRouter({
+  history: createWebHistory(import.meta.env.BASE_URL),
+  routes
+})
+
+// 路由守卫
+router.beforeEach(async (to, from, next) => {
+  const authStore = useAuthStore()
+  
+  // 检查是否需要认证
+  if (to.meta.requiresAuth !== false && !authStore.isLoggedIn) {
+    next('/login')
+    return
+  }
+  
+  // 检查是否需要管理员权限
+  if (to.meta.requiresAdmin && !authStore.isAdmin) {
+    next('/')
+    return
+  }
+  
+  // 如果已登录访问登录页，重定向到首页
+  if (to.name === 'Login' && authStore.isLoggedIn) {
+    next('/')
+    return
+  }
+  
+  next()
+})
+
+export default router

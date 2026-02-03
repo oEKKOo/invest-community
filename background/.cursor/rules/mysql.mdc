@@ -1,0 +1,326 @@
+
+---
+
+# 一、文档说明
+
+## 1.1 系统背景
+
+本系统是一个 **投研社区 + 投顾组合一体化 Web 应用**，支持：
+
+* 用户发帖交流（Community）
+* 投资组合创建与展示（Portfolios）
+* 管理员内容审核与风控（Admin Panel）
+* 社区趋势与数据概览（Dashboard）
+
+后端技术栈：
+
+* Django + Django REST Framework
+* MySQL 8.x（关系型数据库）
+* JWT 认证
+* Redis / WebSocket / SSE（扩展）
+
+---
+
+## 1.2 设计目标
+
+数据库设计遵循以下原则：
+
+1. **支撑前端 UI 真实需求**
+2. **满足毕业设计论文规范**
+3. **核心功能优先，预留扩展空间**
+4. **状态清晰、职责单一、可维护**
+
+---
+
+# 二、数据库整体结构总览
+
+## 2.1 表数量与分类
+
+| 模块       | 表名                    |
+| -------- | --------------------- |
+| 用户与权限    | `user`                |
+| 投资偏好     | `user_invest_profile` |
+| 社交关系     | `user_follow`         |
+| 内容系统     | `content`             |
+| 内容关联     | `content_asset`       |
+| 评论系统     | `comment`             |
+| 点赞系统     | `like`                |
+| 收藏系统     | `favorite`            |
+| 投资组合     | `portfolio`           |
+| 组合资产     | `portfolio_asset`     |
+| 风控举报     | `report`              |
+| 通知系统（扩展） | `notification`        |
+| 风控告警（扩展） | `alert`               |
+
+> 🔹 **核心必需表：前 10 张**
+> 🔹 **扩展增强表：notification / alert**
+
+---
+
+## 2.2 核心实体关系（文字版 ER 说明）
+
+* 一个 **用户（user）**
+
+  * 可以发布多条 **内容（content）**
+  * 可以创建多个 **投资组合（portfolio）**
+  * 可以关注多个用户（user_follow）
+* 一条 **内容（content）**
+
+  * 可关联多个 **标的（asset）**
+  * 可被多次点赞 / 收藏 / 评论
+* 一个 **组合（portfolio）**
+
+  * 包含多条 **组合资产（portfolio_asset）**
+  * 可被点赞
+* 举报（report）可指向：
+
+  * 内容 / 评论 / 用户
+
+---
+
+# 三、核心表结构说明（逐表）
+
+---
+
+## 3.1 用户表 `user`
+
+### 作用
+
+* 存储账户信息、角色、状态、个人资料
+* 支撑权限控制（USER / MODERATOR / ADMIN）
+
+### 核心字段
+
+| 字段              | 说明                       |
+| --------------- | ------------------------ |
+| id              | 用户主键                     |
+| username        | 登录用户名                    |
+| display_name    | 展示昵称                     |
+| avatar_url      | 头像                       |
+| bio             | 简介                       |
+| role            | USER / MODERATOR / ADMIN |
+| status          | 正常 / 禁言 / 封禁             |
+| followers_count | 粉丝数（可冗余）                 |
+| following_count | 关注数（可冗余）                 |
+| created_at      | 注册时间                     |
+
+---
+
+## 3.2 用户投资偏好表 `user_invest_profile`
+
+### 作用
+
+* 存储用户的投资偏好标签
+* 用于推荐 / 用户画像（论文加分点）
+
+### 核心字段
+
+| 字段               | 说明           |
+| ---------------- | ------------ |
+| user_id          | 外键，关联 user   |
+| risk_level       | 低 / 中 / 高    |
+| horizon          | 短 / 中 / 长    |
+| focus_market     | JSON（A股/美股等） |
+| preferred_assets | JSON（股票/基金等） |
+
+---
+
+## 3.3 内容表 `content`（帖子 / 长文）
+
+### 作用
+
+* 统一承载社区内容
+* 内置 **审核状态机**
+
+### 内容状态（与前端完全对齐）
+
+| 状态             | 说明  |
+| -------------- | --- |
+| DRAFT          | 草稿  |
+| PENDING_REVIEW | 待审核 |
+| PUBLISHED      | 已发布 |
+| REJECTED       | 被驳回 |
+| TAKEN_DOWN     | 下架  |
+
+### 核心字段
+
+| 字段            | 说明    |
+| ------------- | ----- |
+| id            | 内容ID  |
+| author_id     | 作者    |
+| title         | 标题    |
+| body          | 正文    |
+| tags_json     | 标签数组  |
+| status        | 内容状态  |
+| reviewed_by   | 审核管理员 |
+| reject_reason | 驳回原因  |
+| like_count    | 点赞数   |
+| comment_count | 评论数   |
+| created_at    | 创建时间  |
+| published_at  | 发布时间  |
+
+---
+
+## 3.4 内容-标的关联表 `content_asset`
+
+### 作用
+
+* 支撑“按股票 / 基金讨论区”
+
+| 字段         | 说明 |
+| ---------- | -- |
+| content_id | 内容 |
+| asset_id   | 标的 |
+
+---
+
+## 3.5 评论表 `comment`
+
+### 作用
+
+* 支持帖子评论与楼中楼
+
+| 字段         | 说明           |
+| ---------- | ------------ |
+| id         | 评论ID         |
+| content_id | 所属帖子         |
+| author_id  | 评论人          |
+| parent_id  | 父评论          |
+| body       | 内容           |
+| status     | 正常 / 屏蔽 / 删除 |
+| created_at | 时间           |
+
+---
+
+## 3.6 关注表 `user_follow`
+
+### 作用
+
+* 用户社交关系（关注 / 粉丝）
+
+| 字段          | 说明   |
+| ----------- | ---- |
+| follower_id | 关注者  |
+| followee_id | 被关注者 |
+
+---
+
+## 3.7 点赞表 `like`
+
+### 作用
+
+* 统一点赞 **帖子 / 评论 / 组合**
+
+| 字段          | 说明                         |
+| ----------- | -------------------------- |
+| user_id     | 点赞人                        |
+| target_type | POST / COMMENT / PORTFOLIO |
+| target_id   | 目标ID                       |
+
+---
+
+## 3.8 收藏表 `favorite`
+
+### 作用
+
+* 收藏帖子 / 长文
+
+| 字段         | 说明 |
+| ---------- | -- |
+| user_id    | 用户 |
+| content_id | 内容 |
+
+---
+
+## 3.9 投资组合表 `portfolio`
+
+### 作用
+
+* 投顾组合核心实体
+
+| 字段          | 说明     |
+| ----------- | ------ |
+| id          | 组合ID   |
+| owner_id    | 创建者    |
+| title       | 组合名称   |
+| description | 描述     |
+| risk_level  | 风险等级   |
+| returns_ytd | 年初至今回报 |
+| is_public   | 是否公开   |
+| like_count  | 点赞数    |
+
+---
+
+## 3.10 组合资产表 `portfolio_asset`
+
+### 作用
+
+* 组合中每一项资产配置
+
+| 字段           | 说明    |
+| ------------ | ----- |
+| portfolio_id | 所属组合  |
+| symbol       | 资产代码  |
+| name         | 名称    |
+| allocation   | 仓位百分比 |
+
+---
+
+## 3.11 举报表 `report`
+
+### 作用
+
+* 社区治理与风控闭环
+
+| 字段          | 说明                    |
+| ----------- | --------------------- |
+| reporter_id | 举报人                   |
+| target_type | POST / COMMENT / USER |
+| target_id   | 目标                    |
+| reason      | 原因                    |
+| status      | PENDING / RESOLVED    |
+
+---
+
+## 3.12 通知表 `notification`（扩展）
+
+### 作用
+
+* 支撑右上角铃铛通知
+
+| 类型            | 示例    |
+| ------------- | ----- |
+| LIKE          | 有人点赞你 |
+| COMMENT       | 有人评论  |
+| REVIEW_RESULT | 审核结果  |
+
+---
+
+## 3.13 风控告警表 `alert`（扩展）
+
+### 作用
+
+* Admin Panel 风险提醒 / AI 审核结果
+
+---
+
+# 四、数据库与 API 映射关系（总览）
+
+| 前端模块        | 主要表                         |
+| ----------- | --------------------------- |
+| Dashboard   | content / portfolio / user  |
+| Community   | content / comment / like    |
+| Portfolios  | portfolio / portfolio_asset |
+| Admin Panel | content / report / alert    |
+| Profile     | user / content / portfolio  |
+
+---
+
+# 五、后续补充建议（你未来可以加）
+
+1. 积分系统（user_points / points_log）
+2. 内容全文搜索（ES / MySQL FULLTEXT）
+3. 行情历史表（market_price）
+4. AI 风控命中记录表
+
+---
