@@ -1,19 +1,74 @@
-// Global styles
+// ============================================
+// InvestHub Global Styles
+// IBM Plex Sans + Glassmorphism Dark Theme
+// ============================================
+
+// Google Fonts - IBM Plex Sans
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+// Reset
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: $gray-50;
-  color: $gray-800;
+// Root CSS Variables (for Element Plus overrides)
+:root {
+  --el-color-primary: #7C3AED;
+  --el-color-primary-light-3: #9B59F5;
+  --el-color-primary-light-5: #A78BFA;
+  --el-color-primary-light-7: #C4B5FD;
+  --el-color-primary-light-8: #DDD6FE;
+  --el-color-primary-light-9: #EDE9FE;
+  --el-color-primary-dark-2: #5B21B6;
+  --el-border-radius-base: 10px;
 }
 
-// Utility classes inspired by Tailwind CSS
+body {
+  font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: $bg-dark;
+  color: $text-primary;
+  min-height: 100vh;
+}
+
+// ============================================
+// Glass Morphism Utilities
+// ============================================
+.glass {
+  background: $glass-bg;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid $glass-border;
+}
+
+.glass-strong {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.glass-card {
+  background: linear-gradient(145deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid $glass-border;
+  border-radius: $border-radius;
+  transition: $transition-all;
+
+  &:hover {
+    background: linear-gradient(145deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.04) 100%);
+    border-color: rgba(255, 255, 255, 0.18);
+    box-shadow: $shadow;
+  }
+}
+
+// ============================================
+// Typography Utilities
+// ============================================
 .text-xs { font-size: 0.75rem; line-height: 1rem; }
 .text-sm { font-size: 0.875rem; line-height: 1.25rem; }
 .text-base { font-size: 1rem; line-height: 1.5rem; }
@@ -22,55 +77,77 @@ body {
 .text-2xl { font-size: 1.5rem; line-height: 2rem; }
 .text-3xl { font-size: 1.875rem; line-height: 2.25rem; }
 
+.font-light { font-weight: 300; }
+.font-normal { font-weight: 400; }
 .font-medium { font-weight: 500; }
 .font-semibold { font-weight: 600; }
 .font-bold { font-weight: 700; }
-.font-black { font-weight: 900; }
 
-.text-gray-400 { color: $gray-400; }
-.text-gray-500 { color: $gray-500; }
-.text-gray-600 { color: $gray-600; }
-.text-gray-700 { color: $gray-700; }
-.text-gray-800 { color: $gray-800; }
+.text-primary { color: $text-primary; }
+.text-secondary { color: $text-secondary; }
+.text-muted { color: $text-muted; }
+.text-accent { color: $primary-light; }
 
-.text-blue-600 { color: $primary-color; }
+.text-gray-400 { color: $text-muted; }
+.text-gray-500 { color: $text-secondary; }
+.text-gray-600 { color: $text-secondary; }
+.text-gray-700 { color: $text-primary; }
+.text-gray-800 { color: $text-primary; }
+
+.text-blue-600 { color: $primary-light; }
 .text-green-600 { color: $success-color; }
 .text-red-600 { color: $error-color; }
 .text-amber-600 { color: $warning-color; }
 
-.bg-white { background-color: white; }
-.bg-gray-50 { background-color: $gray-50; }
-.bg-gray-100 { background-color: $gray-100; }
-.bg-blue-50 { background-color: #eff6ff; }
+// ============================================
+// Background Utilities
+// ============================================
+.bg-white { background-color: $bg-card; }
+.bg-gray-50 { background-color: $bg-dark; }
+.bg-gray-100 { background-color: $bg-card; }
+.bg-blue-50 { background-color: rgba(124, 58, 237, 0.1); }
 .bg-blue-600 { background-color: $primary-color; }
 
+// ============================================
+// Border & Radius
+// ============================================
 .rounded-lg { border-radius: $border-radius; }
 .rounded-xl { border-radius: $border-radius-lg; }
-.rounded-2xl { border-radius: 1rem; }
+.rounded-2xl { border-radius: $border-radius-xl; }
 
+.border { border: 1px solid $border-default; }
+.border-gray-100 { border-color: $border-subtle; }
+.border-gray-200 { border-color: $border-default; }
+
+// ============================================
+// Shadow Utilities
+// ============================================
 .shadow-sm { box-shadow: $shadow-sm; }
 .shadow { box-shadow: $shadow; }
 .shadow-md { box-shadow: $shadow-md; }
 .shadow-lg { box-shadow: $shadow-lg; }
 
+// ============================================
+// Animation
+// ============================================
 .transition-all { transition: $transition-all; }
 .transition-colors { transition: $transition-colors; }
 
+// ============================================
+// Spacing
+// ============================================
 .p-2 { padding: 0.5rem; }
 .p-3 { padding: 0.75rem; }
 .p-4 { padding: 1rem; }
 .p-5 { padding: 1.25rem; }
 .p-6 { padding: 1.5rem; }
 .p-8 { padding: 2rem; }
-
 .px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
 .px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
 .px-4 { padding-left: 1rem; padding-right: 1rem; }
 .px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
-
 .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
 .py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
-
 .m-2 { margin: 0.5rem; }
 .m-4 { margin: 1rem; }
 .mb-2 { margin-bottom: 0.5rem; }
@@ -80,25 +157,23 @@ body {
 .mt-4 { margin-top: 1rem; }
 .mt-6 { margin-top: 1.5rem; }
 
+// ============================================
+// Layout
+// ============================================
 .flex { display: flex; }
 .flex-col { flex-direction: column; }
 .items-center { align-items: center; }
 .justify-between { justify-content: space-between; }
 .justify-center { justify-content: center; }
-
 .w-full { width: 100%; }
 .h-full { height: 100%; }
-
 .cursor-pointer { cursor: pointer; }
-
 .overflow-hidden { overflow: hidden; }
 .overflow-y-auto { overflow-y: auto; }
 
-.border { border: 1px solid $gray-200; }
-.border-gray-100 { border-color: $gray-100; }
-.border-gray-200 { border-color: $gray-200; }
-
-// Custom utility classes
+// ============================================
+// Custom Utilities
+// ============================================
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -113,37 +188,369 @@ body {
   overflow: hidden;
 }
 
+.mono {
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+}
+
+// ============================================
 // Animations
+// ============================================
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px); }
+  from { opacity: 0; transform: translateY(24px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 20px rgba(124, 58, 237, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(124, 58, 237, 0.6); }
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
 .animate-fadeIn {
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .animate-slideUp {
-  animation: slideUp 0.3s ease-out;
+  animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-// Element Plus customizations
-.el-button--primary {
-  background-color: $primary-color;
-  border-color: $primary-color;
-  
-  &:hover {
-    background-color: $primary-light;
-    border-color: $primary-light;
+// Reduced motion support
+@media (prefers-reduced-motion: reduce) {
+  .animate-fadeIn,
+  .animate-slideUp {
+    animation: none;
+  }
+  * {
+    transition-duration: 0.01ms !important;
   }
 }
 
+// ============================================
+// Element Plus Dark Theme Overrides
+// ============================================
+
+// Buttons
+.el-button--primary {
+  background: $gradient-primary;
+  border: none;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  box-shadow: $shadow-purple;
+  
+  &:hover,
+  &:focus {
+    background: linear-gradient(135deg, #8B4CF6 0%, #6366F1 100%);
+    box-shadow: 0 8px 24px rgba(124, 58, 237, 0.5);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+// Inputs
+.el-input__wrapper {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid $border-default !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+  transition: $transition-all !important;
+
+  &:hover {
+    border-color: $border-strong !important;
+    background: rgba(255, 255, 255, 0.07) !important;
+  }
+
+  &.is-focus {
+    border-color: $primary-color !important;
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.25) !important;
+    background: rgba(255, 255, 255, 0.07) !important;
+  }
+}
+
+.el-input__inner {
+  color: $text-primary !important;
+  font-family: 'IBM Plex Sans', sans-serif !important;
+
+  &::placeholder {
+    color: $text-muted !important;
+  }
+}
+
+.el-textarea__inner {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid $border-default !important;
+  color: $text-primary !important;
+  font-family: 'IBM Plex Sans', sans-serif !important;
+  border-radius: 10px !important;
+
+  &:hover {
+    border-color: $border-strong !important;
+  }
+
+  &:focus {
+    border-color: $primary-color !important;
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.25) !important;
+  }
+
+  &::placeholder {
+    color: $text-muted !important;
+  }
+}
+
+// Cards
+.el-card {
+  background: $bg-card !important;
+  border: 1px solid $border-default !important;
+  border-radius: $border-radius-lg !important;
+  box-shadow: $shadow !important;
+  color: $text-primary !important;
+}
+
+// Tags
+.el-tag {
+  border-radius: 6px !important;
+  font-weight: 600 !important;
+  font-size: 0.75rem !important;
+  letter-spacing: 0.03em !important;
+}
+
+.el-tag--default {
+  background: rgba(124, 58, 237, 0.15) !important;
+  border-color: rgba(124, 58, 237, 0.3) !important;
+  color: $primary-light !important;
+}
+
+.el-tag--success {
+  background: rgba(34, 197, 94, 0.15) !important;
+  border-color: rgba(34, 197, 94, 0.3) !important;
+  color: #4ADE80 !important;
+}
+
+.el-tag--warning {
+  background: rgba(245, 158, 11, 0.15) !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+  color: #FCD34D !important;
+}
+
+.el-tag--danger {
+  background: rgba(239, 68, 68, 0.15) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+  color: #F87171 !important;
+}
+
+.el-tag--info {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: $border-default !important;
+  color: $text-secondary !important;
+}
+
+// Avatar
+.el-avatar {
+  border: 2px solid $border-strong !important;
+}
+
+// Pagination
+.el-pagination {
+  --el-pagination-bg-color: transparent;
+  --el-pagination-text-color: #{$text-secondary};
+  --el-pagination-border-radius: 8px;
+
+  .el-pager li {
+    background: $glass-bg !important;
+    border: 1px solid $border-subtle !important;
+    color: $text-secondary !important;
+    border-radius: 8px !important;
+    
+    &.is-active {
+      background: $gradient-primary !important;
+      border-color: $primary-color !important;
+      color: white !important;
+    }
+
+    &:hover:not(.is-active) {
+      color: $primary-light !important;
+      border-color: $primary-color !important;
+    }
+  }
+
+  .btn-prev,
+  .btn-next {
+    background: $glass-bg !important;
+    border: 1px solid $border-subtle !important;
+    color: $text-secondary !important;
+    border-radius: 8px !important;
+
+    &:hover {
+      color: $primary-light !important;
+      border-color: $primary-color !important;
+    }
+  }
+
+  .el-pagination__total {
+    color: $text-muted !important;
+  }
+}
+
+// Skeleton
+.el-skeleton__item {
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.04) 25%,
+    rgba(255,255,255,0.08) 50%,
+    rgba(255,255,255,0.04) 75%
+  ) !important;
+  background-size: 200% 100% !important;
+  animation: shimmer 1.5s infinite !important;
+}
+
+// Dialog
+.el-dialog {
+  background: $bg-card !important;
+  border: 1px solid $border-strong !important;
+  border-radius: $border-radius-xl !important;
+  box-shadow: $shadow-lg !important;
+  color: $text-primary !important;
+
+  .el-dialog__header {
+    border-bottom: 1px solid $border-default !important;
+    padding-bottom: 1rem !important;
+  }
+
+  .el-dialog__title {
+    color: $text-primary !important;
+    font-weight: 700 !important;
+    font-family: 'IBM Plex Sans', sans-serif !important;
+  }
+
+  .el-dialog__close {
+    color: $text-muted !important;
+    
+    &:hover {
+      color: $text-primary !important;
+    }
+  }
+}
+
+// Select
+.el-select {
+  .el-input__wrapper {
+    background: rgba(255, 255, 255, 0.05) !important;
+  }
+}
+
+.el-select-dropdown {
+  background: $bg-surface !important;
+  border: 1px solid $border-strong !important;
+  border-radius: $border-radius !important;
+
+  .el-select-dropdown__item {
+    color: $text-secondary !important;
+
+    &:hover,
+    &.is-hovering {
+      background: rgba(124, 58, 237, 0.15) !important;
+      color: $text-primary !important;
+    }
+
+    &.is-selected {
+      color: $primary-light !important;
+      font-weight: 600 !important;
+    }
+  }
+}
+
+// Switch
+.el-switch {
+  &.is-checked .el-switch__core {
+    background: $gradient-primary !important;
+    border-color: $primary-color !important;
+  }
+}
+
+// Empty
+.el-empty {
+  .el-empty__description {
+    color: $text-muted !important;
+  }
+}
+
+// Form
+.el-form-item__label {
+  color: $text-secondary !important;
+  font-weight: 500 !important;
+}
+
+.el-form-item__error {
+  color: $error-color !important;
+}
+
+// Tabs
+.el-tabs__item {
+  color: $text-muted !important;
+  font-weight: 500 !important;
+
+  &.is-active {
+    color: $primary-light !important;
+  }
+
+  &:hover {
+    color: $text-secondary !important;
+  }
+}
+
+.el-tabs__active-bar {
+  background-color: $primary-color !important;
+}
+
+.el-tabs__nav-wrap::after {
+  background-color: $border-default !important;
+  height: 1px !important;
+}
+
+// Badge
+.el-badge__content {
+  background: $gradient-green !important;
+  border: none !important;
+}
+
+// Menu overrides
 .el-menu--horizontal .el-menu-item.is-active {
-  color: $primary-color;
+  color: $primary-light;
   border-bottom-color: $primary-color;
 }
+
+// Scrollbar
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.25);
+  }
+}
+

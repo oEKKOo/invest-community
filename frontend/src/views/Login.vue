@@ -3,7 +3,12 @@
     <div class="login-container">
       <div class="login-header">
         <div class="logo">
-          <div class="logo-icon">IH</div>
+          <div class="logo-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 17L9 11L13 15L21 7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M17 7H21V11" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
           <h1 class="logo-text">InvestHub</h1>
         </div>
         <p class="subtitle">投资社区 · 共享智慧</p>
@@ -292,16 +297,46 @@ const handleRegister = async () => {
 <style lang="scss" scoped>
 .login-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: $bg-darkest;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 2rem;
+  position: relative;
+  overflow: hidden;
+}
+
+// Decorative Background Elements
+.login-page::before {
+  content: '';
+  position: absolute;
+  top: -20%;
+  left: -10%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.2) 0%, transparent 65%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.login-page::after {
+  content: '';
+  position: absolute;
+  bottom: -20%;
+  right: -10%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 65%);
+  border-radius: 50%;
+  pointer-events: none;
 }
 
 .login-container {
   width: 100%;
-  max-width: 400px;
+  max-width: 420px;
+  position: relative;
+  z-index: 1;
+  animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .login-header {
@@ -313,40 +348,45 @@ const handleRegister = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
-  margin-bottom: 0.5rem;
+  gap: 0.875rem;
+  margin-bottom: 0.875rem;
 }
 
 .logo-icon {
-  width: 3rem;
-  height: 3rem;
-  background: white;
-  border-radius: 0.75rem;
+  width: 52px;
+  height: 52px;
+  background: $gradient-primary;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #2563eb;
-  font-weight: bold;
-  font-size: 1.25rem;
+  box-shadow: $glow-purple;
+  flex-shrink: 0;
 }
 
 .logo-text {
   font-size: 2rem;
-  font-weight: bold;
-  color: white;
+  font-weight: 700;
+  color: $text-primary;
   margin: 0;
+  letter-spacing: -0.03em;
 }
 
 .subtitle {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 0.875rem;
+  font-size: 0.9rem;
+  color: $text-muted;
   margin: 0;
+  letter-spacing: 0.05em;
 }
 
 .login-card {
-  border: none;
-  border-radius: 1rem;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  background: rgba(20, 27, 45, 0.85) !important;
+  border: 1px solid $border-default !important;
+  border-radius: 20px !important;
+  box-shadow: 0 32px 64px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.06) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  overflow: hidden;
 
   :deep(.el-card__body) {
     padding: 2rem;
@@ -355,46 +395,83 @@ const handleRegister = async () => {
 
 .login-tabs {
   :deep(.el-tabs__header) {
-    margin-bottom: 2rem;
+    margin-bottom: 1.75rem;
   }
 
   :deep(.el-tabs__nav-wrap::after) {
-    display: none;
+    background-color: $border-subtle !important;
+    height: 1px !important;
   }
 
   :deep(.el-tabs__item) {
     font-weight: 600;
     font-size: 1rem;
-    color: #6b7280;
+    color: $text-muted !important;
+    padding: 0 1rem !important;
 
     &.is-active {
-      color: #2563eb;
+      color: $primary-light !important;
+    }
+
+    &:hover:not(.is-active) {
+      color: $text-secondary !important;
     }
   }
 
   :deep(.el-tabs__active-bar) {
-    background-color: #2563eb;
+    background: $gradient-primary !important;
+    height: 2px !important;
+    border-radius: 1px !important;
   }
 }
 
 .login-form,
 .register-form {
   :deep(.el-form-item) {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+
+  :deep(.el-form-item__error) {
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
   }
 
   :deep(.el-input__wrapper) {
-    border-radius: 0.5rem;
-    transition: all 0.2s ease-in-out;
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid $border-default !important;
+    border-radius: 10px !important;
+    box-shadow: none !important;
+    transition: $transition-all !important;
+    padding: 0 1rem !important;
 
-    &:hover,
+    &:hover {
+      border-color: $border-strong !important;
+      background: rgba(255, 255, 255, 0.06) !important;
+    }
+
     &.is-focus {
-      box-shadow: 0 0 0 1px #2563eb;
+      border-color: $primary-color !important;
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2) !important;
+      background: rgba(255, 255, 255, 0.06) !important;
+    }
+  }
+
+  :deep(.el-input__inner) {
+    height: 44px !important;
+    font-size: 0.9375rem !important;
+    color: $text-primary !important;
+
+    &::placeholder {
+      color: $text-muted !important;
     }
   }
 
   :deep(.el-input__prefix) {
-    color: #9ca3af;
+    color: $text-muted !important;
+  }
+
+  :deep(.el-input__suffix) {
+    color: $text-muted !important;
   }
 }
 
@@ -402,19 +479,38 @@ const handleRegister = async () => {
 .register-btn {
   width: 100%;
   height: 48px;
-  border-radius: 0.5rem;
+  border-radius: 12px;
   font-weight: 600;
   font-size: 1rem;
+  letter-spacing: 0.02em;
+  background: $gradient-primary !important;
+  border: none !important;
+  box-shadow: $shadow-purple !important;
+  transition: $transition-all !important;
+
+  &:hover:not(.is-loading) {
+    box-shadow: 0 8px 32px rgba(124, 58, 237, 0.55) !important;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0) !important;
+  }
 }
 
 .login-footer {
   text-align: center;
-  margin-top: 2rem;
+  margin-top: 1.5rem;
 
   p {
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 0.875rem;
+    color: $text-muted;
+    font-size: 0.8rem;
     margin: 0;
   }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>

@@ -28,6 +28,9 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
+# 关闭Django的自动添加斜杠功能，避免POST请求重定向问题
+APPEND_SLASH = False
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',

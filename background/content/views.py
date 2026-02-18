@@ -258,44 +258,45 @@ class UserFavoritesView(generics.ListAPIView):
         return [fav.content for fav in favorites]
 
 
-@api_view(['GET'])
-def content_comments(request, pk):
-    """获取内容的评论列表"""
+@api_view(['GET', 'POST'])
+def post_comments(request, pk):
+    """处理帖子评论 - GET: 获取评论列表, POST: 创建评论"""
     content = get_object_or_404(Content, pk=pk)
     
-    # 只返回顶级评论
-    comments = Comment.objects.filter(
-        content=content, 
-        parent__isnull=True, 
-        status='NORMAL'
-    ).select_related('author', 'reply_to_user').order_by('created_at')
-    
-    serializer = CommentSerializer(comments, many=True, context={'request': request})
-    return Response({'code': 0, 'data': serializer.data})
-
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def create_comment(request, pk):
-    """创建评论"""
-    content = get_object_or_404(Content, pk=pk)
-    
-    serializer = CommentCreateSerializer(
-        data=request.data, 
-        context={'request': request, 'content_id': content.id}
-    )
-    
-    if serializer.is_valid():
-        comment = serializer.save()
+    if request.method == 'GET':
+        # 获取评论列表
+        # 只返回顶级评论
+        comments = Comment.objects.filter(
+            content=content, 
+            parent__isnull=True, 
+            status='NORMAL'
+        ).select_related('author', 'reply_to_user').order_by('created_at')
         
-        # 更新内容的评论数
-        Content.objects.filter(pk=pk).update(comment_count=F('comment_count') + 1)
-        
-        response_data = CommentSerializer(comment, context={'request': request}).data
-        return Response({'code': 0, 'data': response_data}, status=status.HTTP_201_CREATED)
+        serializer = CommentSerializer(comments, many=True, context={'request': request})
+        return Response({'code': 0, 'data': serializer.data})
     
-    return Response({'code': 4001, 'errors': serializer.errors}, 
-                   status=status.HTTP_400_BAD_REQUEST)
+    elif request.method == 'POST':
+        # 创建评论 - 需要认证
+        if not request.user.is_authenticated:
+            return Response({'code': 4010, 'message': '需要登录'}, 
+                          status=status.HTTP_401_UNAUTHORIZED)
+        
+        serializer = CommentCreateSerializer(
+            data=request.data, 
+            context={'request': request, 'content_id': content.id}
+        )
+        
+        if serializer.is_valid():
+            comment = serializer.save()
+            
+            # 更新内容的评论数
+            Content.objects.filter(pk=pk).update(comment_count=F('comment_count') + 1)
+            
+            response_data = CommentSerializer(comment, context={'request': request}).data
+            return Response({'code': 0, 'data': response_data}, status=status.HTTP_201_CREATED)
+        
+        return Response({'code': 4001, 'errors': serializer.errors}, 
+                       status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['DELETE'])
@@ -328,8 +329,8 @@ def toggle_like(request):
     if request.method == 'POST':
         serializer = LikeSerializer(data=request.data)
         if serializer.is_valid():
-            target_type = serializer.validated_data['target_type']
-            target_id = serializer.validated_data['target_id']
+            target_type = serializer.validated_data['targetType']
+            target_id = serializer.validated_data['targetId']
             
             like, created = Like.objects.get_or_create(
                 user=request.user,
@@ -340,19 +341,19 @@ def toggle_like(request):
             if created:
                 # 更新点赞计数
                 _update_like_count(target_type, target_id, 1)
-                return Response({'code': 0, 'message': '点赞成功'})
+                return Response({'code': 0, 'message': '点赞成功', 'data': {'id': like.id}})
             else:
                 return Response({'code': 4090, 'message': '已点赞过'}, 
                                status=status.HTTP_409_CONFLICT)
         
-        return Response({'code': 4001, 'errors': serializer.errors}, 
+        return Response({'code': 4001, 'message': '参数错误', 'errors': serializer.errors}, 
                        status=status.HTTP_400_BAD_REQUEST)
     
     elif request.method == 'DELETE':
         serializer = LikeSerializer(data=request.data)
         if serializer.is_valid():
-            target_type = serializer.validated_data['target_type']
-            target_id = serializer.validated_data['target_id']
+            target_type = serializer.validated_data['targetType']
+            target_id = serializer.validated_data['targetId']
             
             try:
                 like = Like.objects.get(
@@ -370,7 +371,7 @@ def toggle_like(request):
                 return Response({'code': 4040, 'message': '未点赞过'}, 
                                status=status.HTTP_404_NOT_FOUND)
         
-        return Response({'code': 4001, 'errors': serializer.errors}, 
+        return Response({'code': 4001, 'message': '参数错误', 'errors': serializer.errors}, 
                        status=status.HTTP_400_BAD_REQUEST)
 
 

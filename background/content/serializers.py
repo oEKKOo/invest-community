@@ -152,15 +152,14 @@ class CommentCreateSerializer(serializers.ModelSerializer):
         return Comment.objects.create(**validated_data)
 
 
-class LikeSerializer(serializers.ModelSerializer):
-    """点赞序列化器"""
-    class Meta:
-        model = Like
-        fields = ['target_type', 'target_id']
+class LikeSerializer(serializers.Serializer):
+    """点赞序列化器（接受 camelCase 字段）"""
+    targetType = serializers.ChoiceField(choices=['POST', 'COMMENT', 'PORTFOLIO'])
+    targetId = serializers.IntegerField()
 
     def validate(self, attrs):
-        target_type = attrs['target_type']
-        target_id = attrs['target_id']
+        target_type = attrs['targetType']
+        target_id = attrs['targetId']
         
         # 验证目标是否存在
         if target_type == 'POST':
@@ -175,3 +174,10 @@ class LikeSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("组合不存在")
         
         return attrs
+
+
+class LikeRecordSerializer(serializers.ModelSerializer):
+    """用户点赞记录序列化器"""
+    class Meta:
+        model = Like
+        fields = ['id', 'target_type', 'target_id', 'created_at']

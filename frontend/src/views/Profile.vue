@@ -57,7 +57,7 @@
     </div>
 
     <div class="profile-content">
-      <!-- 左侧：账户设置 -->
+      <!-- 左侧：账户设置 + 点赞收藏概览 -->
       <aside class="profile-sidebar">
         <div class="settings-card">
           <h3 class="card-title">账户与安全</h3>
@@ -75,6 +75,82 @@
               <span class="setting-value">专业版</span>
             </li>
           </ul>
+        </div>
+
+        <!-- 点赞 & 收藏概览卡片 -->
+        <div class="activity-overview-card">
+          <h3 class="card-title">我的互动</h3>
+
+          <!-- 点赞概览 -->
+          <div
+            class="overview-item"
+            @click="openDrawer('likes')"
+          >
+            <div class="overview-icon likes-icon">
+              <el-icon><Star /></el-icon>
+            </div>
+            <div class="overview-info">
+              <div class="overview-label">我的点赞</div>
+              <div class="overview-meta">
+                <template v-if="likesLoading">
+                  <el-skeleton-item variant="text" style="width: 60px" />
+                </template>
+                <template v-else-if="likeRecords.length > 0">
+                  <span class="overview-count">{{ likesTotal }} 条记录</span>
+                  <!-- 最近3条预览 -->
+                  <div class="overview-preview">
+                    <el-tag
+                      v-for="item in likeRecords.slice(0, 3)"
+                      :key="item.id"
+                      size="small"
+                      :type="getLikeTagType(item.targetType)"
+                      class="preview-tag"
+                    >
+                      {{ getLikePreviewText(item) }}
+                    </el-tag>
+                  </div>
+                </template>
+                <span v-else class="overview-empty">暂无点赞记录</span>
+              </div>
+            </div>
+            <el-icon class="overview-arrow"><ArrowRight /></el-icon>
+          </div>
+
+          <div class="overview-divider" />
+
+          <!-- 收藏概览 -->
+          <div
+            class="overview-item"
+            @click="openDrawer('favorites')"
+          >
+            <div class="overview-icon favorites-icon">
+              <el-icon><Collection /></el-icon>
+            </div>
+            <div class="overview-info">
+              <div class="overview-label">我的收藏</div>
+              <div class="overview-meta">
+                <template v-if="favoritesLoading">
+                  <el-skeleton-item variant="text" style="width: 60px" />
+                </template>
+                <template v-else-if="favoriteRecords.length > 0">
+                  <span class="overview-count">{{ favoritesTotal }} 篇帖子</span>
+                  <div class="overview-preview">
+                    <el-tag
+                      v-for="item in favoriteRecords.slice(0, 3)"
+                      :key="item.id"
+                      size="small"
+                      type="warning"
+                      class="preview-tag"
+                    >
+                      {{ item.title }}
+                    </el-tag>
+                  </div>
+                </template>
+                <span v-else class="overview-empty">暂无收藏记录</span>
+              </div>
+            </div>
+            <el-icon class="overview-arrow"><ArrowRight /></el-icon>
+          </div>
         </div>
 
         <div class="invite-card">
@@ -201,91 +277,294 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 点赞 / 收藏详情抽屉 -->
+    <el-drawer
+      v-model="drawerVisible"
+      :title="drawerType === 'likes' ? '我的点赞记录' : '我的收藏记录'"
+      direction="rtl"
+      size="480px"
+      destroy-on-close
+    >
+      <!-- 点赞详情 -->
+      <template v-if="drawerType === 'likes'">
+        <div v-if="likesLoading" class="drawer-loading">
+          <el-skeleton :rows="5" animated />
+        </div>
+        <div v-else-if="allLikeRecords.length === 0" class="drawer-empty">
+          <el-empty description="暂无点赞记录" :image-size="100" />
+        </div>
+        <div v-else class="drawer-list">
+          <div
+            v-for="item in allLikeRecords"
+            :key="item.id"
+            class="drawer-item"
+            :class="{ clickable: item.target }"
+            @click="navigateLikeTarget(item)"
+          >
+            <div class="drawer-item-left">
+              <el-tag
+                :type="getLikeTagType(item.targetType)"
+                size="small"
+                class="type-tag"
+              >
+                {{ getLikeTypeText(item.targetType) }}
+              </el-tag>
+              <div class="drawer-item-content">
+                <p class="drawer-item-title">{{ getLikeDisplayTitle(item) }}</p>
+                <p v-if="item.targetType === 'COMMENT' && item.target?.postTitle" class="drawer-item-sub">
+                  来自帖子：{{ item.target.postTitle }}
+                </p>
+                <p class="drawer-item-author" v-if="item.target?.authorName || item.target?.ownerName">
+                  {{ item.target?.authorName || item.target?.ownerName }}
+                </p>
+              </div>
+            </div>
+            <div class="drawer-item-right">
+              <span class="drawer-item-date">{{ formatDate(item.createdAt) }}</span>
+              <el-icon v-if="item.target" class="drawer-item-arrow"><ArrowRight /></el-icon>
+            </div>
+          </div>
+        </div>
+        <!-- 加载更多 -->
+        <div v-if="likesHasMore" class="drawer-load-more">
+          <el-button
+            text
+            :loading="likesLoadingMore"
+            @click="loadMoreLikes"
+          >
+            加载更多
+          </el-button>
+        </div>
+      </template>
+
+      <!-- 收藏详情 -->
+      <template v-if="drawerType === 'favorites'">
+        <div v-if="favoritesLoading" class="drawer-loading">
+          <el-skeleton :rows="5" animated />
+        </div>
+        <div v-else-if="allFavoriteRecords.length === 0" class="drawer-empty">
+          <el-empty description="暂无收藏记录" :image-size="100" />
+        </div>
+        <div v-else class="drawer-list">
+          <div
+            v-for="item in allFavoriteRecords"
+            :key="item.id"
+            class="drawer-item clickable"
+            @click="$router.push(`/posts/${item.id}`)"
+          >
+            <div class="drawer-item-left">
+              <el-tag type="warning" size="small" class="type-tag">帖子</el-tag>
+              <div class="drawer-item-content">
+                <p class="drawer-item-title">{{ item.title }}</p>
+                <p class="drawer-item-author">{{ item.authorName }}</p>
+              </div>
+            </div>
+            <div class="drawer-item-right">
+              <div class="drawer-item-stats">
+                <span><el-icon><Star /></el-icon> {{ item.likes }}</span>
+                <span><el-icon><ChatLineRound /></el-icon> {{ item.comments }}</span>
+              </div>
+              <span class="drawer-item-date">{{ formatDate(item.createdAt) }}</span>
+              <el-icon class="drawer-item-arrow"><ArrowRight /></el-icon>
+            </div>
+          </div>
+        </div>
+        <!-- 加载更多 -->
+        <div v-if="favoritesHasMore" class="drawer-load-more">
+          <el-button
+            text
+            :loading="favoritesLoadingMore"
+            @click="loadMoreFavorites"
+          >
+            加载更多
+          </el-button>
+        </div>
+      </template>
+    </el-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
 // @ts-nocheck
 import { ref, onMounted, computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { usePostsStore } from '../stores/posts'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import type { PostStatus } from '../types'
+import type { PostStatus, LikeRecord, Post } from '../types'
 import {
   Star,
-  ChatLineRound
+  ChatLineRound,
+  Collection,
+  ArrowRight
 } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
+import { getMyLikes } from '@/api/likes'
+import { getMyFavorites } from '@/api/posts'
 
+const router = useRouter()
 const authStore = useAuthStore()
 const postsStore = usePostsStore()
 
-// 状态
+// ──────────── 基础状态 ────────────
 const loading = ref(false)
 const showEditProfile = ref(false)
 const updating = ref(false)
 
-// 编辑表单
 const editFormRef = ref<FormInstance>()
-const editForm = ref({
-  displayName: '',
-  bio: '',
-  avatar: ''
-})
+const editForm = ref({ displayName: '', bio: '', avatar: '' })
 
 const editRules: FormRules = {
   displayName: [
     { required: true, message: '请输入显示昵称', trigger: 'blur' },
     { min: 2, max: 50, message: '昵称长度应在2-50字符之间', trigger: 'blur' }
   ],
-  bio: [
-    { max: 200, message: '个人简介不能超过200字符', trigger: 'blur' }
-  ]
+  bio: [{ max: 200, message: '个人简介不能超过200字符', trigger: 'blur' }]
 }
 
-// 计算属性
-const userPosts = computed(() => {
-  return postsStore.posts.filter(post => post.authorId === authStore.user?.id)
-})
+// ──────────── 点赞记录 ────────────
+const likeRecords = ref<LikeRecord[]>([])    // 概览用（前几条）
+const allLikeRecords = ref<LikeRecord[]>([]) // 抽屉完整列表
+const likesTotal = ref(0)
+const likesLoading = ref(false)
+const likesLoadingMore = ref(false)
+const likesPage = ref(1)
+const LIKES_PAGE_SIZE = 20
+const likesHasMore = computed(() => allLikeRecords.value.length < likesTotal.value)
 
-// 方法
+const fetchLikesPreview = async () => {
+  likesLoading.value = true
+  try {
+    const res = await getMyLikes({ page: 1, pageSize: 5 })
+    likeRecords.value = res.items
+    likesTotal.value = res.total
+  } catch {
+    // 静默失败，不影响页面
+  } finally {
+    likesLoading.value = false
+  }
+}
+
+const fetchAllLikes = async (reset = false) => {
+  if (reset) {
+    likesPage.value = 1
+    allLikeRecords.value = []
+    likesLoading.value = true
+  } else {
+    likesLoadingMore.value = true
+  }
+  try {
+    const res = await getMyLikes({ page: likesPage.value, pageSize: LIKES_PAGE_SIZE })
+    likesTotal.value = res.total
+    allLikeRecords.value = reset ? res.items : [...allLikeRecords.value, ...res.items]
+  } catch {
+    ElMessage.error('获取点赞记录失败')
+  } finally {
+    likesLoading.value = false
+    likesLoadingMore.value = false
+  }
+}
+
+const loadMoreLikes = async () => {
+  likesPage.value++
+  await fetchAllLikes(false)
+}
+
+// ──────────── 收藏记录 ────────────
+const favoriteRecords = ref<Post[]>([])    // 概览用
+const allFavoriteRecords = ref<Post[]>([]) // 抽屉完整列表
+const favoritesTotal = ref(0)
+const favoritesLoading = ref(false)
+const favoritesLoadingMore = ref(false)
+const favoritesPage = ref(1)
+const FAVS_PAGE_SIZE = 20
+const favoritesHasMore = computed(() => allFavoriteRecords.value.length < favoritesTotal.value)
+
+const fetchFavoritesPreview = async () => {
+  favoritesLoading.value = true
+  try {
+    const res = await getMyFavorites({ page: 1, pageSize: 5 })
+    favoriteRecords.value = res.items
+    favoritesTotal.value = res.total
+  } catch {
+    // 静默失败
+  } finally {
+    favoritesLoading.value = false
+  }
+}
+
+const fetchAllFavorites = async (reset = false) => {
+  if (reset) {
+    favoritesPage.value = 1
+    allFavoriteRecords.value = []
+    favoritesLoading.value = true
+  } else {
+    favoritesLoadingMore.value = true
+  }
+  try {
+    const res = await getMyFavorites({ page: favoritesPage.value, pageSize: FAVS_PAGE_SIZE })
+    favoritesTotal.value = res.total
+    allFavoriteRecords.value = reset ? res.items : [...allFavoriteRecords.value, ...res.items]
+  } catch {
+    ElMessage.error('获取收藏记录失败')
+  } finally {
+    favoritesLoading.value = false
+    favoritesLoadingMore.value = false
+  }
+}
+
+const loadMoreFavorites = async () => {
+  favoritesPage.value++
+  await fetchAllFavorites(false)
+}
+
+// ──────────── 抽屉 ────────────
+const drawerVisible = ref(false)
+const drawerType = ref<'likes' | 'favorites'>('likes')
+
+const openDrawer = async (type: 'likes' | 'favorites') => {
+  drawerType.value = type
+  drawerVisible.value = true
+  if (type === 'likes') {
+    await fetchAllLikes(true)
+  } else {
+    await fetchAllFavorites(true)
+  }
+}
+
+// ──────────── 用户帖子 ────────────
+const userPosts = computed(() =>
+  postsStore.posts.filter(post => post.authorId === authStore.user?.id)
+)
+
 const fetchUserPosts = async () => {
   if (!authStore.user) return
-  
   loading.value = true
   try {
-    await postsStore.fetchPosts({
-      authorId: authStore.user.id,
-      sort: 'new'
-    })
-  } catch (error) {
+    await postsStore.fetchPosts({ authorId: authStore.user.id, sort: 'new' })
+  } catch {
     ElMessage.error('获取用户帖子失败')
   } finally {
     loading.value = false
   }
 }
 
+// ──────────── 编辑资料 ────────────
 const handleUpdateProfile = async () => {
   if (!editFormRef.value) return
-
   try {
     await editFormRef.value.validate()
     updating.value = true
-
-    // TODO: 调用更新用户资料API
-    // await userApi.updateProfile(editForm.value)
-
     ElMessage.success('资料更新成功')
     showEditProfile.value = false
-    
-    // 更新本地用户信息
     if (authStore.user) {
       authStore.user.displayName = editForm.value.displayName
       authStore.user.bio = editForm.value.bio
       authStore.user.avatar = editForm.value.avatar
     }
   } catch (error: any) {
-    if (error.fields) return // 表单验证错误
+    if (error.fields) return
     ElMessage.error('更新失败，请稍后重试')
   } finally {
     updating.value = false
@@ -297,70 +576,80 @@ const copyInviteLink = async () => {
     const inviteLink = `${window.location.origin}?ref=${authStore.user?.username}`
     await navigator.clipboard.writeText(inviteLink)
     ElMessage.success('邀请链接已复制到剪贴板')
-  } catch (error) {
+  } catch {
     ElMessage.error('复制失败，请手动复制')
   }
 }
 
+// ──────────── 辅助函数 ────────────
 const getRoleType = (role?: string) => {
-  switch (role) {
-    case 'ADMIN': return 'danger'
-    case 'MODERATOR': return 'warning'
-    default: return 'info'
-  }
+  if (role === 'ADMIN') return 'danger'
+  if (role === 'MODERATOR') return 'warning'
+  return 'info'
 }
-
 const getRoleText = (role?: string) => {
-  switch (role) {
-    case 'ADMIN': return '管理员'
-    case 'MODERATOR': return '版主'
-    default: return '用户'
-  }
+  if (role === 'ADMIN') return '管理员'
+  if (role === 'MODERATOR') return '版主'
+  return '用户'
 }
-
 const getStatusType = (status: PostStatus) => {
-  switch (status) {
-    case 'PUBLISHED': return 'success'
-    case 'PENDING_REVIEW': return 'warning'
-    case 'DRAFT': return 'info'
-    default: return 'info'
-  }
+  if (status === 'PUBLISHED') return 'success'
+  if (status === 'PENDING_REVIEW') return 'warning'
+  if (status === 'DRAFT') return 'info'
+  return 'info'
 }
-
 const getStatusText = (status: PostStatus) => {
-  switch (status) {
-    case 'PUBLISHED': return '已发布'
-    case 'PENDING_REVIEW': return '待审核'
-    case 'DRAFT': return '草稿'
-    case 'REJECTED': return '已驳回'
-    case 'TAKEN_DOWN': return '已下架'
-    default: return '未知'
+  const map: Record<string, string> = {
+    PUBLISHED: '已发布', PENDING_REVIEW: '待审核',
+    DRAFT: '草稿', REJECTED: '已驳回', TAKEN_DOWN: '已下架'
   }
+  return map[status] || '未知'
+}
+const formatDate = (dateStr: string) => dayjs(dateStr).format('YYYY-MM-DD')
+
+const getLikeTagType = (targetType: string) => {
+  if (targetType === 'POST') return 'primary'
+  if (targetType === 'COMMENT') return 'success'
+  if (targetType === 'PORTFOLIO') return 'warning'
+  return 'info'
+}
+const getLikeTypeText = (targetType: string) => {
+  if (targetType === 'POST') return '帖子'
+  if (targetType === 'COMMENT') return '评论'
+  if (targetType === 'PORTFOLIO') return '组合'
+  return '未知'
+}
+const getLikePreviewText = (item: LikeRecord) => {
+  if (!item.target) return `#${item.targetId}`
+  if (item.targetType === 'COMMENT') return item.target.body?.slice(0, 10) + '…' || `评论#${item.targetId}`
+  return (item.target.title || `#${item.targetId}`).slice(0, 12)
+}
+const getLikeDisplayTitle = (item: LikeRecord) => {
+  if (!item.target) return `已删除的内容 #${item.targetId}`
+  if (item.targetType === 'COMMENT') return item.target.body || `评论 #${item.targetId}`
+  return item.target.title || `#${item.targetId}`
+}
+const navigateLikeTarget = (item: LikeRecord) => {
+  if (!item.target) return
+  if (item.targetType === 'POST') router.push(`/posts/${item.targetId}`)
+  else if (item.targetType === 'COMMENT') router.push(`/posts/${item.target.postId}`)
+  else if (item.targetType === 'PORTFOLIO') router.push(`/portfolios/${item.targetId}`)
 }
 
-const formatDate = (dateStr: string) => {
-  return dayjs(dateStr).format('YYYY-MM-DD')
-}
-
-// 监听编辑对话框打开，初始化表单
-const handleEditProfileOpen = () => {
-  if (!authStore.user) return
-  
-  editForm.value = {
-    displayName: authStore.user.displayName || '',
-    bio: authStore.user.bio || '',
-    avatar: authStore.user.avatar || ''
-  }
-}
-
+// ──────────── 生命周期 ────────────
 onMounted(() => {
   fetchUserPosts()
+  fetchLikesPreview()
+  fetchFavoritesPreview()
 })
 
-// 监听对话框显示状态
-watch(showEditProfile, (newVal) => {
-  if (newVal) {
-    handleEditProfileOpen()
+watch(showEditProfile, (val) => {
+  if (val && authStore.user) {
+    editForm.value = {
+      displayName: authStore.user.displayName || '',
+      bio: authStore.user.bio || '',
+      avatar: authStore.user.avatar || ''
+    }
   }
 })
 </script>
@@ -393,18 +682,14 @@ watch(showEditProfile, (newVal) => {
   }
 }
 
-.profile-avatar {
-  flex-shrink: 0;
-}
+.profile-avatar { flex-shrink: 0; }
 
 .user-avatar {
   border: 4px solid white;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.profile-info {
-  flex: 1;
-}
+.profile-info { flex: 1; }
 
 .user-identity {
   display: flex;
@@ -412,9 +697,7 @@ watch(showEditProfile, (newVal) => {
   gap: 0.75rem;
   margin-bottom: 0.5rem;
 
-  @media (max-width: 768px) {
-    justify-content: center;
-  }
+  @media (max-width: 768px) { justify-content: center; }
 }
 
 .user-name {
@@ -450,9 +733,7 @@ watch(showEditProfile, (newVal) => {
   display: flex;
   gap: 2rem;
 
-  @media (max-width: 768px) {
-    justify-content: center;
-  }
+  @media (max-width: 768px) { justify-content: center; }
 }
 
 .stat-item {
@@ -475,18 +756,14 @@ watch(showEditProfile, (newVal) => {
   letter-spacing: 0.05em;
 }
 
-.profile-actions {
-  flex-shrink: 0;
-}
+.profile-actions { flex-shrink: 0; }
 
 .profile-content {
   display: grid;
   grid-template-columns: 300px 1fr;
   gap: 2rem;
 
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-  }
+  @media (max-width: 768px) { grid-template-columns: 1fr; }
 }
 
 .profile-sidebar {
@@ -495,7 +772,8 @@ watch(showEditProfile, (newVal) => {
   gap: 1.5rem;
 }
 
-.settings-card {
+.settings-card,
+.activity-overview-card {
   background: white;
   border-radius: 1rem;
   padding: 1.5rem;
@@ -528,19 +806,105 @@ watch(showEditProfile, (newVal) => {
   }
 }
 
-.setting-label {
-  color: #6b7280;
-}
+.setting-label { color: #6b7280; }
 
 .setting-value {
   font-weight: 600;
   color: #1f2937;
 
-  &.verified {
-    color: #059669;
+  &.verified { color: #059669; }
+}
+
+/* ── 点赞/收藏概览卡片 ── */
+.overview-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+  padding: 0.75rem 0;
+  cursor: pointer;
+  border-radius: 0.5rem;
+  transition: background 0.15s;
+
+  &:hover {
+    background: #f9fafb;
+    margin: 0 -0.5rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
   }
 }
 
+.overview-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 1rem;
+
+  &.likes-icon {
+    background: #fef3c7;
+    color: #d97706;
+  }
+
+  &.favorites-icon {
+    background: #dbeafe;
+    color: #2563eb;
+  }
+}
+
+.overview-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.overview-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+}
+
+.overview-count {
+  font-size: 0.75rem;
+  color: #6b7280;
+  display: block;
+  margin-bottom: 0.375rem;
+}
+
+.overview-empty {
+  font-size: 0.75rem;
+  color: #d1d5db;
+}
+
+.overview-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.preview-tag {
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.625rem !important;
+}
+
+.overview-arrow {
+  color: #d1d5db;
+  flex-shrink: 0;
+  margin-top: 0.25rem;
+}
+
+.overview-divider {
+  height: 1px;
+  background: #f3f4f6;
+  margin: 0.25rem 0;
+}
+
+/* ── 邀请卡片 ── */
 .invite-card {
   background: linear-gradient(135deg, #2563eb, #4f46e5);
   border-radius: 1rem;
@@ -574,6 +938,7 @@ watch(showEditProfile, (newVal) => {
   }
 }
 
+/* ── 右侧活动 ── */
 .profile-main-content {
   background: white;
   border-radius: 1rem;
@@ -590,17 +955,13 @@ watch(showEditProfile, (newVal) => {
   margin: 0;
 }
 
-.loading-container {
-  padding: 1.5rem;
-}
+.loading-container { padding: 1.5rem; }
 
 .activity-skeleton {
   padding: 1.5rem;
   border-bottom: 1px solid #f3f4f6;
 
-  &:last-child {
-    border-bottom: none;
-  }
+  &:last-child { border-bottom: none; }
 }
 
 .empty-activity {
@@ -610,9 +971,7 @@ watch(showEditProfile, (newVal) => {
   min-height: 300px;
 }
 
-.activity-list {
-  padding: 0 1.5rem 1.5rem;
-}
+.activity-list { padding: 0 1.5rem 1.5rem; }
 
 .activity-card {
   padding: 1.25rem;
@@ -673,12 +1032,118 @@ watch(showEditProfile, (newVal) => {
   gap: 1rem;
 }
 
-.stat-item {
+/* ── 抽屉内容 ── */
+.drawer-loading,
+.drawer-empty {
+  padding: 2rem 0;
+}
+
+.drawer-list {
   display: flex;
-  align-items: center;
-  gap: 0.25rem;
+  flex-direction: column;
+  gap: 0;
+}
+
+.drawer-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1rem 0;
+  border-bottom: 1px solid #f3f4f6;
+  gap: 0.75rem;
+  transition: background 0.15s;
+  border-radius: 0.5rem;
+
+  &.clickable {
+    cursor: pointer;
+    &:hover {
+      background: #f9fafb;
+      padding-left: 0.5rem;
+      padding-right: 0.5rem;
+    }
+  }
+
+  &:last-child { border-bottom: none; }
+}
+
+.drawer-item-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.type-tag { flex-shrink: 0; }
+
+.drawer-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.drawer-item-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #1f2937;
+  margin: 0 0 0.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.drawer-item-sub {
   font-size: 0.75rem;
   color: #9ca3af;
+  margin: 0 0 0.125rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.drawer-item-author {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin: 0;
+}
+
+.drawer-item-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.drawer-item-stats {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: #9ca3af;
+  align-items: center;
+
+  span {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+  }
+}
+
+.drawer-item-date {
+  font-size: 0.625rem;
+  color: #d1d5db;
+}
+
+.drawer-item-arrow {
+  color: #d1d5db;
+  font-size: 0.875rem;
+}
+
+.drawer-load-more {
+  padding: 1rem 0;
+  text-align: center;
 }
 
 .dialog-footer {
@@ -688,13 +1153,7 @@ watch(showEditProfile, (newVal) => {
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 </style>

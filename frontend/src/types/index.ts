@@ -150,3 +150,23 @@ export interface AdminStats {
   openReportsCount: number
   newUsers24h: number
 }
+
+// 点赞记录中的目标摘要
+export interface LikeTargetSummary {
+  id: number
+  title?: string
+  body?: string
+  authorName?: string
+  ownerName?: string
+  postId?: number
+  postTitle?: string
+}
+
+// 点赞记录条目
+export interface LikeRecord {
+  id: number
+  targetType: 'POST' | 'COMMENT' | 'PORTFOLIO'
+  targetId: number
+  createdAt: string
+  target: LikeTargetSummary | null
+}

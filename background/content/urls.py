@@ -7,9 +7,9 @@ urlpatterns = [
     path('posts/<int:pk>/', views.content_detail, name='content_detail'),
     path('posts/<int:pk>/favorite/', views.toggle_favorite, name='toggle_favorite'),
     
-    # 评论相关
-    path('posts/<int:pk>/comments/', views.content_comments, name='content_comments'),
-    path('posts/<int:pk>/comments/', views.create_comment, name='create_comment'),  # 同一URL，不同HTTP方法
+    # 评论相关 - 同时支持带斜杠和不带斜杠的版本
+    path('posts/<int:pk>/comments/', views.post_comments, name='post_comments'),
+    path('posts/<int:pk>/comments', views.post_comments, name='post_comments_no_slash'),
     path('comments/<int:comment_id>/', views.delete_comment, name='delete_comment'),
     
     # 点赞相关

@@ -74,3 +74,8 @@ export const createComment = (postId: number, params: CreateCommentParams) => {
 export const deleteComment = (commentId: number): Promise<void> => {
   return del(`/comments/${commentId}/`)
 }
+
+// 获取我的收藏列表
+export const getMyFavorites = (params?: { page?: number; pageSize?: number }): Promise<{ items: Post[]; total: number }> => {
+  return get('/users/me/favorites/', { params })
+}

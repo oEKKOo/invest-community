@@ -413,7 +413,7 @@ onMounted(() => {
 .community {
   max-width: 1000px;
   margin: 0 auto;
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .community-header {
@@ -431,13 +431,24 @@ onMounted(() => {
 
 .page-title {
   font-size: 1.5rem;
-  font-weight: bold;
-  color: #1f2937;
+  font-weight: 700;
+  color: $text-primary;
   margin: 0;
+  letter-spacing: -0.025em;
 }
 
 .create-btn {
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  background: $gradient-primary !important;
+  border: none !important;
+  box-shadow: $shadow-purple !important;
+  font-weight: 600 !important;
+  border-radius: 10px !important;
+  transition: $transition-all !important;
+
+  &:hover {
+    box-shadow: 0 8px 24px rgba(124, 58, 237, 0.5) !important;
+    transform: translateY(-1px);
+  }
 }
 
 .filter-tabs {
@@ -445,21 +456,48 @@ onMounted(() => {
   gap: 0.5rem;
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid $border-subtle;
+  flex-wrap: wrap;
 }
 
 .filter-tab {
-  border-radius: 1rem;
+  border-radius: 8px !important;
+  font-weight: 500 !important;
+  font-size: 0.8125rem !important;
+  border-color: $border-default !important;
+  color: $text-muted !important;
+  background: transparent !important;
+  transition: $transition-all !important;
+
+  &:hover:not(.el-button--primary) {
+    border-color: $primary-color !important;
+    color: $primary-light !important;
+    background: rgba(124, 58, 237, 0.08) !important;
+  }
+
+  &.el-button--primary {
+    background: rgba(124, 58, 237, 0.2) !important;
+    border-color: rgba(124, 58, 237, 0.4) !important;
+    color: $primary-light !important;
+  }
 }
 
 .create-post-dialog {
   :deep(.el-dialog) {
-    border-radius: 1rem;
+    background: $bg-card !important;
+    border: 1px solid $border-strong !important;
+    border-radius: $border-radius-xl !important;
   }
 
   :deep(.el-dialog__header) {
     padding: 1.5rem 1.5rem 1rem;
-    border-bottom: 1px solid #f3f4f6;
+    border-bottom: 1px solid $border-default !important;
+  }
+
+  :deep(.el-dialog__title) {
+    color: $text-primary !important;
+    font-weight: 700 !important;
+    font-size: 1.0625rem !important;
   }
 
   :deep(.el-dialog__body) {
@@ -469,24 +507,47 @@ onMounted(() => {
 
 .title-input {
   :deep(.el-input__wrapper) {
-    font-size: 1.125rem;
-    font-weight: 600;
-    border: none;
-    box-shadow: none;
-    background: #f9fafb;
-    border-radius: 0.5rem;
-    padding: 0.75rem 1rem;
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid $border-default !important;
+    border-radius: 10px !important;
+    box-shadow: none !important;
+
+    &.is-focus {
+      border-color: $primary-color !important;
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2) !important;
+    }
+  }
+
+  :deep(.el-input__inner) {
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+    color: $text-primary !important;
+
+    &::placeholder {
+      color: $text-muted !important;
+      font-weight: 400 !important;
+    }
   }
 }
 
 .content-input {
   :deep(.el-textarea__inner) {
-    border: none;
-    background: #f9fafb;
-    border-radius: 0.5rem;
-    resize: none;
-    font-size: 0.875rem;
-    line-height: 1.5;
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid $border-default !important;
+    border-radius: 10px !important;
+    resize: none !important;
+    font-size: 0.9rem !important;
+    line-height: 1.6 !important;
+    color: $text-primary !important;
+
+    &:focus {
+      border-color: $primary-color !important;
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2) !important;
+    }
+
+    &::placeholder {
+      color: $text-muted !important;
+    }
   }
 }
 
@@ -496,6 +557,9 @@ onMounted(() => {
   justify-content: flex-end;
 }
 
+// ============================================
+// Posts
+// ============================================
 .posts-container {
   min-height: 400px;
 }
@@ -507,10 +571,10 @@ onMounted(() => {
 }
 
 .post-skeleton {
-  background: white;
-  border-radius: 1rem;
+  background: linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
+  border: 1px solid $border-subtle;
+  border-radius: $border-radius;
   padding: 1.5rem;
-  border: 1px solid #f3f4f6;
 }
 
 .empty-state {
@@ -518,9 +582,9 @@ onMounted(() => {
   justify-content: center;
   align-items: center;
   min-height: 300px;
-  background: white;
-  border-radius: 1rem;
-  border: 1px solid #f3f4f6;
+  background: linear-gradient(145deg, rgba(255,255,255,0.03) 0%, transparent 100%);
+  border: 1px dashed $border-default;
+  border-radius: $border-radius;
 }
 
 .posts-list {
@@ -530,17 +594,37 @@ onMounted(() => {
 }
 
 .post-card {
-  background: white;
-  border-radius: 1rem;
-  padding: 1.5rem;
-  border: 1px solid #f3f4f6;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+  border: 1px solid $border-subtle;
+  border-radius: $border-radius;
+  padding: 1.375rem 1.5rem;
   cursor: pointer;
-  transition: all 0.2s ease-in-out;
+  transition: $transition-all;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: $gradient-primary;
+    border-radius: 3px 0 0 3px;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
 
   &:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-color: rgba(124, 58, 237, 0.25);
+    background: linear-gradient(145deg, rgba(124, 58, 237, 0.06) 0%, rgba(255,255,255,0.02) 100%);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
     transform: translateY(-2px);
+
+    &::before {
+      opacity: 1;
+    }
   }
 }
 
@@ -548,7 +632,7 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 1rem;
+  margin-bottom: 0.875rem;
 }
 
 .author-info {
@@ -566,86 +650,96 @@ onMounted(() => {
 .author-name {
   font-size: 0.875rem;
   font-weight: 600;
-  color: #1f2937;
+  color: $text-primary;
   margin: 0;
 }
 
 .post-date {
-  font-size: 0.75rem;
-  color: #6b7280;
+  font-size: 0.725rem;
+  color: $text-muted;
   margin: 0;
+  font-family: 'IBM Plex Mono', monospace;
 }
 
 .status-tag {
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.04em !important;
 }
 
 .post-title {
-  font-size: 1.125rem;
-  font-weight: bold;
-  color: #1f2937;
-  margin: 0 0 0.75rem 0;
-  line-height: 1.4;
-  transition: color 0.2s ease-in-out;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: $text-primary;
+  margin: 0 0 0.625rem 0;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+  transition: $transition-colors;
 
   &:hover {
-    color: #2563eb;
+    color: $primary-light;
   }
 }
 
 .post-content {
   font-size: 0.875rem;
-  color: #6b7280;
-  line-height: 1.6;
-  margin: 0 0 1rem 0;
+  color: $text-secondary;
+  line-height: 1.65;
+  margin: 0 0 0.875rem 0;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
-  line-clamp: 3;
   overflow: hidden;
 }
 
 .post-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  gap: 0.375rem;
+  margin-bottom: 0.875rem;
 }
 
 .post-tag {
-  background: #f3f4f6;
-  border: none;
-  color: #6b7280;
-  font-size: 0.75rem;
+  background: rgba(124, 58, 237, 0.1) !important;
+  border: 1px solid rgba(124, 58, 237, 0.2) !important;
+  color: $primary-light !important;
+  font-size: 0.7rem !important;
+  font-weight: 600 !important;
+  border-radius: 6px !important;
+  padding: 0 0.5rem !important;
 }
 
 .post-actions {
   display: flex;
-  gap: 1.5rem;
+  gap: 1.25rem;
   padding-top: 0.75rem;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid $border-subtle;
 }
 
 .action-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  color: #6b7280;
-  font-size: 0.875rem;
-  padding: 0.25rem 0.5rem;
-  transition: color 0.2s ease-in-out;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.375rem !important;
+  color: $text-muted !important;
+  font-size: 0.8125rem !important;
+  padding: 0.25rem 0.5rem !important;
+  border-radius: 6px !important;
+  transition: $transition-all !important;
+  cursor: pointer;
 
   &:hover {
-    color: #2563eb;
+    color: $primary-light !important;
+    background: rgba(124, 58, 237, 0.1) !important;
   }
 
   &.liked {
-    color: #ef4444;
+    color: $error-color !important;
+    background: rgba(239, 68, 68, 0.08) !important;
   }
 
   &.favorited {
-    color: #f59e0b;
+    color: $warning-color !important;
+    background: rgba(245, 158, 11, 0.08) !important;
   }
 }
 
@@ -656,13 +750,7 @@ onMounted(() => {
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>

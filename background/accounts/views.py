@@ -82,15 +82,32 @@ def login(request):
     }, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['GET'])
+@api_view(['GET', 'PATCH'])
 @permission_classes([IsAuthenticated])
-def get_current_user(request):
-    """获取当前用户信息"""
-    serializer = UserProfileSerializer(request.user)
-    return Response({
-        'code': 0,
-        'data': serializer.data
-    })
+def manage_current_user(request):
+    """管理当前用户信息 - GET: 获取用户信息, PATCH: 更新用户资料"""
+    if request.method == 'GET':
+        # 获取当前用户信息
+        serializer = UserProfileSerializer(request.user)
+        return Response({
+            'code': 0,
+            'data': serializer.data
+        })
+    
+    elif request.method == 'PATCH':
+        # 更新用户资料
+        serializer = UserProfileSerializer(request.user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                'code': 0,
+                'data': serializer.data
+            })
+        return Response({
+            'code': 4001,
+            'message': '更新失败',
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET'])
@@ -103,24 +120,6 @@ def get_user_profile(request, user_id):
         'code': 0,
         'data': serializer.data
     })
-
-
-@api_view(['PATCH'])
-@permission_classes([IsAuthenticated])
-def update_profile(request):
-    """更新用户资料"""
-    serializer = UserProfileSerializer(request.user, data=request.data, partial=True)
-    if serializer.is_valid():
-        serializer.save()
-        return Response({
-            'code': 0,
-            'data': serializer.data
-        })
-    return Response({
-        'code': 4001,
-        'message': '更新失败',
-        'errors': serializer.errors
-    }, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET', 'PUT'])
@@ -151,10 +150,10 @@ def invest_profile(request):
         }, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['POST'])
+@api_view(['POST', 'DELETE'])
 @permission_classes([IsAuthenticated])
-def follow_user(request, user_id):
-    """关注用户"""
+def manage_follow(request, user_id):
+    """管理用户关注 - POST: 关注用户, DELETE: 取消关注"""
     target_user = get_object_or_404(User, id=user_id)
     
     if target_user == request.user:
@@ -163,55 +162,52 @@ def follow_user(request, user_id):
             'message': '不能关注自己'
         }, status=status.HTTP_400_BAD_REQUEST)
     
-    with transaction.atomic():
-        follow, created = UserFollow.objects.get_or_create(
-            follower=request.user,
-            followee=target_user
-        )
-        
-        if created:
-            # 更新关注数和粉丝数
-            request.user.following_count += 1
-            target_user.followers_count += 1
-            request.user.save(update_fields=['following_count'])
-            target_user.save(update_fields=['followers_count'])
+    if request.method == 'POST':
+        # 关注用户
+        with transaction.atomic():
+            follow, created = UserFollow.objects.get_or_create(
+                follower=request.user,
+                followee=target_user
+            )
+            
+            if created:
+                # 更新关注数和粉丝数
+                request.user.following_count += 1
+                target_user.followers_count += 1
+                request.user.save(update_fields=['following_count'])
+                target_user.save(update_fields=['followers_count'])
+                
+                return Response({
+                    'code': 0,
+                    'message': '关注成功'
+                })
+            else:
+                return Response({
+                    'code': 4090,
+                    'message': '已经关注过了'
+                }, status=status.HTTP_409_CONFLICT)
+    
+    elif request.method == 'DELETE':
+        # 取消关注用户
+        try:
+            follow = UserFollow.objects.get(follower=request.user, followee=target_user)
+            with transaction.atomic():
+                follow.delete()
+                # 更新关注数和粉丝数
+                request.user.following_count = max(0, request.user.following_count - 1)
+                target_user.followers_count = max(0, target_user.followers_count - 1)
+                request.user.save(update_fields=['following_count'])
+                target_user.save(update_fields=['followers_count'])
             
             return Response({
                 'code': 0,
-                'message': '关注成功'
+                'message': '取消关注成功'
             })
-        else:
+        except UserFollow.DoesNotExist:
             return Response({
-                'code': 4090,
-                'message': '已经关注过了'
-            }, status=status.HTTP_409_CONFLICT)
-
-
-@api_view(['DELETE'])
-@permission_classes([IsAuthenticated])
-def unfollow_user(request, user_id):
-    """取消关注用户"""
-    target_user = get_object_or_404(User, id=user_id)
-    
-    try:
-        follow = UserFollow.objects.get(follower=request.user, followee=target_user)
-        with transaction.atomic():
-            follow.delete()
-            # 更新关注数和粉丝数
-            request.user.following_count = max(0, request.user.following_count - 1)
-            target_user.followers_count = max(0, target_user.followers_count - 1)
-            request.user.save(update_fields=['following_count'])
-            target_user.save(update_fields=['followers_count'])
-        
-        return Response({
-            'code': 0,
-            'message': '取消关注成功'
-        })
-    except UserFollow.DoesNotExist:
-        return Response({
-            'code': 4040,
-            'message': '没有关注过该用户'
-        }, status=status.HTTP_404_NOT_FOUND)
+                'code': 4040,
+                'message': '没有关注过该用户'
+            }, status=status.HTTP_404_NOT_FOUND)
 
 
 class UserFollowersView(generics.ListAPIView):
@@ -283,5 +279,71 @@ class UserReportsView(generics.ListAPIView):
             'data': {
                 'items': serializer.data,
                 'total': reports.count()
+            }
+        })
+
+
+class UserLikesView(generics.ListAPIView):
+    """用户点赞记录列表"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        from content.models import Like, Content, Comment
+        from portfolios.models import Portfolio
+        
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('pageSize', 20))
+        offset = (page - 1) * page_size
+        
+        likes_qs = Like.objects.filter(user=request.user).order_by('-created_at')
+        total = likes_qs.count()
+        likes = likes_qs[offset:offset + page_size]
+        
+        items = []
+        for like in likes:
+            item = {
+                'id': like.id,
+                'targetType': like.target_type,
+                'targetId': like.target_id,
+                'createdAt': like.created_at,
+                'target': None,
+            }
+            # 填充目标对象摘要
+            try:
+                if like.target_type == 'POST':
+                    content = Content.objects.get(id=like.target_id)
+                    item['target'] = {
+                        'id': content.id,
+                        'title': content.title,
+                        'authorName': content.author.display_name,
+                    }
+                elif like.target_type == 'COMMENT':
+                    comment = Comment.objects.select_related('author', 'content').get(id=like.target_id)
+                    item['target'] = {
+                        'id': comment.id,
+                        'body': comment.body[:100],
+                        'authorName': comment.author.display_name,
+                        'postId': comment.content_id,
+                        'postTitle': comment.content.title,
+                    }
+                elif like.target_type == 'PORTFOLIO':
+                    portfolio = Portfolio.objects.select_related('owner').get(id=like.target_id)
+                    item['target'] = {
+                        'id': portfolio.id,
+                        'title': portfolio.title,
+                        'ownerName': portfolio.owner.display_name,
+                    }
+            except Exception:
+                pass  # 目标已被删除时保留 target=None
+            
+            items.append(item)
+        
+        return Response({
+            'code': 0,
+            'data': {
+                'items': items,
+                'page': page,
+                'pageSize': page_size,
+                'total': total,
             }
         })

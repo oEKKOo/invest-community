@@ -188,7 +188,7 @@ const authStore = useAuthStore()
 const showShareDialog = ref(false)
 
 // 图表颜色
-const CHART_COLORS = ['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#4b5563']
+const CHART_COLORS = ['#A78BFA', '#34D399', '#60A5FA', '#F472B6', '#FBBF24', '#818CF8']
 
 const shareUrl = computed(() => {
   return `${window.location.origin}/portfolios/${route.params.id}`
@@ -205,12 +205,23 @@ const pieChartOption = computed(() => {
   return {
     tooltip: {
       trigger: 'item',
-      formatter: '{a} <br/>{b}: {c}% ({d}%)'
+      formatter: '{a} <br/>{b}: {c}% ({d}%)',
+      backgroundColor: 'rgba(20, 27, 45, 0.95)',
+      borderColor: 'rgba(124, 58, 237, 0.4)',
+      borderWidth: 1,
+      textStyle: {
+        color: '#F0F4FF',
+        fontFamily: 'IBM Plex Mono'
+      }
     },
     legend: {
       orient: 'horizontal',
       bottom: '0%',
-      left: 'center'
+      left: 'center',
+      textStyle: {
+        color: '#A0AABF',
+        fontFamily: 'IBM Plex Sans'
+      }
     },
     series: [
       {
@@ -295,40 +306,33 @@ onMounted(async () => {
 .portfolio-detail {
   max-width: 1200px;
   margin: 0 auto;
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.loading-container {
-  background: white;
-  border-radius: 1rem;
-  padding: 2rem;
-  border: 1px solid #f3f4f6;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
+.loading-container,
 .not-found {
-  background: white;
-  border-radius: 1rem;
+  background: linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
+  border: 1px solid $border-subtle;
+  border-radius: $border-radius;
   padding: 2rem;
-  border: 1px solid #f3f4f6;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .portfolio-container {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 1.5rem;
 }
 
 .portfolio-header {
-  background: white;
-  border-radius: 1rem;
+  background: linear-gradient(145deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);
+  border: 1px solid $border-default;
+  border-radius: $border-radius;
   padding: 2rem;
-  border: 1px solid #f3f4f6;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 
   @media (max-width: 768px) {
     flex-direction: column;
@@ -341,16 +345,17 @@ onMounted(async () => {
 }
 
 .portfolio-title {
-  font-size: 2rem;
-  font-weight: bold;
-  color: #1f2937;
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: $text-primary;
   margin: 0 0 0.75rem 0;
   line-height: 1.2;
+  letter-spacing: -0.03em;
 }
 
 .portfolio-description {
-  font-size: 1rem;
-  color: #6b7280;
+  font-size: 0.9375rem;
+  color: $text-secondary;
   line-height: 1.6;
   margin: 0 0 1.5rem 0;
   max-width: 600px;
@@ -359,23 +364,24 @@ onMounted(async () => {
 .portfolio-meta {
   display: flex;
   align-items: center;
-  gap: 2rem;
+  gap: 1.5rem;
   margin-bottom: 1.5rem;
+  flex-wrap: wrap;
 
   @media (max-width: 640px) {
     flex-direction: column;
     align-items: flex-start;
-    gap: 1rem;
+    gap: 0.75rem;
   }
 }
 
 .risk-tag {
-  font-weight: bold;
+  font-weight: 700 !important;
 }
 
 .portfolio-stats {
   display: flex;
-  gap: 2rem;
+  gap: 1.5rem;
 }
 
 .stat-item {
@@ -384,22 +390,23 @@ onMounted(async () => {
 
 .stat-label {
   display: block;
-  font-size: 0.75rem;
-  color: #9ca3af;
-  font-weight: bold;
+  font-size: 0.6875rem;
+  color: $text-muted;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   margin-bottom: 0.25rem;
 }
 
 .stat-value {
   display: block;
   font-size: 1.25rem;
-  font-weight: bold;
-  color: #1f2937;
+  font-weight: 700;
+  color: $text-primary;
+  font-family: 'IBM Plex Mono', monospace;
 
   &.positive {
-    color: #059669;
+    color: $success-color;
   }
 }
 
@@ -418,14 +425,15 @@ onMounted(async () => {
 .author-name {
   font-size: 0.875rem;
   font-weight: 600;
-  color: #1f2937;
+  color: $text-primary;
   margin: 0;
 }
 
 .create-date {
   font-size: 0.75rem;
-  color: #6b7280;
+  color: $text-muted;
   margin: 0;
+  font-family: 'IBM Plex Mono', monospace;
 }
 
 .header-actions {
@@ -441,24 +449,29 @@ onMounted(async () => {
 }
 
 .like-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: #6b7280;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  color: $text-muted !important;
+  border-radius: 8px !important;
+  padding: 0.375rem 0.75rem !important;
+  transition: $transition-all !important;
 
   &:hover {
-    color: #ef4444;
+    color: $error-color !important;
+    background: rgba(239, 68, 68, 0.1) !important;
   }
 
   &.liked {
-    color: #ef4444;
+    color: $error-color !important;
+    background: rgba(239, 68, 68, 0.08) !important;
   }
 }
 
 .portfolio-content {
   display: grid;
   grid-template-columns: 1fr 300px;
-  gap: 2rem;
+  gap: 1.5rem;
 
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
@@ -466,23 +479,23 @@ onMounted(async () => {
 }
 
 .assets-overview {
-  background: white;
-  border-radius: 1rem;
-  padding: 2rem;
-  border: 1px solid #f3f4f6;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+  border: 1px solid $border-default;
+  border-radius: $border-radius;
+  padding: 1.75rem;
 }
 
 .section-title {
-  font-size: 1.25rem;
-  font-weight: bold;
-  color: #1f2937;
+  font-size: 1rem;
+  font-weight: 700;
+  color: $text-primary;
   margin: 0 0 1.5rem 0;
+  letter-spacing: -0.01em;
 }
 
 .chart-container {
-  height: 400px;
-  margin-bottom: 2rem;
+  height: 380px;
+  margin-bottom: 1.5rem;
 }
 
 .pie-chart {
@@ -491,9 +504,9 @@ onMounted(async () => {
 }
 
 .assets-table {
-  border-radius: 0.5rem;
+  border-radius: 10px;
   overflow: hidden;
-  border: 1px solid #e5e7eb;
+  border: 1px solid $border-subtle;
 }
 
 .table-header,
@@ -501,7 +514,7 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: 120px 1fr 100px;
   align-items: center;
-  padding: 1rem;
+  padding: 0.875rem 1rem;
   font-size: 0.875rem;
 
   @media (max-width: 640px) {
@@ -511,21 +524,25 @@ onMounted(async () => {
 }
 
 .table-header {
-  background: #f9fafb;
+  background: rgba(255, 255, 255, 0.04);
   font-weight: 600;
-  color: #374151;
-  border-bottom: 1px solid #e5e7eb;
+  color: $text-muted;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid $border-subtle;
 }
 
 .table-row {
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid $border-subtle;
+  transition: background-color 0.2s ease;
 
   &:last-child {
     border-bottom: none;
   }
 
   &:hover {
-    background: #f9fafb;
+    background: rgba(124, 58, 237, 0.06);
   }
 }
 
@@ -533,67 +550,78 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-weight: 600;
-  color: #1f2937;
+  font-weight: 700;
+  color: $text-primary;
+  font-family: 'IBM Plex Mono', monospace;
 }
 
 .color-indicator {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .col-name {
-  color: #6b7280;
+  color: $text-secondary;
+  font-size: 0.8125rem;
 }
 
 .col-allocation {
-  font-weight: 600;
-  color: #2563eb;
+  font-weight: 700;
+  color: $primary-light;
   text-align: right;
+  font-family: 'IBM Plex Mono', monospace;
 }
 
 .portfolio-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 
 .stats-card {
-  background: white;
-  border-radius: 1rem;
-  padding: 1.5rem;
-  border: 1px solid #f3f4f6;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+  border: 1px solid $border-default;
+  border-radius: $border-radius;
+  padding: 1.375rem;
 }
 
 .card-title {
-  font-size: 1rem;
-  font-weight: bold;
-  color: #1f2937;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: $text-primary;
   margin: 0 0 1rem 0;
+  letter-spacing: -0.01em;
 }
 
 .stats-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.625rem;
 }
 
 .stat-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
+  padding: 0.375rem 0;
+  border-bottom: 1px solid $border-subtle;
+
+  &:last-child {
+    border-bottom: none;
+  }
 }
 
 .stat-name {
-  color: #6b7280;
+  color: $text-muted;
 }
 
 .stat-data {
   font-weight: 600;
-  color: #1f2937;
+  color: $text-primary;
+  font-family: 'IBM Plex Mono', monospace;
 }
 
 .share-options {
@@ -601,26 +629,22 @@ onMounted(async () => {
 
   p {
     margin-bottom: 1rem;
-    color: #6b7280;
+    color: $text-secondary;
+    font-size: 0.875rem;
   }
 }
 
 .share-url {
   :deep(.el-input-group__append) {
-    background: #2563eb;
-    border-color: #2563eb;
+    background: $gradient-primary;
+    border-color: $primary-color;
     color: white;
+    font-weight: 600;
   }
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>

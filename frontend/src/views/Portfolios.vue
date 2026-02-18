@@ -285,8 +285,8 @@ const createRules: FormRules = {
   ]
 }
 
-// 图表颜色
-const CHART_COLORS = ['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#4b5563']
+// 图表颜色 - Dark theme palette
+const CHART_COLORS = ['#A78BFA', '#34D399', '#60A5FA', '#F472B6', '#FBBF24', '#818CF8']
 
 // 计算属性
 const totalAllocation = computed(() => {
@@ -412,7 +412,14 @@ const getPieChartOption = (assets: PortfolioAsset[]) => {
   return {
     tooltip: {
       trigger: 'item',
-      formatter: '{a} <br/>{b}: {c}% ({d}%)'
+      formatter: '{a} <br/>{b}: {c}% ({d}%)',
+      backgroundColor: 'rgba(20, 27, 45, 0.95)',
+      borderColor: 'rgba(124, 58, 237, 0.4)',
+      borderWidth: 1,
+      textStyle: {
+        color: '#F0F4FF',
+        fontFamily: 'IBM Plex Mono'
+      }
     },
     series: [
       {
@@ -452,7 +459,7 @@ onMounted(() => {
 .portfolios {
   max-width: 1200px;
   margin: 0 auto;
-  animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .portfolios-header {
@@ -470,50 +477,66 @@ onMounted(() => {
 
 .page-title {
   font-size: 1.5rem;
-  font-weight: bold;
-  color: #1f2937;
+  font-weight: 700;
+  color: $text-primary;
   margin: 0;
+  letter-spacing: -0.025em;
 }
 
 .create-btn {
-  background: #4f46e5;
-  border-color: #4f46e5;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+  background: $gradient-primary !important;
+  border: none !important;
+  box-shadow: $shadow-purple !important;
+  font-weight: 600 !important;
+  border-radius: 10px !important;
+  transition: $transition-all !important;
 
   &:hover {
-    background: #4338ca;
-    border-color: #4338ca;
+    box-shadow: 0 8px 24px rgba(124, 58, 237, 0.5) !important;
+    transform: translateY(-1px);
   }
 }
 
 .create-portfolio-dialog {
   :deep(.el-dialog) {
-    border-radius: 1rem;
+    background: $bg-card !important;
+    border: 1px solid $border-strong !important;
+    border-radius: $border-radius-xl !important;
   }
 
   :deep(.el-dialog__header) {
     padding: 1.5rem 1.5rem 1rem;
-    border-bottom: 1px solid #f3f4f6;
+    border-bottom: 1px solid $border-default !important;
+  }
+
+  :deep(.el-dialog__title) {
+    color: $text-primary !important;
+    font-weight: 700 !important;
   }
 
   :deep(.el-dialog__body) {
     padding: 1.5rem;
   }
+
+  :deep(.el-form-item__label) {
+    color: $text-secondary !important;
+  }
 }
 
 .assets-section {
-  background: #f9fafb;
-  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid $border-subtle;
+  border-radius: 12px;
   padding: 1rem;
 }
 
 .assets-title {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #374151;
-  margin: 0 0 0.75rem 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: $primary-light;
+  margin: 0 0 0.875rem 0;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
 }
 
 .add-asset {
@@ -533,32 +556,49 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.5rem;
-  background: white;
-  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid $border-subtle;
+  border-radius: 8px;
   margin-bottom: 0.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: $transition-all;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: $border-default;
+  }
 }
 
 .asset-symbol {
-  font-weight: 600;
-  color: #1f2937;
+  font-weight: 700;
+  color: $text-primary;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.875rem;
 }
 
 .asset-allocation {
-  color: #4f46e5;
-  font-weight: 600;
+  color: $primary-light;
+  font-weight: 700;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.875rem;
 }
 
 .remove-btn {
-  color: #ef4444;
+  color: $error-color !important;
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.1) !important;
+  }
 }
 
 .allocation-summary {
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
-  color: #374151;
+  color: $text-secondary;
   text-align: right;
+  padding-top: 0.5rem;
+  border-top: 1px solid $border-subtle;
+  font-family: 'IBM Plex Mono', monospace;
 }
 
 .dialog-footer {
@@ -567,25 +607,27 @@ onMounted(() => {
   justify-content: flex-end;
 }
 
+// ============================================
+// Portfolio Grid
+// ============================================
 .portfolios-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1.25rem;
   margin-bottom: 2rem;
 }
 
 .loading-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 1.25rem;
 }
 
 .portfolio-skeleton {
-  background: white;
-  border-radius: 1rem;
+  background: linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
+  border: 1px solid $border-subtle;
+  border-radius: $border-radius;
   padding: 1.5rem;
-  border: 1px solid #f3f4f6;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .empty-state {
@@ -594,25 +636,45 @@ onMounted(() => {
   justify-content: center;
   align-items: center;
   min-height: 300px;
-  background: white;
-  border-radius: 1rem;
-  border: 1px solid #f3f4f6;
+  background: linear-gradient(145deg, rgba(255,255,255,0.03) 0%, transparent 100%);
+  border: 1px dashed $border-default;
+  border-radius: $border-radius;
 }
 
 .portfolio-card {
-  background: white;
-  border-radius: 1rem;
-  padding: 1.5rem;
-  border: 1px solid #f3f4f6;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+  border: 1px solid $border-subtle;
+  border-radius: $border-radius;
+  padding: 1.375rem;
   cursor: pointer;
-  transition: all 0.2s ease-in-out;
+  transition: $transition-all;
   display: flex;
   flex-direction: column;
+  position: relative;
+  overflow: hidden;
+
+  // Card rank accent top-bar
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: $gradient-primary;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
 
   &:hover {
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    border-color: rgba(124, 58, 237, 0.3);
+    background: linear-gradient(145deg, rgba(124, 58, 237, 0.07) 0%, rgba(255,255,255,0.02) 100%);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(124, 58, 237, 0.1);
     transform: translateY(-4px);
+
+    &::before {
+      opacity: 1;
+    }
   }
 }
 
@@ -620,35 +682,37 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 1rem;
+  margin-bottom: 0.875rem;
 }
 
 .portfolio-title {
-  font-size: 1.125rem;
-  font-weight: bold;
-  color: #1f2937;
+  font-size: 1rem;
+  font-weight: 700;
+  color: $text-primary;
   margin: 0;
   flex: 1;
   line-height: 1.4;
+  letter-spacing: -0.01em;
 }
 
 .risk-tag {
-  font-size: 0.75rem;
-  font-weight: 600;
-  margin-left: 0.75rem;
+  font-size: 0.7rem !important;
+  font-weight: 700 !important;
+  margin-left: 0.75rem !important;
+  border-radius: 6px !important;
+  letter-spacing: 0.04em !important;
 }
 
 .portfolio-description {
-  font-size: 0.875rem;
-  color: #6b7280;
-  line-height: 1.5;
+  font-size: 0.8125rem;
+  color: $text-secondary;
+  line-height: 1.55;
   margin: 0 0 1rem 0;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  line-clamp: 2;
   overflow: hidden;
-  min-height: 40px;
+  min-height: 38px;
 }
 
 .chart-container {
@@ -663,11 +727,16 @@ onMounted(() => {
 
 .portfolio-stats {
   margin-bottom: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid $border-subtle;
+  border-radius: 8px;
+  padding: 0.625rem 0.875rem;
 }
 
 .stat-row {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   margin-bottom: 0.25rem;
 
   &:last-child {
@@ -676,20 +745,21 @@ onMounted(() => {
 }
 
 .stat-label {
-  font-size: 0.75rem;
-  color: #9ca3af;
+  font-size: 0.7rem;
+  color: $text-muted;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 
 .stat-value {
   font-size: 0.875rem;
-  font-weight: bold;
-  color: #1f2937;
+  font-weight: 700;
+  color: $text-primary;
+  font-family: 'IBM Plex Mono', monospace;
 
   &.positive {
-    color: #059669;
+    color: $success-color;
   }
 }
 
@@ -697,8 +767,8 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 1rem;
-  border-top: 1px solid #f3f4f6;
+  padding-top: 0.875rem;
+  border-top: 1px solid $border-subtle;
   margin-top: auto;
 }
 
@@ -709,24 +779,30 @@ onMounted(() => {
 }
 
 .author-name {
-  font-size: 0.875rem;
-  color: #6b7280;
+  font-size: 0.8125rem;
+  color: $text-secondary;
   font-weight: 500;
 }
 
 .like-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  color: #9ca3af;
-  transition: color 0.2s ease-in-out;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.375rem !important;
+  color: $text-muted !important;
+  font-size: 0.8125rem !important;
+  border-radius: 6px !important;
+  padding: 0.25rem 0.5rem !important;
+  transition: $transition-all !important;
+  font-family: 'IBM Plex Mono', monospace !important;
 
   &:hover {
-    color: #ef4444;
+    color: $error-color !important;
+    background: rgba(239, 68, 68, 0.1) !important;
   }
 
   &.liked {
-    color: #ef4444;
+    color: $error-color !important;
+    background: rgba(239, 68, 68, 0.08) !important;
   }
 }
 
@@ -736,13 +812,7 @@ onMounted(() => {
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>
