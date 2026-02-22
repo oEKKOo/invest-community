@@ -14,6 +14,35 @@ from pathlib import Path
 from datetime import timedelta
 import os
 
+# ── 自动加载 .env 文件到系统环境变量 ─────────────────────────────────────────
+# 优先使用 python-decouple；若未安装则 fallback 到手动解析
+# 这样 os.environ.get('FINNHUB_API_KEY') 在任何地方都能正确读取
+_BASE_DIR_EARLY = Path(__file__).resolve().parent.parent
+_env_file = _BASE_DIR_EARLY / '.env'
+
+try:
+    from decouple import AutoConfig as _AutoConfig
+    _decouple_config = _AutoConfig(search_path=str(_BASE_DIR_EARLY))
+    # 将 .env 中的所有变量注入到 os.environ（供 os.environ.get 使用）
+    if _env_file.exists():
+        with open(_env_file, encoding='utf-8') as _f:
+            for _line in _f:
+                _line = _line.strip()
+                if _line and not _line.startswith('#') and '=' in _line:
+                    _k, _v = _line.split('=', 1)
+                    os.environ.setdefault(_k.strip(), _v.strip())
+    _decouple_available = True
+except ImportError:
+    # fallback：手动解析 .env
+    _decouple_available = False
+    if _env_file.exists():
+        with open(_env_file, encoding='utf-8') as _f:
+            for _line in _f:
+                _line = _line.strip()
+                if _line and not _line.startswith('#') and '=' in _line:
+                    _k, _v = _line.split('=', 1)
+                    os.environ.setdefault(_k.strip(), _v.strip())
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -51,6 +80,7 @@ INSTALLED_APPS = [
     'portfolios',
     'notifications',
     'reports',
+    'market_data',  # 行情数据模块（Finnhub 接入）
 ]
 
 MIDDLEWARE = [
@@ -205,6 +235,55 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Finnhub 行情数据接入配置
+# 规范（finnhub-api.mdc §1）：
+#   - Key 从环境变量 FINNHUB_API_KEY 读取，禁止明文写入代码或日志
+#   - 此处不打印 Key 值，只存在布尔状态检查
+# 配置方式（二选一）：
+#   1. 项目根目录新建 .env 文件（不入库）：FINNHUB_API_KEY=your_key_here
+#   2. 系统环境变量：set FINNHUB_API_KEY=your_key_here (Windows)
+# ─────────────────────────────────────────────────────────────────────────────
+# 注意：FINNHUB_API_KEY 在 finnhub_service.py 中用 os.environ.get() 直接读取
+# 这里仅做"配置检测"，不存储 Key 值本身
+
+FINNHUB_API_KEY_CONFIGURED = bool(os.environ.get('FINNHUB_API_KEY', ''))
+
+# 行情快照缓存时间（秒）：quote 接口的有效期
+FINNHUB_QUOTE_CACHE_TTL = int(os.environ.get('FINNHUB_QUOTE_CACHE_TTL', 60))
+
+# K 线数据保留天数（超出此日期的快照将被定期清理）
+MARKET_DATA_SNAPSHOT_RETENTION_DAYS = int(os.environ.get('MARKET_DATA_SNAPSHOT_RETENTION_DAYS', 7))
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 缓存配置（行情快照优先读 Redis，降低数据库压力）
+# 若未安装 Redis，自动降级为本地内存缓存（LocMemCache）
+# ─────────────────────────────────────────────────────────────────────────────
+REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/1')
+
+if os.environ.get('USE_REDIS', 'false').lower() == 'true':
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': REDIS_URL,
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'SOCKET_CONNECT_TIMEOUT': 5,
+                'SOCKET_TIMEOUT': 5,
+                'IGNORE_EXCEPTIONS': True,  # Redis 不可用时降级到内存缓存
+            },
+            'KEY_PREFIX': 'invest_market',
+            'TIMEOUT': 60,
+        }
+    }
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'invest-market-cache',
+        }
+    }
 
 # Logging configuration
 LOGGING = {

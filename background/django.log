@@ -19989,3 +19989,152 @@ INFO 2026-02-18 13:57:35,918 autoreload 30968 27132 Watching for file changes wi
 WARNING 2026-02-18 13:58:02,736 log 30968 11696 Unauthorized: /api/posts/
 WARNING 2026-02-18 13:58:02,737 log 30968 18788 Unauthorized: /api/users/me/likes/
 WARNING 2026-02-18 13:58:02,738 log 30968 31408 Unauthorized: /api/users/me/favorites/
+INFO 2026-02-19 13:39:35,998 autoreload 12904 2180 Watching for file changes with StatReloader
+WARNING 2026-02-19 13:40:01,244 log 12904 21204 Unauthorized: /api/dashboard/overview/
+WARNING 2026-02-19 13:40:44,619 log 12904 25116 Unauthorized: /api/admin/posts/
+WARNING 2026-02-19 13:41:03,194 log 12904 25116 Unauthorized: /api/auth/login/
+WARNING 2026-02-19 13:41:12,694 log 12904 25116 Bad Request: /api/auth/login/
+WARNING 2026-02-19 13:41:21,008 log 12904 25116 Bad Request: /api/auth/login/
+WARNING 2026-02-19 13:41:44,444 log 12904 25116 Unauthorized: /api/admin/posts/
+WARNING 2026-02-19 13:42:09,475 log 12904 25116 Not Found: /api/admin/posts//status/
+WARNING 2026-02-19 13:42:13,510 log 12904 25116 Bad Request: /api/admin/posts/1/status/
+WARNING 2026-02-19 13:42:16,814 log 12904 25116 Bad Request: /api/admin/posts/2/status/
+INFO 2026-02-19 13:52:32,856 autoreload 12904 2180 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-02-19 13:52:33,895 autoreload 21524 16412 Watching for file changes with StatReloader
+INFO 2026-02-19 13:53:35,356 autoreload 21524 16412 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-02-19 13:53:36,225 autoreload 25940 4480 Watching for file changes with StatReloader
+INFO 2026-02-19 13:53:41,665 autoreload 25940 4480 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-02-19 13:53:42,465 autoreload 2180 10700 Watching for file changes with StatReloader
+INFO 2026-02-22 18:46:46,854 autoreload 1704 25524 Watching for file changes with StatReloader
+ERROR 2026-02-22 18:46:59,950 log 1704 23872 Internal Server Error: /api/market/status/
+Traceback (most recent call last):
+  File "D:\Program Files\Python311\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python311\Lib\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python311\Lib\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+             ^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python311\Lib\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+  File "D:\Program Files\Python311\Lib\site-packages\pymysql\connections.py", line 575, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python311\Lib\site-packages\pymysql\connections.py", line 826, in _read_query_result
+    result.read()
+  File "D:\Program Files\Python311\Lib\site-packages\pymysql\connections.py", line 1203, in read
+    first_packet = self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python311\Lib\site-packages\pymysql\connections.py", line 782, in _read_packet
+    packet.raise_for_error()
+  File "D:\Program Files\Python311\Lib\site-packages\pymysql\protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "D:\Program Files\Python311\Lib\site-packages\pymysql\err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+pymysql.err.ProgrammingError: (1146, "Table 'community_db.data_job_log' doesn't exist")
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\Program Files\Python311\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python311\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python311\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python311\Lib\site-packages\django\views\generic\base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python311\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python311\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\Program Files\Python311\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\Program Files\Python311\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python311\Lib\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\background\market_data\views.py", line 580, in market_status
+    job = DataJobLog.objects.filter(job_type=job_type).order_by('-started_at').first()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python311\Lib\site-packages\django\db\models\query.py", line 1097, in first
+    for obj in queryset[:1]:
+  File "D:\Program Files\Python311\Lib\site-packages\django\db\models\query.py", line 400, in __iter__
+    self._fetch_all()
+  File "D:\Program Files\Python311\Lib\site-packages\django\db\models\query.py", line 1928, in _fetch_all
+    self._result_cache = list(self._iterable_class(self))
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python311\Lib\site-packages\django\db\models\query.py", line 91, in __iter__
+    results = compiler.execute_sql(
+              ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python311\Lib\site-packages\django\db\models\sql\compiler.py", line 1574, in execute_sql
+    cursor.execute(sql, params)
+  File "D:\Program Files\Python311\Lib\site-packages\django\db\backends\utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python311\Lib\site-packages\django\db\backends\utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python311\Lib\site-packages\django\db\backends\utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python311\Lib\site-packages\django\db\backends\utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+  File "D:\Program Files\Python311\Lib\site-packages\django\db\utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "D:\Program Files\Python311\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python311\Lib\site-packages\django\db\backends\mysql\base.py", line 76, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python311\Lib\site-packages\pymysql\cursors.py", line 153, in execute
+    result = self._query(query)
+             ^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python311\Lib\site-packages\pymysql\cursors.py", line 322, in _query
+    conn.query(q)
+  File "D:\Program Files\Python311\Lib\site-packages\pymysql\connections.py", line 575, in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python311\Lib\site-packages\pymysql\connections.py", line 826, in _read_query_result
+    result.read()
+  File "D:\Program Files\Python311\Lib\site-packages\pymysql\connections.py", line 1203, in read
+    first_packet = self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Program Files\Python311\Lib\site-packages\pymysql\connections.py", line 782, in _read_packet
+    packet.raise_for_error()
+  File "D:\Program Files\Python311\Lib\site-packages\pymysql\protocol.py", line 219, in raise_for_error
+    err.raise_mysql_exception(self._data)
+  File "D:\Program Files\Python311\Lib\site-packages\pymysql\err.py", line 150, in raise_mysql_exception
+    raise errorclass(errno, errval)
+django.db.utils.ProgrammingError: (1146, "Table 'community_db.data_job_log' doesn't exist")
+INFO 2026-02-22 18:48:56,797 autoreload 1704 25524 D:\invest\background\content\migrations\0002_asset_finnhub_fields.py changed, reloading.
+INFO 2026-02-22 18:48:57,719 autoreload 3748 31004 Watching for file changes with StatReloader
+INFO 2026-02-22 18:50:27,891 autoreload 3748 31004 D:\invest\background\market_data\migrations\0001_initial.py changed, reloading.
+INFO 2026-02-22 18:50:28,835 autoreload 24092 33144 Watching for file changes with StatReloader
+INFO 2026-02-22 18:50:52,921 autoreload 30040 28972 Watching for file changes with StatReloader
+INFO 2026-02-22 18:53:03,899 views 24092 4516 [kline] 数据库无 AAPL [D] 数据，尝试从 Finnhub 拉取
+ERROR 2026-02-22 18:53:04,864 finnhub_service 24092 4516 [Finnhub] 客户端错误(403), endpoint=/stock/candle, params={'symbol': 'AAPL', 'resolution': 'D', 'from': 1740221583, 'to': 1771757583}, response={"error":"You don't have access to this resource."}
+INFO 2026-02-22 18:53:38,290 autoreload 24092 33144 D:\invest\background\invest_backend\__init__.py changed, reloading.
+INFO 2026-02-22 18:53:39,225 autoreload 21880 31840 Watching for file changes with StatReloader
+INFO 2026-02-22 18:55:40,458 autoreload 25816 30312 Watching for file changes with StatReloader
+WARNING 2026-02-22 18:55:53,660 log 21880 33396 Not Found: /api/assets//
+WARNING 2026-02-22 18:55:58,098 log 21880 33396 Unauthorized: /api/assets/1/
+WARNING 2026-02-22 18:56:21,803 log 21880 30948 Not Found: /favicon.ico
+WARNING 2026-02-22 18:56:49,504 log 21880 33396 Unauthorized: /api/auth/login/
+WARNING 2026-02-22 18:57:51,377 log 21880 33396 Not Found: /api/assets//quote/
+INFO 2026-02-22 18:58:16,042 autoreload 28980 31320 Watching for file changes with StatReloader
+INFO 2026-02-22 18:59:02,028 views 21880 33396 [kline] 数据库无 AAPL [D] 数据，尝试从 Finnhub 拉取
+ERROR 2026-02-22 18:59:02,984 finnhub_service 21880 33396 [Finnhub] 客户端错误(403), endpoint=/stock/candle, params={'symbol': 'AAPL', 'resolution': 'D', 'from': 1740221942, 'to': 1771757942}, response={"error":"You don't have access to this resource."}
+ERROR 2026-02-22 18:59:30,265 finnhub_service 21880 33396 [Finnhub] 客户端错误(403), endpoint=/stock/candle, params={'symbol': 'AAPL', 'resolution': '5', 'from': 1771718400, 'to': 1771804800}, response={"error":"You don't have access to this resource."}
+INFO 2026-02-22 19:00:36,511 autoreload 26972 28004 Watching for file changes with StatReloader
+WARNING 2026-02-22 19:01:53,834 log 21880 25660 Not Found: /api/assets/2/contents/

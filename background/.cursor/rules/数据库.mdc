@@ -1,0 +1,393 @@
+---
+alwaysApply: true
+---
+下面给你一份**“合并后的完整数据库文档（MySQL 8.x）”**，把你原有核心库（投研社区）+ 你新增的 **Finnhub 实时行情扩展（asset 增强 / quote 快照 / kline）**统一成一份可查阅、可对照开发的文档。
+（不再给 SQL 文件，只做文档化说明，便于你后续自己维护。）
+
+---
+
+# 投研社区 + Finnhub 实时行情 数据库文档（合并版）
+
+## 1. 全局约定
+
+### 1.1 字符集与引擎
+
+* 建议统一：`InnoDB + utf8mb4`
+* 时间字段统一：`created_at / updated_at`（可选 `deleted_at` 软删）
+
+### 1.2 主键与外键
+
+* 主键统一 `BIGINT` 自增
+* 所有关联使用外键或至少建立索引保证查询效率
+
+### 1.3 关键业务原则（“真实 code 贯穿全系统”）
+
+* **用户输入/展示层**使用：`asset.code + asset.market`（例如 600519 + SH）
+* **第三方 Finnhub 调用层**使用：`asset.finnhub_symbol`（唯一映射）
+* **内容/评论/组合等业务层**只保存 `asset_id`（避免 code 变更引发全库污染）
+
+---
+
+## 2. 表清单总览（合并后的核心表）
+
+### 2.1 用户与权限域
+
+1. `user`：用户账户与权限/积分
+2. `user_invest_profile`：投资偏好画像（风险、周期、偏好市场等）
+3. `user_follow`：关注关系（关注/粉丝）
+
+### 2.2 内容与互动域
+
+4. `content`：帖子/长文/观点（含审核状态、可见性、积分门槛等）
+5. `content_asset`：内容与标的关联（讨论聚合关键）
+6. `comment`：评论/楼中楼
+7. `like`：点赞（可用于积分）
+8. `favorite`：收藏
+9. `report`：举报（内容治理）
+
+### 2.3 资产与行情域（新增/增强）
+
+10. `asset`：真实标的资产库（已增强 finnhub 映射字段）
+11. `asset_quote_snapshot`：行情快照（MVP 核心新增）
+12. `asset_kline`：K线数据（第二阶段新增，可先做日K）
+
+> 如果你原库里还有 admin 审核日志、通知、搜索索引表，也可以继续追加；但上述 12 张表已经覆盖“真实 code + 行情展示 + 讨论聚合”的完整闭环。
+
+---
+
+# 3. 详细表结构说明（字段、约束、索引、用途）
+
+## 3.1 user（用户表）
+
+**用途**：账户信息、角色权限、积分等级、用户状态。
+
+**核心字段**
+
+* `id`：主键
+* `username / email / phone`
+* `password_hash`
+* `display_name / avatar_url / bio`
+* `role`：0 普通用户，1 管理员
+* `status`：0 正常，1 封禁，2 注销
+* `points`：积分
+* `level`：等级（可由 points 映射/定时计算）
+
+**推荐索引/约束**
+
+* `username` 唯一
+* `email` 唯一（如启用）
+* `(role, status)` 组合索引（后台筛选用户）
+
+---
+
+## 3.2 user_invest_profile（用户投资画像）
+
+**用途**：用于推荐、个性化内容、偏好市场筛选等。
+
+**核心字段**
+
+* `user_id`（唯一一对一）
+* `risk_level`：风险等级
+* `invest_horizon`：投资周期
+* `preferred_markets`：偏好市场（SH,SZ,HK,US）
+* `preferred_assets`：偏好资产（股票/基金/ETF）
+* `topics_json`：兴趣主题（可选）
+
+**约束**
+
+* `user_id` 唯一（一个用户一份画像）
+
+---
+
+## 3.3 user_follow（关注表）
+
+**用途**：关注/粉丝关系。
+
+**核心字段**
+
+* `follower_id`
+* `followee_id`
+* `created_at`
+
+**约束**
+
+* `(follower_id, followee_id)` 复合主键防重复
+
+**索引**
+
+* `followee_id`（查某人粉丝列表）
+
+---
+
+## 3.4 asset（标的资产库，已增强 Finnhub 映射）
+
+**用途**：系统中“股票/基金/ETF”的权威表，**真实 code 的核心承载**。
+
+**核心字段（基础）**
+
+* `id`
+* `asset_type`：0 股票 / 1 基金 / 2 ETF
+* `code`：系统展示/用户输入的“自然码”（如 600519、AAPL）
+* `name`
+* `market`：业务侧市场 SH/SZ/HK/US
+* `status`：0 正常，1 停用
+
+**增强字段（对接 Finnhub）**
+
+* `finnhub_symbol`：✅你已添加
+
+  * **用途**：调用 Finnhub 用的唯一标识（非常关键）
+* `exchange`：交易所（用于 symbols 导入/筛选）
+* `currency`：币种
+* `last_sync_at`：基础信息同步时间（导入/补全时更新）
+
+**基金可选增强**
+
+* `isin`：ISIN
+* `fund_type`：基金类型
+* `meta_json`：扩展 JSON（logo、行业、官网等）
+
+**关键约束与索引（建议）**
+
+* 唯一约束：`(asset_type, code)`（同类型同 code 唯一）
+* 唯一约束：`finnhub_symbol` 唯一（允许 NULL）
+* 索引：`code`、`name`、`market`、`exchange`
+
+> 说明：
+>
+> * 你在业务里展示“code”，但调用 Finnhub 用 finnhub_symbol。
+> * content_asset / portfolio 等永远引用 asset_id。
+
+---
+
+## 3.5 content（内容表：帖子/长文/观点）
+
+**用途**：承载社区内容 + 审核流 + 可见性 + 积分门槛。
+
+**核心字段（建议）**
+
+* `id`
+* `author_id`（FK -> user.id）
+* `content_type`：post/article（或 0/1）
+* `title`
+* `content`（正文）
+* `tags_json`（可选）
+* `status`：草稿/已发布/审核中/驳回/下架
+* `visibility`：公开/仅关注可见/仅自己
+* `min_level` 或 `min_points`：阅读门槛（积分制度）
+* `like_count / comment_count / favorite_count`（可选冗余统计）
+* `created_at / updated_at`
+
+**索引建议**
+
+* `(status, created_at)`：内容流查询
+* `author_id`
+* `全文检索`（可选：MySQL FULLTEXT 或 ES）
+
+---
+
+## 3.6 content_asset（内容-标的关联表，讨论聚合关键）
+
+**用途**：把帖子/长文和真实标的绑定，形成 “某股票/基金讨论区”。
+
+**核心字段**
+
+* `content_id`（FK -> content.id）
+* `asset_id`（FK -> asset.id）
+* `created_at`
+
+**约束**
+
+* `(content_id, asset_id)` 唯一（防重复关联）
+
+**索引**
+
+* `asset_id`（查询某标的下所有内容：讨论聚合）
+* `content_id`（内容详情展示关联标的 tag）
+
+---
+
+## 3.7 comment（评论/楼中楼）
+
+**用途**：支持一级评论 + 回复（楼中楼）。
+
+**核心字段**
+
+* `id`
+* `content_id`（FK）
+* `user_id`（FK）
+* `parent_id`（自关联，可为 NULL）
+* `content`
+* `status`（正常/删除/屏蔽）
+* `created_at`
+
+**索引**
+
+* `(content_id, created_at)`
+* `parent_id`
+
+---
+
+## 3.8 like（点赞表）
+
+**用途**：点赞行为记录，可用于积分奖励。
+
+**核心字段**
+
+* `id`
+* `user_id`
+* `target_type`：content/comment
+* `target_id`
+* `created_at`
+
+**约束**
+
+* `(user_id, target_type, target_id)` 唯一（防重复点赞）
+
+---
+
+## 3.9 favorite（收藏表）
+
+**用途**：收藏内容。
+
+**核心字段**
+
+* `id`
+* `user_id`
+* `content_id`
+* `created_at`
+
+**约束**
+
+* `(user_id, content_id)` 唯一
+
+---
+
+## 3.10 report（举报表）
+
+**用途**：内容治理、后台审核处理。
+
+**核心字段**
+
+* `id`
+* `reporter_id`
+* `target_type`：content/comment/user
+* `target_id`
+* `reason`
+* `status`：待处理/已处理/驳回
+* `created_at`
+
+**索引**
+
+* `(status, created_at)`：后台队列
+
+---
+
+# 4. 行情扩展表（新增）
+
+## 4.1 asset_quote_snapshot（行情快照表，MVP 核心）
+
+**用途**：落地 Finnhub `/quote` 结果，用于：
+
+* 前端刷新时先读 DB/缓存
+* 降压第三方 API
+* 论文可写工程优化：快照表 + 缓存 + 定时刷新
+
+**核心字段（对齐 Finnhub Quote）**
+
+* `id`
+* `asset_id`（FK -> asset.id）
+* `price`（c）
+* `change_amount`（d）
+* `change_pct`（dp）
+* `open`（o）
+* `high`（h）
+* `low`（l）
+* `prev_close`（pc）
+* `volume`（可选）
+* `amount`（可选）
+* `quote_time`（由 t 转换）
+* `source`：默认 finnhub
+* `created_at`
+
+**关键索引**
+
+* `(asset_id, quote_time)`：查询最新快照 `ORDER BY quote_time DESC LIMIT 1`
+* `quote_time`：定期清理历史数据（例如保留 7 天）
+
+**数据保留策略（建议）**
+
+* MVP：保留 1~7 天快照（写趋势/热度指标更方便）
+* 清理任务：按 quote_time 过期删除
+
+---
+
+## 4.2 asset_kline（K 线表，第二阶段）
+
+**用途**：落地 Finnhub `/stock/candle` 的 OHLCV，支持 ECharts K 线图。
+
+**核心字段**
+
+* `id`
+* `asset_id`（FK）
+* `resolution`：1/5/15/30/60/D/W/M（建议 MVP 先 D）
+* `k_time`：K线时间点（t 转换）
+* `open/high/low/close`
+* `volume`
+* `created_at`
+
+**关键约束**
+
+* `(asset_id, resolution, k_time)` 唯一（防止重复写入）
+
+**关键索引**
+
+* `(asset_id, resolution, k_time)`：查询最近 N 根 K线
+
+**建议的 MVP 策略**
+
+* 只做 `resolution = D`（日K）
+* 只保存最近 200 根（最近 200 个交易日足够画图 + 均线）
+
+---
+
+# 5. 典型查询与业务流（你开发时会频繁用到）
+
+## 5.1 标的详情页（基础 + 最新行情）
+
+* 读 `asset` 基础信息
+* 最新行情：
+
+  * `asset_quote_snapshot` 按 `(asset_id, quote_time desc)` 取 1 条
+  * 若无快照：后端去 Finnhub 拉一次并写入快照
+
+## 5.2 “某标的讨论区”（内容聚合）
+
+* `content_asset` 查出 content_id 列表
+* join `content` 按热度/时间排序
+* 卡片展示时从 `asset` 拿 code/name 作为 tag
+
+## 5.3 发帖绑定标的（真实 code 贯穿）
+
+* 前端 AssetSelect 搜索：`asset` by code/name
+* 提交时传 `asset_ids[]`
+* 后端写入 `content` + `content_asset`
+
+---
+
+# 6. 文档完整性检查结论
+
+✅ 你要求的 3 个新增点（2.1/2.2/2.3）已经与原有数据库**完整合并**，并且：
+
+* “真实 code”从 asset 承载、到 content_asset 贯穿业务链路
+* 行情用 quote_snapshot 和 kline 提供落库与缓存支撑
+* 后续你进入开发只需要按接口层调用 Finnhub 并写入这些表即可
+
+---
+
+如果你希望我再帮你把这份文档进一步“工程化”，我可以继续补两块（都是文档，不是 SQL）：
+
+1. **字段字典表**（每个字段的类型/默认值/是否可空/业务规则）
+2. **ER 关系文字版**（哪个表一对多/多对多 + 索引为什么这么建）
+
+你说一声我就直接补上。

@@ -17,10 +17,20 @@ python-decouple==3.8
 # 开发工具
 django-debug-toolbar==4.2.0
 
-# 缓存支持（可选）
+# 缓存支持（可选，USE_REDIS=true 时启用）
 redis==5.0.1
 django-redis==5.4.0
 
-# 其他工具
-Pillow==10.0.1  # 图像处理
-requests==2.31.0  # HTTP 请求
+# HTTP 请求（Finnhub API 调用）
+requests==2.31.0
+
+# 图像处理
+Pillow==10.0.1
+
+# 定时任务（可选：Celery + Beat 用于数据同步调度）
+# celery==5.3.6
+# celery[redis]==5.3.6
+# django-celery-beat==2.5.0
+
+# 数据处理（可选：数据质量校验增强）
+# pandas==2.1.4

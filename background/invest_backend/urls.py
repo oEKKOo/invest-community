@@ -20,7 +20,7 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    
+
     # API endpoints
     path('api/auth/', include('accounts.urls')),
     path('api/users/', include('accounts.user_urls')),
@@ -28,6 +28,12 @@ urlpatterns = [
     path('api/', include('portfolios.urls')),
     path('api/', include('notifications.urls')),
     path('api/', include('reports.urls')),
+
+    # 行情数据模块（Finnhub 接入）
+    # 路由优先级说明：
+    #   market_data.urls 中的 /api/assets/<pk>/quote/ 等路由
+    #   与 content.urls 中的 /api/assets/<pk>/ 共存，通过不同后缀区分
+    path('api/', include('market_data.urls')),
 ]
 
 # Serve media files in development

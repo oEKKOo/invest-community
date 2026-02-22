@@ -1,15 +1,33 @@
 @echo off
-echo 🚀 启动 Django 投研社区开发服务器
+echo 启动 Django 投研社区开发服务器
 echo ================================
 
 REM 检查虚拟环境
 if exist "venv\Scripts\activate.bat" (
-    echo 🔧 激活虚拟环境...
+    echo [1] 激活虚拟环境...
     call venv\Scripts\activate.bat
 )
 
+REM ── 加载 .env 文件中的环境变量 ──────────────────────────────────────────────
+if exist ".env" (
+    echo [2] 加载 .env 环境变量...
+    for /f "usebackq tokens=1,* delims==" %%A in (".env") do (
+        REM 跳过注释行和空行
+        if not "%%A"=="" (
+            set "first_char=%%A"
+            if not "!first_char:~0,1!"=="#" (
+                set "%%A=%%B"
+            )
+        )
+    )
+    echo     FINNHUB_API_KEY 已加载
+) else (
+    echo [警告] 未找到 .env 文件，Finnhub 行情功能将不可用
+    echo        请参考 env.env 创建 .env 文件并填入 FINNHUB_API_KEY
+)
+
 REM 检查依赖
-echo 📦 检查依赖包...
+echo [3] 检查依赖包...
 pip show Django >nul 2>&1
 if errorlevel 1 (
     echo ❌ Django 未安装，正在安装依赖...
@@ -17,16 +35,17 @@ if errorlevel 1 (
 )
 
 REM 数据库迁移
-echo 🗄️ 检查数据库迁移...
+echo [4] 检查数据库迁移...
 python manage.py makemigrations
 python manage.py migrate
 
 REM 启动服务器
-echo 🌐 启动开发服务器...
+echo [5] 启动开发服务器...
 echo.
-echo 服务器地址: http://127.0.0.1:8000/
-echo 管理后台: http://127.0.0.1:8000/admin/
-echo API 文档: http://127.0.0.1:8000/api/
+echo 服务器地址:   http://127.0.0.1:8000/
+echo 管理后台:     http://127.0.0.1:8000/admin/
+echo 市场状态检测: http://127.0.0.1:8000/api/market/status/
+echo 行情测试:     http://127.0.0.1:8000/api/assets/1/quote/
 echo.
 echo 按 Ctrl+C 停止服务器
 echo ================================

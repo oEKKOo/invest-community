@@ -7,10 +7,25 @@ User = get_user_model()
 
 
 class AssetSerializer(serializers.ModelSerializer):
-    """资产序列化器"""
+    """
+    资产序列化器
+    遵循 work.mdc §2.4：统一字段命名 assetType/market
+    """
+    assetType = serializers.CharField(source='asset_type', read_only=True)
+    displayMarket = serializers.CharField(source='display_market', read_only=True)
+
     class Meta:
         model = Asset
-        fields = ['id', 'code', 'name', 'asset_type', 'market']
+        fields = [
+            'id', 'code', 'name', 'asset_type', 'assetType',
+            'market', 'displayMarket', 'status',
+            'currency', 'industry', 'logo_url', 'description',
+            'finnhub_symbol', 'last_sync_at',
+        ]
+        extra_kwargs = {
+            'finnhub_symbol': {'read_only': True},
+            'last_sync_at': {'read_only': True},
+        }
 
 
 class ContentListSerializer(serializers.ModelSerializer):
@@ -69,40 +84,74 @@ class ContentDetailSerializer(ContentListSerializer):
 
 
 class ContentCreateSerializer(serializers.ModelSerializer):
-    """内容创建序列化器"""
-    content = serializers.CharField(source='body')  # 接口文档使用content字段
-    tags = serializers.JSONField(source='tags_json')  # 接口文档使用tags字段
+    """
+    内容创建序列化器
+    改造（work.mdc §2.3）：同时支持 assetIds（ID数组）和 assetCodes（代码数组）
+    - assetIds: 直接用 Asset 主键关联（原有逻辑，向后兼容）
+    - assetCodes: 用真实股票代码关联（用户分享时更方便）
+    - 两者同时传时：合并去重
+    - assetCodes 不存在时：返回 400（严格模式）
+    """
+    content = serializers.CharField(source='body')  # 接口文档使用 content 字段
+    tags = serializers.JSONField(source='tags_json')  # 接口文档使用 tags 字段
     assetIds = serializers.ListField(
-        child=serializers.IntegerField(), 
-        required=False, 
+        child=serializers.IntegerField(),
+        required=False,
         write_only=True,
-        source='asset_ids'
+        source='asset_ids',
+        help_text='关联资产ID数组（与 assetCodes 可共存，合并去重）'
+    )
+    assetCodes = serializers.ListField(
+        child=serializers.CharField(max_length=20),
+        required=False,
+        write_only=True,
+        help_text='关联资产代码数组（如 ["000001", "AAPL"]）'
     )
 
     class Meta:
         model = Content
-        fields = ['title', 'content', 'tags', 'status', 'assetIds']
+        fields = ['title', 'content', 'tags', 'status', 'assetIds', 'assetCodes']
 
     def validate_status(self, value):
         if value not in ['DRAFT', 'PENDING_REVIEW']:
             raise serializers.ValidationError("创建时状态只能是草稿或待审核")
         return value
 
+    def validate(self, attrs):
+        # 校验 assetCodes 是否存在于资产库中
+        asset_codes = attrs.get('assetCodes', [])
+        if asset_codes:
+            existing_codes = set(Asset.objects.filter(code__in=asset_codes).values_list('code', flat=True))
+            missing = [c for c in asset_codes if c not in existing_codes]
+            if missing:
+                raise serializers.ValidationError({
+                    'assetCodes': f'以下资产代码不存在于系统中: {missing}。请先通过管理员同步资产数据。'
+                })
+        return attrs
+
     def create(self, validated_data):
-        asset_ids = validated_data.pop('asset_ids', [])
+        asset_ids = list(validated_data.pop('asset_ids', []))
+        asset_codes = validated_data.pop('assetCodes', [])
+
         content = Content.objects.create(**validated_data)
-        
-        # 关联资产
+
+        # 解析 assetCodes → asset_ids（合并去重）
+        if asset_codes:
+            code_assets = Asset.objects.filter(code__in=asset_codes)
+            asset_ids.extend(list(code_assets.values_list('id', flat=True)))
+
+        # 去重并关联
+        asset_ids = list(set(asset_ids))
         if asset_ids:
             assets = Asset.objects.filter(id__in=asset_ids)
             for asset in assets:
-                ContentAsset.objects.create(content=content, asset=asset)
-        
+                ContentAsset.objects.get_or_create(content=content, asset=asset)
+
         # 如果是发布状态，设置发布时间
         if content.status == 'PUBLISHED':
             content.published_at = timezone.now()
             content.save()
-        
+
         return content
 
 

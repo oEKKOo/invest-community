@@ -117,27 +117,23 @@ class ContentListView(generics.ListCreateAPIView):
         })
 
     def create(self, request, *args, **kwargs):
-        """重写create方法以返回自定义响应格式"""
+        """
+        重写 create 方法以返回自定义响应格式
+        支持 assetIds（ID数组）和 assetCodes（代码数组）两种关联方式
+        """
         serializer = ContentCreateSerializer(data=request.data)
         if serializer.is_valid():
             content = serializer.save(author=request.user)
-            
-            # 处理资产关联
-            asset_ids = request.data.get('assetIds', [])
-            if asset_ids:
-                assets = Asset.objects.filter(id__in=asset_ids)
-                for asset in assets:
-                    ContentAsset.objects.create(content=content, asset=asset)
-            
+
             # 返回详细信息
             response_serializer = ContentDetailSerializer(content, context={'request': request})
             return Response({
-                'code': 0, 
+                'code': 0,
                 'data': response_serializer.data
             }, status=status.HTTP_201_CREATED)
-        
+
         return Response({
-            'code': 4001, 
+            'code': 4001,
             'message': '创建失败',
             'errors': serializer.errors
         }, status=status.HTTP_400_BAD_REQUEST)
@@ -387,32 +383,114 @@ def _update_like_count(target_type, target_id, delta):
 
 
 class AssetListView(generics.ListAPIView):
-    """资产列表和搜索"""
+    """
+    资产列表和搜索
+    新增 withQuote=1 参数：附带最新行情快照（来自数据库快照，不实时调 Finnhub）
+    新增 market 参数：按市场筛选（SH/SZ/BJ/HK/US）
+    新增 status 参数：按交易状态筛选（ACTIVE/SUSPENDED/DELISTED）
+    """
     serializer_class = AssetSerializer
     permission_classes = [AllowAny]
 
     def get_queryset(self):
         queryset = Asset.objects.all()
-        
+
         asset_type = self.request.query_params.get('type')
         if asset_type:
             queryset = queryset.filter(asset_type=asset_type)
-        
+
+        market = self.request.query_params.get('market')
+        if market:
+            queryset = queryset.filter(market=market)
+
+        asset_status = self.request.query_params.get('status')
+        if asset_status:
+            queryset = queryset.filter(status=asset_status)
+        else:
+            # 默认只显示正常交易标的
+            queryset = queryset.filter(status='ACTIVE')
+
         q = self.request.query_params.get('q')
         if q:
             queryset = queryset.filter(
-                Q(code__icontains=q) | Q(name__icontains=q)
+                Q(code__icontains=q) | Q(name__icontains=q) | Q(industry__icontains=q)
             )
-        
+
         return queryset.order_by('code')
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        with_quote = request.query_params.get('withQuote', '0') == '1'
+
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('pageSize', 20))
+        total = queryset.count()
+        start = (page - 1) * page_size
+        items = queryset[start:start + page_size]
+
+        serializer = AssetSerializer(items, many=True)
+        data = serializer.data
+
+        # 附带行情快照（withQuote=1）
+        if with_quote:
+            asset_ids = [a['id'] for a in data]
+            # 批量获取最新快照（每资产取最新一条）
+            from market_data.models import AssetQuoteSnapshot
+            from django.db.models import Subquery, OuterRef
+            latest_time = AssetQuoteSnapshot.objects.filter(
+                asset_id=OuterRef('asset_id')
+            ).order_by('-quote_time').values('quote_time')[:1]
+
+            snapshots = AssetQuoteSnapshot.objects.filter(
+                asset_id__in=asset_ids,
+                quote_time=Subquery(latest_time)
+            ).values('asset_id', 'price', 'change_pct', 'quote_time', 'created_at')
+
+            snapshot_map = {s['asset_id']: s for s in snapshots}
+
+            for item in data:
+                snap = snapshot_map.get(item['id'])
+                if snap:
+                    item['price'] = float(snap['price']) if snap['price'] else None
+                    item['changePct'] = float(snap['change_pct']) if snap['change_pct'] else None
+                    item['quoteTime'] = snap['quote_time'].isoformat() if snap['quote_time'] else None
+                    item['dataUpdatedAt'] = snap['created_at'].isoformat() if snap['created_at'] else None
+                else:
+                    item['price'] = None
+                    item['changePct'] = None
+                    item['quoteTime'] = None
+                    item['dataUpdatedAt'] = None
+
+        return Response({
+            'code': 0,
+            'data': {
+                'items': data,
+                'page': page,
+                'pageSize': page_size,
+                'total': total,
+            }
+        })
 
 
 @api_view(['GET'])
 def asset_detail(request, pk):
-    """资产详情"""
+    """
+    资产详情
+    改造：直接附带最新行情 quote 字段（减少前端额外请求）
+    """
     asset = get_object_or_404(Asset, pk=pk)
     serializer = AssetSerializer(asset)
-    return Response({'code': 0, 'data': serializer.data})
+    data = serializer.data
+
+    # 附带 quote 字段（来自快照，不实时调 Finnhub）
+    try:
+        from market_data.tasks import get_or_refresh_quote
+        quote = get_or_refresh_quote(asset)
+        data['quote'] = quote
+    except Exception:
+        data['quote'] = None
+
+    return Response({'code': 0, 'data': data})
 
 
 @api_view(['GET'])
@@ -474,6 +552,38 @@ class AdminPostsView(generics.ListAPIView):
             queryset = queryset.filter(status=status_param)
         
         return queryset.order_by('-created_at')
+
+    def list(self, request, *args, **kwargs):
+        """重写list方法，返回统一的响应格式"""
+        # 权限检查
+        if request.user.role not in ['MODERATOR', 'ADMIN']:
+            return Response({
+                'code': 4030,
+                'message': '无权限'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        queryset = self.get_queryset()
+
+        # 手动分页
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('pageSize', 20))
+
+        total = queryset.count()
+        start = (page - 1) * page_size
+        end = start + page_size
+
+        paginated_queryset = queryset[start:end]
+        serializer = self.get_serializer(paginated_queryset, many=True)
+
+        return Response({
+            'code': 0,
+            'data': {
+                'items': serializer.data,
+                'page': page,
+                'pageSize': page_size,
+                'total': total
+            }
+        })
 
 
 @api_view(['PATCH'])

@@ -4,11 +4,31 @@ from .models import Asset, Content, ContentAsset, Comment, Like, Favorite
 
 @admin.register(Asset)
 class AssetAdmin(admin.ModelAdmin):
-    """资产管理"""
-    list_display = ['code', 'name', 'asset_type', 'market', 'created_at']
-    list_filter = ['asset_type', 'market', 'created_at']
-    search_fields = ['code', 'name']
-    ordering = ['code']
+    """资产管理（含 Finnhub 行情接入字段）"""
+    list_display = ['code', 'name', 'asset_type', 'market', 'status',
+                    'finnhub_symbol', 'currency', 'last_sync_at', 'created_at']
+    list_filter = ['asset_type', 'market', 'status', 'currency']
+    search_fields = ['code', 'name', 'finnhub_symbol', 'industry']
+    ordering = ['market', 'code']
+    readonly_fields = ['created_at', 'updated_at', 'last_sync_at']
+
+    fieldsets = (
+        ('基本信息', {
+            'fields': ('code', 'name', 'asset_type', 'market', 'status')
+        }),
+        ('Finnhub 接入', {
+            'fields': ('finnhub_symbol', 'exchange', 'currency', 'isin', 'last_sync_at'),
+            'description': 'finnhub_symbol 用于调用 Finnhub API，禁止在此处暴露 API Key'
+        }),
+        ('公司信息', {
+            'fields': ('industry', 'logo_url', 'description', 'meta_json'),
+            'classes': ('collapse',),
+        }),
+        ('时间信息', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',),
+        }),
+    )
 
 
 @admin.register(Content)
