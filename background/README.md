@@ -85,6 +85,10 @@ python manage.py createsuperuser
 # 4. 启动服务器
 python manage.py runserver
 ```
+cd D:\invest\background
+$env:FINNHUB_API_KEY="d6e2ur1r01qmepi1jd9gd6e2ur1r01qmepi1jda0"
+$env:USE_REDIS="false"
+python manage.py runserver
 
 ## 📡 API 接口
 

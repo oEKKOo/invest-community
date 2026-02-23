@@ -15,6 +15,22 @@ from typing import Optional, Dict, Any, List, Tuple
 
 logger = logging.getLogger(__name__)
 
+# ---------- 运行时 403 记忆（进程内，避免重复请求已知无权限的端点） ----------
+# 格式：{ endpoint: True }   —— 例如 '/stock/candle'
+# 重启后自动清除，不影响其他端点
+_forbidden_endpoints: set = set()
+
+
+def mark_endpoint_forbidden(endpoint: str):
+    """将某个 Finnhub endpoint 标记为已知 403（进程内有效）"""
+    _forbidden_endpoints.add(endpoint)
+    logger.warning('[Finnhub] 端点已被标记为无权限（403），后续请求将跳过: %s', endpoint)
+
+
+def is_endpoint_forbidden(endpoint: str) -> bool:
+    return endpoint in _forbidden_endpoints
+
+
 # ---------- 配置读取 ----------
 
 def _get_api_key() -> str:
@@ -82,10 +98,27 @@ def _request(endpoint: str, params: Optional[Dict] = None, retries: int = MAX_RE
             else:
                 # 4xx：不重试，记录摘要（脱敏：不打印 token）
                 safe_params = {k: v for k, v in request_params.items() if k != 'token'}
-                logger.error(
-                    '[Finnhub] 客户端错误(%d), endpoint=%s, params=%s, response=%s',
-                    resp.status_code, endpoint, safe_params, resp.text[:200]
-                )
+                if resp.status_code == 403:
+                    # 403 = 无访问权限
+                    # 仅对已知套餐限制的端点做进程内标记（避免重复请求）
+                    # /quote 的 403 可能是 symbol 级别（如 A股不支持），不标记整个端点
+                    _PLAN_RESTRICTED = {'/stock/candle', '/stock/candle_compressed', '/stock/financials', '/stock/financials-reported'}
+                    if endpoint in _PLAN_RESTRICTED:
+                        logger.warning(
+                            '[Finnhub] 无访问权限(403), endpoint=%s —— 免费版套餐限制，已标记端点后续跳过',
+                            endpoint
+                        )
+                        mark_endpoint_forbidden(endpoint)
+                    else:
+                        logger.warning(
+                            '[Finnhub] 无访问权限(403), endpoint=%s, symbol=%s —— 该标的无数据或需要付费套餐',
+                            endpoint, safe_params.get('symbol', '?')
+                        )
+                else:
+                    logger.error(
+                        '[Finnhub] 客户端错误(%d), endpoint=%s, params=%s, response=%s',
+                        resp.status_code, endpoint, safe_params, resp.text[:200]
+                    )
                 return None
 
         except requests.exceptions.Timeout:
@@ -134,7 +167,12 @@ def get_candles(symbol: str, resolution: str, from_ts: int, to_ts: int) -> Optio
     获取 K 线数据（对应接口文档 6.5）
     Finnhub /stock/candle 返回: c, h, l, o, v, t（均为数组），s（状态）
     resolution: 1/5/15/30/60/D/W/M
+    注意：Finnhub 免费版不支持此接口（返回 403），首次 403 后进程内不再重复请求。
     """
+    if is_endpoint_forbidden('/stock/candle'):
+        logger.debug('[Finnhub] get_candles: /stock/candle 已知无权限，跳过请求（%s）', symbol)
+        return None
+
     data = _request('/stock/candle', {
         'symbol': symbol,
         'resolution': resolution,

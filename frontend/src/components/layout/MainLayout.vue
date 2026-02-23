@@ -38,6 +38,11 @@
         </router-link>
       </nav>
 
+      <!-- 免责声明 -->
+      <div class="sidebar-disclaimer">
+        <p>数据来源：Finnhub Finance，仅供参考，不构成投资建议。</p>
+      </div>
+
       <div class="sidebar-footer">
         <div class="user-info" v-if="authStore.user">
           <el-avatar 
@@ -131,7 +136,8 @@ import {
   UserFilled,
   TrendCharts,
   Setting,
-  User
+  User,
+  DataLine
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -143,15 +149,25 @@ const unreadCount = ref(0)
 
 const menuItems = computed(() => [
   { name: 'Dashboard', path: '/', label: '市场总览', icon: House },
+  { name: 'MarketList', path: '/market', label: '行情列表', icon: DataLine },
   { name: 'Community', path: '/community', label: '社区论坛', icon: UserFilled },
   { name: 'Portfolios', path: '/portfolios', label: '投资组合', icon: TrendCharts },
   ...(authStore.isAdmin ? [{ name: 'AdminPanel', path: '/admin', label: '管理后台', icon: Setting }] : []),
   { name: 'Profile', path: '/profile', label: '我的主页', icon: User }
 ])
 
+const extraPageLabels: Record<string, string> = {
+  AssetDetail: '个股详情',
+  MarketRankings: '涨跌幅榜',
+  PostDetail: '帖子详情',
+  PortfolioDetail: '组合详情',
+  DataMonitor: '数据监控'
+}
+
 const currentPageLabel = computed(() => {
   const item = menuItems.value.find(m => m.name === route.name)
-  return item?.label || 'InvestHub'
+  if (item) return item.label
+  return extraPageLabels[route.name as string] || 'InvestHub'
 })
 
 const handleLogout = async () => {
@@ -572,5 +588,22 @@ const showNotifications = () => {
   flex: 1;
   padding: 1.5rem;
   overflow-y: auto;
+}
+
+.sidebar-disclaimer {
+  padding: 0.5rem 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  
+  p {
+    font-size: 0.6rem;
+    color: rgba(107, 122, 153, 0.6);
+    line-height: 1.5;
+    margin: 0;
+    font-style: italic;
+  }
+
+  @media (max-width: 768px) {
+    display: none;
+  }
 }
 </style>

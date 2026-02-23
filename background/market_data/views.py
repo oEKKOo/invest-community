@@ -16,9 +16,10 @@ import time
 from datetime import datetime, timedelta, timezone as py_tz
 from typing import Optional
 
-from django.http import StreamingHttpResponse
+from django.http import StreamingHttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -31,7 +32,11 @@ from .serializers import (
     QuoteSnapshotSerializer, KlineItemSerializer,
     DataJobLogSerializer, BulkQuoteRequestSerializer
 )
-from .tasks import get_or_refresh_quote, kline_sync, quote_refresh, dq_check, cleanup_old_snapshots
+from .tasks import (
+    get_or_refresh_quote, kline_sync, quote_refresh,
+    quote_refresh_popular, get_popular_asset_ids,
+    dq_check, cleanup_old_snapshots,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -336,43 +341,55 @@ def asset_quotes_bulk(request):
 # ─────────────────────────────────────────────────────────────
 # 6.8  行情推送 SSE
 # GET /api/assets/{asset_id}/quote/stream/
+# 注意：此视图不使用 @api_view，绕过 DRF 内容协商（避免 406 错误）
 # ─────────────────────────────────────────────────────────────
 
-@api_view(['GET'])
-@permission_classes([AllowAny])
+@csrf_exempt
 def asset_quote_stream(request, pk):
     """
     行情 SSE 推送（Server-Sent Events）
-    前端使用 EventSource 接入；服务端每 3 秒推送一次最新行情
-    数据来自数据库快照（不直接调 Finnhub，避免频繁限流）
+    - 不使用 @api_view，绕过 DRF 内容协商（text/event-stream 不在默认渲染器中）
+    - 前端使用 EventSource 接入，JWT token 通过 ?token= 查询参数传入
+    - 每 5 秒推送一次，调用 get_or_refresh_quote 获取最新行情（有 60s 缓存）
     """
-    asset = get_object_or_404(Asset, pk=pk)
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+    try:
+        asset = Asset.objects.get(pk=pk)
+    except Asset.DoesNotExist:
+        return JsonResponse({'error': '资产不存在'}, status=404)
 
     def event_generator():
-        """生成器：每 3 秒推送一次行情数据"""
-        max_duration = 300  # 最多推送 5 分钟，防止连接永久占用
-        interval = 3  # 推送间隔（秒）
+        """生成器：每 5 秒推送一次最新行情（通过 get_or_refresh_quote 实时拉取 Finnhub）"""
+        max_duration = 300  # 最多推送 5 分钟
+        interval = 5        # 推送间隔（秒）；Finnhub 免费版 60s 缓存，此处稍微拉长避免无效调用
         elapsed = 0
 
         while elapsed < max_duration:
             try:
-                snapshot = AssetQuoteSnapshot.objects.filter(
-                    asset=asset
-                ).order_by('-quote_time').first()
+                quote_data = get_or_refresh_quote(asset)
 
-                if snapshot:
+                if quote_data:
                     data = {
                         'assetId': asset.id,
                         'code': asset.code,
-                        'price': float(snapshot.price) if snapshot.price else None,
-                        'changePct': float(snapshot.change_pct) if snapshot.change_pct else None,
-                        'change': float(snapshot.change_amount) if snapshot.change_amount else None,
-                        'quoteTime': snapshot.quote_time.isoformat() if snapshot.quote_time else None,
-                        'dataUpdatedAt': snapshot.created_at.isoformat() if snapshot.created_at else None,
+                        'name': asset.name,
+                        'price': quote_data['price'],
+                        'change': quote_data['change_amount'],
+                        'changePct': quote_data['change_pct'],
+                        'open': quote_data['open'],
+                        'high': quote_data['high'],
+                        'low': quote_data['low'],
+                        'prevClose': quote_data['prev_close'],
+                        'volume': quote_data.get('volume'),
+                        'quoteTime': quote_data['quote_time'],
+                        'dataUpdatedAt': quote_data['data_updated_at'],
+                        'isStale': quote_data.get('is_stale', False),
                     }
                     yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
                 else:
-                    yield f"data: {json.dumps({'assetId': asset.id, 'code': asset.code, 'price': None})}\n\n"
+                    yield f"data: {json.dumps({'assetId': asset.id, 'code': asset.code, 'price': None, 'error': '暂无行情数据'})}\n\n"
 
             except Exception as e:
                 logger.error('[SSE] 推送异常: asset=%s err=%s', asset.code, str(e))
@@ -390,6 +407,7 @@ def asset_quote_stream(request, pk):
     )
     response['Cache-Control'] = 'no-cache'
     response['X-Accel-Buffering'] = 'no'  # 禁止 Nginx 缓冲，保证实时推送
+    response['Access-Control-Allow-Origin'] = '*'
     return response
 
 
@@ -538,6 +556,12 @@ def trigger_job(request):
         elif job_type == 'QUOTE_REFRESH':
             asset_ids = request.data.get('assetIds')
             job = quote_refresh(asset_ids=asset_ids)
+            return Response({'code': 0, 'data': DataJobLogSerializer(job).data})
+
+        elif job_type == 'QUOTE_REFRESH_POPULAR':
+            top_n = request.data.get('topN')
+            top_n = int(top_n) if top_n else None
+            job = quote_refresh_popular(top_n=top_n)
             return Response({'code': 0, 'data': DataJobLogSerializer(job).data})
 
         elif job_type == 'DQ_CHECK':

@@ -434,30 +434,37 @@ class AssetListView(generics.ListAPIView):
         # 附带行情快照（withQuote=1）
         if with_quote:
             asset_ids = [a['id'] for a in data]
-            # 批量获取最新快照（每资产取最新一条）
+            # 批量获取最新快照（按 created_at DESC 取每资产最新一条，避免 quote_time 相同时歧义）
             from market_data.models import AssetQuoteSnapshot
             from django.db.models import Subquery, OuterRef
-            latest_time = AssetQuoteSnapshot.objects.filter(
+            latest_snapshot_id = AssetQuoteSnapshot.objects.filter(
                 asset_id=OuterRef('asset_id')
-            ).order_by('-quote_time').values('quote_time')[:1]
+            ).order_by('-created_at').values('id')[:1]
 
             snapshots = AssetQuoteSnapshot.objects.filter(
                 asset_id__in=asset_ids,
-                quote_time=Subquery(latest_time)
-            ).values('asset_id', 'price', 'change_pct', 'quote_time', 'created_at')
+                id=Subquery(latest_snapshot_id)
+            ).values(
+                'asset_id', 'price', 'change_amount', 'change_pct',
+                'volume', 'quote_time', 'created_at'
+            )
 
             snapshot_map = {s['asset_id']: s for s in snapshots}
 
             for item in data:
                 snap = snapshot_map.get(item['id'])
                 if snap:
-                    item['price'] = float(snap['price']) if snap['price'] else None
-                    item['changePct'] = float(snap['change_pct']) if snap['change_pct'] else None
+                    item['price'] = float(snap['price']) if snap['price'] is not None else None
+                    item['change'] = float(snap['change_amount']) if snap['change_amount'] is not None else None
+                    item['changePct'] = float(snap['change_pct']) if snap['change_pct'] is not None else None
+                    item['volume'] = int(snap['volume']) if snap['volume'] is not None else None
                     item['quoteTime'] = snap['quote_time'].isoformat() if snap['quote_time'] else None
                     item['dataUpdatedAt'] = snap['created_at'].isoformat() if snap['created_at'] else None
                 else:
                     item['price'] = None
+                    item['change'] = None
                     item['changePct'] = None
+                    item['volume'] = None
                     item['quoteTime'] = None
                     item['dataUpdatedAt'] = None
 
@@ -482,11 +489,31 @@ def asset_detail(request, pk):
     serializer = AssetSerializer(asset)
     data = serializer.data
 
-    # 附带 quote 字段（来自快照，不实时调 Finnhub）
+    # 附带 quote 字段（camelCase，与 /assets/{id}/quote/ 接口格式保持一致）
     try:
         from market_data.tasks import get_or_refresh_quote
         quote = get_or_refresh_quote(asset)
-        data['quote'] = quote
+        if quote:
+            data['quote'] = {
+                'assetId': quote['asset_id'],
+                'code': quote['code'],
+                'name': quote['name'],
+                'market': quote['market'],
+                'quoteTime': quote['quote_time'],
+                'price': quote['price'],
+                'change': quote['change_amount'],
+                'changePct': quote['change_pct'],
+                'open': quote['open'],
+                'high': quote['high'],
+                'low': quote['low'],
+                'prevClose': quote['prev_close'],
+                'volume': quote['volume'],
+                'amount': quote['amount'],
+                'dataUpdatedAt': quote['data_updated_at'],
+                'isStale': quote.get('is_stale', False),
+            }
+        else:
+            data['quote'] = None
     except Exception:
         data['quote'] = None
 

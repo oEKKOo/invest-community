@@ -46,7 +46,7 @@
           {{ postsStore.currentPost.content }}
         </div>
 
-        <div class="post-tags" v-if="postsStore.currentPost.tags?.length">
+        <div class="post-tags" v-if="postsStore.currentPost.tags?.length || postsStore.currentPost.assets?.length">
           <el-tag 
             v-for="tag in postsStore.currentPost.tags" 
             :key="tag"
@@ -54,6 +54,22 @@
           >
             #{{ tag }}
           </el-tag>
+          <!-- 关联标的标签 -->
+          <router-link
+            v-for="asset in (postsStore.currentPost.assets || [])"
+            :key="asset.id"
+            :to="{ name: 'AssetDetail', params: { assetId: asset.id } }"
+            class="asset-chip-link"
+          >
+            <el-tag
+              size="default"
+              :type="getAssetMarketType(asset.market)"
+              class="asset-chip-tag"
+            >
+              📈 {{ asset.code }} · {{ asset.name }}
+              <span v-if="asset.market" class="market-suffix">({{ asset.market }})</span>
+            </el-tag>
+          </router-link>
         </div>
 
         <div class="post-actions">
@@ -245,6 +261,14 @@ const getAvatarUrl = (id: number) => {
   return `https://picsum.photos/seed/${id}/48/48`
 }
 
+const getAssetMarketType = (market?: string) => {
+  const m = market?.toUpperCase()
+  if (m === 'SH' || m === 'SZ') return 'danger'
+  if (m === 'HK') return 'warning'
+  if (m === 'US') return 'primary'
+  return 'info'
+}
+
 onMounted(async () => {
   const postId = Number(route.params.id)
   if (postId) {
@@ -359,6 +383,26 @@ onMounted(async () => {
   border-radius: 6px !important;
   font-size: 0.7rem !important;
   font-weight: 600 !important;
+}
+
+.asset-chip-link {
+  text-decoration: none;
+
+  .asset-chip-tag {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.8rem;
+
+    .market-suffix {
+      font-size: 0.7rem;
+      opacity: 0.7;
+      margin-left: 2px;
+    }
+
+    &:hover {
+      opacity: 0.8;
+    }
+  }
 }
 
 .post-actions {

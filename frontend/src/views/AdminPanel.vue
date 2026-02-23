@@ -13,6 +13,18 @@
       </div>
     </div>
 
+    <!-- 数据监控入口 -->
+    <div class="data-monitor-entry">
+      <router-link :to="{ name: 'DataMonitor' }" class="monitor-link-card">
+        <div class="monitor-icon">📊</div>
+        <div class="monitor-info">
+          <h4>市场数据监控</h4>
+          <p>查看行情状态、任务日志、手动触发数据同步</p>
+        </div>
+        <el-icon class="monitor-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></el-icon>
+      </router-link>
+    </div>
+
     <!-- 统计卡片 -->
     <div class="stats-grid">
       <div class="stat-card pending">
@@ -354,6 +366,55 @@ onMounted(() => {
   font-size: 0.875rem;
   color: #6b7280;
   margin: 0;
+}
+
+.data-monitor-entry {
+  margin-bottom: 0.25rem;
+
+  .monitor-link-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: rgba(124, 58, 237, 0.08);
+    border: 1px solid rgba(124, 58, 237, 0.2);
+    border-radius: 12px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s;
+
+    &:hover {
+      background: rgba(124, 58, 237, 0.14);
+      border-color: rgba(124, 58, 237, 0.35);
+    }
+
+    .monitor-icon {
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+
+    .monitor-info {
+      flex: 1;
+
+      h4 {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #A78BFA;
+        margin: 0 0 3px;
+      }
+
+      p {
+        font-size: 0.78rem;
+        color: #6B7A99;
+        margin: 0;
+      }
+    }
+
+    .monitor-arrow {
+      color: #6B7A99;
+      flex-shrink: 0;
+    }
+  }
 }
 
 .stats-grid {

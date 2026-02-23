@@ -11,6 +11,11 @@ const Profile = () => import('../views/Profile.vue')
 const Login = () => import('../views/Login.vue')
 const PostDetail = () => import('../views/PostDetail.vue')
 const PortfolioDetail = () => import('../views/PortfolioDetail.vue')
+// 新增页面
+const AssetDetail = () => import('../views/AssetDetail.vue')
+const MarketList = () => import('../views/MarketList.vue')
+const MarketRankings = () => import('../views/MarketRankings.vue')
+const DataMonitor = () => import('../views/admin/DataMonitor.vue')
 
 const routes: RouteRecordRaw[] = [
   {
@@ -52,6 +57,15 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
+        path: '/admin/data-monitor',
+        name: 'DataMonitor',
+        component: DataMonitor,
+        meta: {
+          title: '数据监控',
+          requiresAdmin: true
+        }
+      },
+      {
         path: '/profile',
         name: 'Profile',
         component: Profile,
@@ -70,6 +84,26 @@ const routes: RouteRecordRaw[] = [
         component: PortfolioDetail,
         meta: { title: 'Portfolio Detail' },
         props: true
+      },
+      // 新增路由
+      {
+        path: '/assets/:assetId',
+        name: 'AssetDetail',
+        component: AssetDetail,
+        meta: { title: '个股详情', requiresAuth: false },
+        props: true
+      },
+      {
+        path: '/market',
+        name: 'MarketList',
+        component: MarketList,
+        meta: { title: '行情列表' }
+      },
+      {
+        path: '/market/rankings',
+        name: 'MarketRankings',
+        component: MarketRankings,
+        meta: { title: '涨跌幅榜单' }
       }
     ]
   }

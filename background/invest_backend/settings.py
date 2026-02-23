@@ -14,34 +14,25 @@ from pathlib import Path
 from datetime import timedelta
 import os
 
-# ── 自动加载 .env 文件到系统环境变量 ─────────────────────────────────────────
-# 优先使用 python-decouple；若未安装则 fallback 到手动解析
+# ── 自动加载 .env 文件到系统环境变量（override=True：.env 优先于 shell 设置）──
+# 使用 python-dotenv；若未安装则 fallback 到手动解析
 # 这样 os.environ.get('FINNHUB_API_KEY') 在任何地方都能正确读取
 _BASE_DIR_EARLY = Path(__file__).resolve().parent.parent
 _env_file = _BASE_DIR_EARLY / '.env'
 
 try:
-    from decouple import AutoConfig as _AutoConfig
-    _decouple_config = _AutoConfig(search_path=str(_BASE_DIR_EARLY))
-    # 将 .env 中的所有变量注入到 os.environ（供 os.environ.get 使用）
+    from dotenv import load_dotenv as _load_dotenv
     if _env_file.exists():
-        with open(_env_file, encoding='utf-8') as _f:
-            for _line in _f:
-                _line = _line.strip()
-                if _line and not _line.startswith('#') and '=' in _line:
-                    _k, _v = _line.split('=', 1)
-                    os.environ.setdefault(_k.strip(), _v.strip())
-    _decouple_available = True
+        _load_dotenv(str(_env_file), override=True)  # override=True: .env 覆盖已有 shell 变量
 except ImportError:
-    # fallback：手动解析 .env
-    _decouple_available = False
+    # fallback：手动解析 .env（覆盖模式）
     if _env_file.exists():
         with open(_env_file, encoding='utf-8') as _f:
             for _line in _f:
                 _line = _line.strip()
                 if _line and not _line.startswith('#') and '=' in _line:
                     _k, _v = _line.split('=', 1)
-                    os.environ.setdefault(_k.strip(), _v.strip())
+                    os.environ[_k.strip()] = _v.strip()  # 直接覆盖
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -251,10 +242,17 @@ CORS_ALLOW_CREDENTIALS = True
 FINNHUB_API_KEY_CONFIGURED = bool(os.environ.get('FINNHUB_API_KEY', ''))
 
 # 行情快照缓存时间（秒）：quote 接口的有效期
+# 同时作为 Django Cache（L1）与 DB 快照（L2）的 TTL
+# 建议：交易时段设 30~60，非交易时段可放大至 300
 FINNHUB_QUOTE_CACHE_TTL = int(os.environ.get('FINNHUB_QUOTE_CACHE_TTL', 60))
 
 # K 线数据保留天数（超出此日期的快照将被定期清理）
 MARKET_DATA_SNAPSHOT_RETENTION_DAYS = int(os.environ.get('MARKET_DATA_SNAPSHOT_RETENTION_DAYS', 7))
+
+# 热门标的定时刷新：quote_refresh_popular 每次刷新的标的数量上限
+# 对应 get_popular_asset_ids(top_n) 的默认值
+# 建议：免费版 Finnhub Key 速率限制 60 次/分，TOP_N 不超过 30
+QUOTE_REFRESH_POPULAR_TOP_N = int(os.environ.get('QUOTE_REFRESH_POPULAR_TOP_N', 20))
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 缓存配置（行情快照优先读 Redis，降低数据库压力）

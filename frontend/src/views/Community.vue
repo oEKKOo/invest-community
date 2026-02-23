@@ -66,6 +66,14 @@
             placeholder="添加标签，用逗号分隔（如：股票,ETF,投资策略）"
           />
         </el-form-item>
+
+        <el-form-item>
+          <div class="asset-select-label">
+            <el-icon style="color:#A78BFA"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></el-icon>
+            关联标的（可选）
+          </div>
+          <AssetSelect v-model="createForm.assetIds" :max-count="5" />
+        </el-form-item>
       </el-form>
 
       <template #footer>
@@ -136,7 +144,7 @@
           <h3 class="post-title">{{ post.title }}</h3>
           <p class="post-content">{{ post.content }}</p>
 
-          <div class="post-tags" v-if="post.tags?.length">
+          <div class="post-tags" v-if="post.tags?.length || post.assets?.length">
             <el-tag 
               v-for="tag in post.tags" 
               :key="tag"
@@ -145,6 +153,19 @@
             >
               #{{ tag }}
             </el-tag>
+            <!-- 关联标的标签 -->
+            <router-link
+              v-for="asset in (post.assets || [])"
+              :key="asset.id"
+              :to="{ name: 'AssetDetail', params: { assetId: asset.id } }"
+              class="asset-link-tag"
+              @click.stop
+            >
+              <el-tag size="small" :type="getAssetMarketTagType(asset.market)" class="asset-tag">
+                {{ asset.code }}
+                <span class="asset-tag-name">{{ asset.name }}</span>
+              </el-tag>
+            </router-link>
           </div>
 
           <div class="post-actions">
@@ -206,6 +227,7 @@ import {
   StarFilled
 } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
+import AssetSelect from '@/components/market/AssetSelect.vue'
 
 const postsStore = usePostsStore()
 const authStore = useAuthStore()
@@ -222,7 +244,8 @@ const createFormRef = ref<FormInstance>()
 const createForm = ref({
   title: '',
   content: '',
-  tagsInput: ''
+  tagsInput: '',
+  assetIds: [] as number[]
 })
 
 const createRules: FormRules = {
@@ -295,7 +318,8 @@ const handleCreatePost = async () => {
       title: createForm.value.title,
       content: createForm.value.content,
       tags,
-      status: PostStatus.PENDING_REVIEW
+      status: PostStatus.PENDING_REVIEW,
+      assetIds: createForm.value.assetIds.length > 0 ? createForm.value.assetIds : undefined
     })
 
     ElMessage.success('帖子已提交审核')
@@ -326,7 +350,8 @@ const handleCreateDraft = async () => {
       title: createForm.value.title,
       content: createForm.value.content,
       tags,
-      status: PostStatus.DRAFT
+      status: PostStatus.DRAFT,
+      assetIds: createForm.value.assetIds.length > 0 ? createForm.value.assetIds : undefined
     })
 
     ElMessage.success('草稿已保存')
@@ -345,7 +370,8 @@ const resetCreateForm = () => {
   createForm.value = {
     title: '',
     content: '',
-    tagsInput: ''
+    tagsInput: '',
+    assetIds: []
   }
   createFormRef.value?.clearValidate()
 }
@@ -402,6 +428,14 @@ const formatDate = (dateStr: string) => {
 
 const getAvatarUrl = (id: number) => {
   return `https://picsum.photos/seed/${id}/40/40`
+}
+
+const getAssetMarketTagType = (market?: string) => {
+  const m = market?.toUpperCase()
+  if (m === 'SH' || m === 'SZ') return 'danger'
+  if (m === 'HK') return 'warning'
+  if (m === 'US') return 'primary'
+  return 'info'
 }
 
 onMounted(() => {
@@ -707,6 +741,34 @@ onMounted(() => {
   font-weight: 600 !important;
   border-radius: 6px !important;
   padding: 0 0.5rem !important;
+}
+
+.asset-link-tag {
+  text-decoration: none;
+
+  .asset-tag {
+    cursor: pointer;
+
+    .asset-tag-name {
+      font-size: 0.65rem;
+      opacity: 0.8;
+      margin-left: 3px;
+    }
+
+    &:hover {
+      opacity: 0.8;
+    }
+  }
+}
+
+.asset-select-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  color: #A0AABF;
+  margin-bottom: 0.5rem;
+  width: 100%;
 }
 
 .post-actions {

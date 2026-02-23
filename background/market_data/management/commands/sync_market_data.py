@@ -43,6 +43,8 @@ class Command(BaseCommand):
         parser.add_argument('--days', type=int, default=365, help='向前拉取天数 / 保留天数')
         parser.add_argument('--resolution', type=str, default='D', help='K线周期（kline 任务用）')
         parser.add_argument('--force', action='store_true', help='强制回补（kline 任务：删除后重拉）')
+        parser.add_argument('--limit', type=int, default=0, help='quote 任务：最多刷新 N 只资产（0=全部）')
+        parser.add_argument('--delay', type=float, default=0.12, help='quote 任务：每次 API 请求延迟（秒），免费版建议 >=0.1，默认 0.12')
 
     def handle(self, *args, **options):
         task = options['task']
@@ -86,11 +88,45 @@ class Command(BaseCommand):
 
         elif task == 'quote':
             from market_data.tasks import quote_refresh
+            from content.models import Asset
+
             asset_ids = options.get('asset_ids')
-            desc = f'资产 {asset_ids}' if asset_ids else '全量资产'
-            self.stdout.write(f'🔄 刷新行情快照，{desc}...')
-            job = quote_refresh(asset_ids=asset_ids)
+            limit     = options.get('limit', 0)
+            delay     = options.get('delay', 0.12)
+
+            # 若未指定 asset_ids 但指定了 limit，则取前 N 只有 finnhub_symbol 的 ACTIVE 资产
+            if not asset_ids and limit > 0:
+                asset_ids = list(
+                    Asset.objects.filter(status='ACTIVE')
+                    .exclude(finnhub_symbol__isnull=True).exclude(finnhub_symbol='')
+                    .order_by('id').values_list('id', flat=True)[:limit]
+                )
+                self.stdout.write(
+                    f'🔄 刷新行情快照，前 {len(asset_ids)} 只资产（--limit={limit}，delay={delay}s）...'
+                )
+            else:
+                total_active = Asset.objects.filter(status='ACTIVE').exclude(
+                    finnhub_symbol__isnull=True).exclude(finnhub_symbol='').count()
+                desc = f'资产 {asset_ids}' if asset_ids else f'全量资产（共 {total_active} 只）'
+                est = (len(asset_ids) if asset_ids else total_active) * delay / 60
+                self.stdout.write(
+                    f'🔄 刷新行情快照，{desc}，delay={delay}s，预计 {est:.1f} 分钟...'
+                )
+
+            job = quote_refresh(
+                asset_ids=asset_ids if asset_ids else None,
+                delay=delay,
+            )
             self._print_job_result(job)
+            # 打印详细统计
+            if job.extra_info:
+                info = job.extra_info
+                self.stdout.write(
+                    f'   📊 总计={info.get("total",0)}  '
+                    f'成功={info.get("written",0)}  '
+                    f'无数据={info.get("no_data",0)}  '
+                    f'失败={len(info.get("failed",[]))}'
+                )
 
         elif task == 'dq':
             from market_data.tasks import dq_check
