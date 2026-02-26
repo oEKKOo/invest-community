@@ -137,7 +137,8 @@ import {
   TrendCharts,
   Setting,
   User,
-  DataLine
+  DataLine,
+  Coin
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -152,6 +153,7 @@ const menuItems = computed(() => [
   { name: 'MarketList', path: '/market', label: '行情列表', icon: DataLine },
   { name: 'Community', path: '/community', label: '社区论坛', icon: UserFilled },
   { name: 'Portfolios', path: '/portfolios', label: '投资组合', icon: TrendCharts },
+  ...(authStore.isLoggedIn ? [{ name: 'MyHoldings', path: '/holdings', label: '我的持仓', icon: Coin }] : []),
   ...(authStore.isAdmin ? [{ name: 'AdminPanel', path: '/admin', label: '管理后台', icon: Setting }] : []),
   { name: 'Profile', path: '/profile', label: '我的主页', icon: User }
 ])

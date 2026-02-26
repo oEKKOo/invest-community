@@ -80,7 +80,11 @@ class AssetKline(models.Model):
         # 防止同一资产同一周期同一时间点重复写入
         unique_together = [('asset', 'resolution', 'k_time')]
         indexes = [
+            # 主查询路径：按资产+周期拉取时序数据
             models.Index(fields=['asset', 'resolution', '-k_time'], name='idx_kline_asset_res_time'),
+            # fill_holding_snapshots SQL JOIN 路径：asset_id + resolution + k_time 范围扫描
+            # 覆盖：ON ak.asset_id = uh.asset_id AND ak.resolution = 'D' AND DATE(ak.k_time) >= ?
+            models.Index(fields=['asset', 'resolution', 'k_time'], name='idx_kline_asset_res_time_asc'),
         ]
 
     def __str__(self):

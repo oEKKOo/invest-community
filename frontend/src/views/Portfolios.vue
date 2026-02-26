@@ -66,27 +66,46 @@
               <h4 class="assets-title">资产配置</h4>
               
               <div class="add-asset">
-                <el-input
-                  v-model="assetForm.symbol"
-                  placeholder="代码"
+                <!-- 资产搜索选择器（关联真实数据库资产） -->
+                <el-select
+                  v-model="assetForm.selectedAsset"
+                  filterable
+                  remote
+                  clearable
+                  placeholder="搜索股票/基金/ETF"
+                  :remote-method="searchAssets"
+                  :loading="assetSearchLoading"
                   size="small"
-                  style="width: 80px"
-                />
-                <el-input
-                  v-model="assetForm.name"
-                  placeholder="名称"
-                  size="small"
-                  style="width: 120px"
-                />
-                <el-input
-                  v-model.number="assetForm.allocation"
+                  style="flex: 1; min-width: 0"
+                  value-key="id"
+                  @change="onAssetSelected"
+                >
+                  <el-option
+                    v-for="item in assetSearchResults"
+                    :key="item.id"
+                    :label="`${item.code} ${item.name}`"
+                    :value="item"
+                  >
+                    <div class="asset-option">
+                      <span class="opt-code">{{ item.code }}</span>
+                      <span class="opt-name">{{ item.name }}</span>
+                      <el-tag size="small" class="opt-market">{{ item.market }}</el-tag>
+                    </div>
+                  </el-option>
+                </el-select>
+                <el-input-number
+                  v-model="assetForm.allocation"
                   placeholder="比例%"
                   size="small"
-                  style="width: 70px"
-                  type="number"
+                  style="width: 100px"
+                  :min="0"
+                  :max="100"
+                  :precision="1"
+                  controls-position="right"
                 />
                 <el-button
                   size="small"
+                  type="primary"
                   @click="addAsset"
                   :disabled="!canAddAsset"
                 >
@@ -100,7 +119,13 @@
                   :key="index"
                   class="asset-item"
                 >
-                  <span class="asset-symbol">{{ asset.symbol }}</span>
+                  <div class="asset-info">
+                    <span class="asset-symbol">{{ asset.symbol }}</span>
+                    <span class="asset-name-small">{{ asset.name }}</span>
+                    <el-tag v-if="asset.displayMarket" size="small" class="asset-market-tag">
+                      {{ asset.displayMarket }}
+                    </el-tag>
+                  </div>
                   <span class="asset-allocation">{{ asset.allocation }}%</span>
                   <el-button
                     size="small"
@@ -113,8 +138,8 @@
                 </div>
               </div>
 
-              <div class="allocation-summary">
-                总配置比例: {{ totalAllocation }}%
+              <div class="allocation-summary" :class="{ 'over-limit': totalAllocation > 100 }">
+                总配置: {{ totalAllocation.toFixed(1) }}% / 100%
               </div>
             </div>
           </el-col>
@@ -234,6 +259,8 @@ import { ref, onMounted, computed } from 'vue'
 import { usePortfoliosStore } from '../stores/portfolios'
 import { useAuthStore } from '../stores/auth'
 import type { PortfolioAsset } from '../types'
+import type { AssetWithQuote } from '../api/market'
+import { getAssetsWithQuote } from '../api/market'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
@@ -256,6 +283,10 @@ const creating = ref(false)
 const currentPage = ref(1)
 const pageSize = ref(12)
 
+// 资产搜索状态
+const assetSearchLoading = ref(false)
+const assetSearchResults = ref<AssetWithQuote[]>([])
+
 // 表单
 const createFormRef = ref<FormInstance>()
 const createForm = ref({
@@ -267,8 +298,7 @@ const createForm = ref({
 })
 
 const assetForm = ref({
-  symbol: '',
-  name: '',
+  selectedAsset: null as AssetWithQuote | null,
   allocation: 0
 })
 
@@ -290,15 +320,35 @@ const CHART_COLORS = ['#A78BFA', '#34D399', '#60A5FA', '#F472B6', '#FBBF24', '#8
 
 // 计算属性
 const totalAllocation = computed(() => {
-  return createForm.value.assets.reduce((sum, asset) => sum + asset.allocation, 0)
+  return createForm.value.assets.reduce((sum, asset) => sum + (Number(asset.allocation) || 0), 0)
 })
 
 const canAddAsset = computed(() => {
-  return assetForm.value.symbol && 
-         assetForm.value.name && 
+  return assetForm.value.selectedAsset !== null &&
          assetForm.value.allocation > 0 &&
          totalAllocation.value + assetForm.value.allocation <= 100
 })
+
+// 资产搜索（远程搜索）
+const searchAssets = async (query: string) => {
+  if (!query || query.length < 1) {
+    assetSearchResults.value = []
+    return
+  }
+  assetSearchLoading.value = true
+  try {
+    const res = await getAssetsWithQuote({ q: query, pageSize: 20 })
+    assetSearchResults.value = res.items || []
+  } catch {
+    assetSearchResults.value = []
+  } finally {
+    assetSearchLoading.value = false
+  }
+}
+
+const onAssetSelected = (asset: AssetWithQuote | null) => {
+  assetForm.value.selectedAsset = asset
+}
 
 // 方法
 const handlePageChange = (page: number) => {
@@ -319,19 +369,29 @@ const fetchPortfolios = async () => {
 }
 
 const addAsset = () => {
-  if (!canAddAsset.value) return
+  if (!canAddAsset.value || !assetForm.value.selectedAsset) return
+
+  const asset = assetForm.value.selectedAsset
+  // 检查是否已存在
+  if (createForm.value.assets.some(a => a.assetId === asset.id)) {
+    ElMessage.warning('该资产已在组合中')
+    return
+  }
 
   createForm.value.assets.push({
-    symbol: assetForm.value.symbol,
-    name: assetForm.value.name,
+    assetId: asset.id,
+    symbol: asset.code,
+    name: asset.name,
+    market: asset.market || '',
+    displayMarket: (asset as any).displayMarket || asset.market || '',
     allocation: assetForm.value.allocation
   })
 
   assetForm.value = {
-    symbol: '',
-    name: '',
+    selectedAsset: null,
     allocation: 0
   }
+  assetSearchResults.value = []
 }
 
 const removeAsset = (index: number) => {
@@ -356,7 +416,18 @@ const handleCreatePortfolio = async () => {
 
     creating.value = true
 
-    await portfoliosStore.createPortfolio(createForm.value)
+    // 转换为后端期望格式（使用 assetId 强关联）
+    const payload = {
+      ...createForm.value,
+      assets: createForm.value.assets.map(a => ({
+        assetId: a.assetId,
+        symbol: a.symbol,
+        name: a.name,
+        allocation: a.allocation
+      }))
+    }
+
+    await portfoliosStore.createPortfolio(payload)
 
     ElMessage.success('投资组合创建成功')
     showCreatePortfolio.value = false
@@ -379,10 +450,10 @@ const resetCreateForm = () => {
     assets: []
   }
   assetForm.value = {
-    symbol: '',
-    name: '',
+    selectedAsset: null,
     allocation: 0
   }
+  assetSearchResults.value = []
   createFormRef.value?.clearValidate()
 }
 
@@ -599,6 +670,66 @@ onMounted(() => {
   padding-top: 0.5rem;
   border-top: 1px solid $border-subtle;
   font-family: 'IBM Plex Mono', monospace;
+
+  &.over-limit {
+    color: $error-color;
+  }
+}
+
+// 资产搜索下拉选项
+.asset-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+
+  .opt-code {
+    font-weight: 700;
+    font-family: 'IBM Plex Mono', monospace;
+    color: $text-primary;
+    min-width: 60px;
+  }
+
+  .opt-name {
+    flex: 1;
+    color: $text-secondary;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .opt-market {
+    font-size: 0.65rem !important;
+    padding: 0 4px !important;
+    height: 16px !important;
+    line-height: 16px !important;
+    flex-shrink: 0;
+  }
+}
+
+// 资产列表条目信息区
+.asset-info {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.asset-name-small {
+  font-size: 0.75rem;
+  color: $text-muted;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asset-market-tag {
+  font-size: 0.65rem !important;
+  padding: 0 4px !important;
+  height: 16px !important;
+  line-height: 16px !important;
+  flex-shrink: 0;
 }
 
 .dialog-footer {

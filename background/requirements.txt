@@ -24,6 +24,10 @@ django-redis==5.4.0
 # HTTP 请求（Finnhub API 调用）
 requests==2.31.0
 
+# A 股行情数据（Tushare Pro API）
+# 用于获取沪深京三市股票数据、日线 K 线、股票基础信息
+tushare>=1.4.0
+
 # 图像处理
 Pillow==10.0.1
 

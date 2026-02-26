@@ -63,11 +63,33 @@ export interface Asset {
   market?: string
 }
 
-// 投资组合资产配置
+// 投资组合资产配置（升级版，含强外键关联）
 export interface PortfolioAsset {
+  // 新接口字段（强关联 Asset 表）
+  assetId?: number | null
+  market?: string
+  assetType?: string
+  displayMarket?: string
+  // 兼容旧接口/展示用冗余字段
   symbol: string
   name: string
   allocation: number
+}
+
+// 个人持仓
+export interface UserHolding {
+  id: number
+  assetId: number
+  code: string
+  name: string
+  market: string
+  assetType: string
+  displayMarket: string
+  quantity: number | string
+  costPrice: number | string
+  notes: string
+  createdAt: string
+  updatedAt: string
 }
 
 // 投资组合类型
@@ -169,4 +191,44 @@ export interface LikeRecord {
   targetId: number
   createdAt: string
   target: LikeTargetSummary | null
+}
+
+// ============================================================
+// 持仓收益相关类型（基于每日快照计算）
+// ============================================================
+
+/** 单只持仓的收益明细 */
+export interface HoldingPerformanceItem {
+  holdingId: number
+  assetId: number
+  code: string
+  name: string
+  market: string
+  displayMarket: string
+  assetType: string
+  quantity: string
+  costPrice: string        // 成本均价
+  todayPrice: string | null    // 今日估值价（日K close）
+  yesterdayPrice: string | null  // 昨日估值价
+  marketValue: string | null   // 今日市值 = quantity × todayPrice
+  costValue: string          // 持仓成本 = quantity × costPrice
+  unrealizedPnl: string | null // 持有收益 = marketValue - costValue
+  unrealizedReturn: string | null // 持有收益率（如 "0.0556" = 5.56%）
+  dailyPnl: string | null      // 当日收益 = quantity × (today - yesterday)
+  dailyReturn: string | null   // 当日收益率
+  snapshotDate: string | null  // 快照日期 YYYY-MM-DD
+  hasData: boolean           // false 表示无K线快照，价格字段均 null
+}
+
+/** 持仓收益汇总 */
+export interface HoldingPerformance {
+  asOf: string | null          // 估值基准日期
+  totalMarketValue: string     // 总市值
+  totalCostValue: string       // 总持仓成本
+  totalUnrealizedPnl: string   // 总持有收益
+  totalUnrealizedReturn: string  // 总持有收益率（如 "0.2000" = 20%）
+  totalDailyPnl: string        // 总当日收益
+  totalDailyReturn: string     // 总当日收益率
+  hasAnyData: boolean          // 是否有任意一只有快照数据
+  items: HoldingPerformanceItem[]
 }

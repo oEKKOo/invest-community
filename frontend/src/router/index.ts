@@ -16,6 +16,7 @@ const AssetDetail = () => import('../views/AssetDetail.vue')
 const MarketList = () => import('../views/MarketList.vue')
 const MarketRankings = () => import('../views/MarketRankings.vue')
 const DataMonitor = () => import('../views/admin/DataMonitor.vue')
+const MyHoldings = () => import('../views/MyHoldings.vue')
 
 const routes: RouteRecordRaw[] = [
   {
@@ -84,6 +85,13 @@ const routes: RouteRecordRaw[] = [
         component: PortfolioDetail,
         meta: { title: 'Portfolio Detail' },
         props: true
+      },
+      // 个人持仓
+      {
+        path: '/holdings',
+        name: 'MyHoldings',
+        component: MyHoldings,
+        meta: { title: '我的持仓', requiresAuth: true }
       },
       // 新增路由
       {

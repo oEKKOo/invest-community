@@ -228,7 +228,7 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ALLOW_CREDENTIALS = True
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Finnhub 行情数据接入配置
+# Finnhub 行情数据接入配置（美股 / 港股）
 # 规范（finnhub-api.mdc §1）：
 #   - Key 从环境变量 FINNHUB_API_KEY 读取，禁止明文写入代码或日志
 #   - 此处不打印 Key 值，只存在布尔状态检查
@@ -236,9 +236,6 @@ CORS_ALLOW_CREDENTIALS = True
 #   1. 项目根目录新建 .env 文件（不入库）：FINNHUB_API_KEY=your_key_here
 #   2. 系统环境变量：set FINNHUB_API_KEY=your_key_here (Windows)
 # ─────────────────────────────────────────────────────────────────────────────
-# 注意：FINNHUB_API_KEY 在 finnhub_service.py 中用 os.environ.get() 直接读取
-# 这里仅做"配置检测"，不存储 Key 值本身
-
 FINNHUB_API_KEY_CONFIGURED = bool(os.environ.get('FINNHUB_API_KEY', ''))
 
 # 行情快照缓存时间（秒）：quote 接口的有效期
@@ -253,6 +250,25 @@ MARKET_DATA_SNAPSHOT_RETENTION_DAYS = int(os.environ.get('MARKET_DATA_SNAPSHOT_R
 # 对应 get_popular_asset_ids(top_n) 的默认值
 # 建议：免费版 Finnhub Key 速率限制 60 次/分，TOP_N 不超过 30
 QUOTE_REFRESH_POPULAR_TOP_N = int(os.environ.get('QUOTE_REFRESH_POPULAR_TOP_N', 20))
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Tushare 行情数据接入配置（A 股：沪深京三市）
+# 规范：
+#   - Token 从环境变量 TUSHARE_API_TOKEN 读取，禁止明文写入代码或日志
+#   - 数据源路由：market in {SH,SZ,BJ} → Tushare；US/HK → Finnhub
+# 配置方式（.env 文件，与 Finnhub Key 同文件）：
+#   TUSHARE_API_TOKEN=your_token_here
+# ─────────────────────────────────────────────────────────────────────────────
+TUSHARE_API_TOKEN_CONFIGURED = bool(os.environ.get('TUSHARE_API_TOKEN', ''))
+
+# A 股行情快照 TTL（秒）
+# A 股只有日线收盘数据，建议设置较长 TTL（收盘后数据不再变化）
+# 交易时段建议 300s，收盘后可放大至 3600
+TUSHARE_QUOTE_CACHE_TTL = int(os.environ.get('TUSHARE_QUOTE_CACHE_TTL', 300))
+
+# A 股每次同步时 Tushare 请求间隔（秒），防止触发 API 限流
+# Tushare 免费版限制每分钟约 500 次，但建议保守设置
+TUSHARE_REQUEST_DELAY = float(os.environ.get('TUSHARE_REQUEST_DELAY', 0.4))
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 缓存配置（行情快照优先读 Redis，降低数据库压力）

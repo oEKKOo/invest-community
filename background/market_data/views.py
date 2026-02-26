@@ -9,6 +9,10 @@
 - GET  /api/assets/{asset_id}/contents/       # 资产内容（更通用版）
 - GET  /api/market/jobs/                      # 后台任务监控
 - POST /api/market/jobs/trigger/              # 手动触发任务
+
+数据源路由规则：
+  market in {SH,SZ,BJ} → Tushare（A 股日线数据）
+  其他（US/HK）         → Finnhub（实时行情 + K 线）
 """
 import json
 import logging
@@ -143,23 +147,43 @@ def asset_kline(request, pk):
     queryset = queryset.order_by('-k_time')[:limit]
     klines = list(queryset)
 
-    # 数据库无数据时，尝试从 Finnhub 拉取并落库
-    if not klines and asset.finnhub_symbol:
-        logger.info('[kline] 数据库无 %s [%s] 数据，尝试从 Finnhub 拉取', asset.code, resolution)
-        from . import finnhub_service as fh
+    # 数据库无数据时，按市场选择数据源拉取并落库
+    if not klines:
         from .tasks import _write_klines
+        from .tushare_service import CN_MARKETS
 
-        days = 365 if resolution == 'D' else 30
-        to_ts = fh.now_ts()
-        from_ts = fh.datetime_to_ts(datetime.now(tz=py_tz.utc) - timedelta(days=days))
-        data = fh.get_candles(asset.finnhub_symbol, resolution, from_ts, to_ts)
-        if data:
-            _write_klines(asset, resolution, data['items'], force_refetch=False)
-            # 重新查询
-            queryset = AssetKline.objects.filter(
-                asset=asset, resolution=resolution
-            ).order_by('-k_time')[:limit]
-            klines = list(queryset)
+        if asset.market in CN_MARKETS and resolution == 'D':
+            # A 股日线 → Tushare
+            from . import tushare_service as ts_svc
+            ts_code = ts_svc.get_tushare_code(asset.code, asset.market)
+            if ts_code and ts_svc.is_api_token_configured():
+                logger.info('[kline] 数据库无 %s [%s] 数据，从 Tushare 拉取', asset.code, resolution)
+                days = 365
+                from_dt = datetime.now(tz=py_tz.utc) - timedelta(days=days)
+                start_str = ts_svc.date_to_tushare_str(from_dt)
+                end_str   = ts_svc.date_to_tushare_str(datetime.now(tz=py_tz.utc))
+                items = ts_svc.get_daily_klines(ts_code, start_str, end_str)
+                if items:
+                    _write_klines(asset, 'D', items, force_refetch=False)
+                    queryset = AssetKline.objects.filter(
+                        asset=asset, resolution=resolution
+                    ).order_by('-k_time')[:limit]
+                    klines = list(queryset)
+
+        elif asset.finnhub_symbol:
+            # US/HK → Finnhub
+            from . import finnhub_service as fh
+            logger.info('[kline] 数据库无 %s [%s] 数据，从 Finnhub 拉取', asset.code, resolution)
+            days = 365 if resolution == 'D' else 30
+            to_ts = fh.now_ts()
+            from_ts = fh.datetime_to_ts(datetime.now(tz=py_tz.utc) - timedelta(days=days))
+            data = fh.get_candles(asset.finnhub_symbol, resolution, from_ts, to_ts)
+            if data:
+                _write_klines(asset, resolution, data['items'], force_refetch=False)
+                queryset = AssetKline.objects.filter(
+                    asset=asset, resolution=resolution
+                ).order_by('-k_time')[:limit]
+                klines = list(queryset)
 
     # 按时间正序排列返回给前端（ECharts 需要升序）
     klines.reverse()
@@ -215,20 +239,26 @@ def asset_intraday(request, pk):
         k_time__gte=start_dt, k_time__lt=end_dt
     ).order_by('k_time')
 
-    # 无数据时从 Finnhub 拉取
-    if not klines.exists() and asset.finnhub_symbol:
-        from . import finnhub_service as fh
+    # 无数据时按市场选择数据源拉取
+    if not klines.exists():
         from .tasks import _write_klines
+        from .tushare_service import CN_MARKETS
 
-        from_ts = fh.datetime_to_ts(start_dt)
-        to_ts = fh.datetime_to_ts(end_dt)
-        data = fh.get_candles(asset.finnhub_symbol, resolution, from_ts, to_ts)
-        if data:
-            _write_klines(asset, resolution, data['items'], force_refetch=False)
-            klines = AssetKline.objects.filter(
-                asset=asset, resolution=resolution,
-                k_time__gte=start_dt, k_time__lt=end_dt
-            ).order_by('k_time')
+        if asset.market in CN_MARKETS:
+            # A 股：Tushare 分钟数据权限较高，降级为日线数据提示
+            # 注：Tushare 免费积分不支持分钟线，此处仅做友好提示
+            logger.info('[intraday] A股 %s 暂不支持分钟线（Tushare 积分限制）', asset.code)
+        elif asset.finnhub_symbol:
+            from . import finnhub_service as fh
+            from_ts = fh.datetime_to_ts(start_dt)
+            to_ts = fh.datetime_to_ts(end_dt)
+            data = fh.get_candles(asset.finnhub_symbol, resolution, from_ts, to_ts)
+            if data:
+                _write_klines(asset, resolution, data['items'], force_refetch=False)
+                klines = AssetKline.objects.filter(
+                    asset=asset, resolution=resolution,
+                    k_time__gte=start_dt, k_time__lt=end_dt
+                ).order_by('k_time')
 
     # 构造分时响应：每分钟价格 + 均价
     items = []
@@ -518,11 +548,12 @@ def trigger_job(request):
     """
     手动触发数据同步任务（管理员后台回补入口）
     支持的 jobType：
-    - SYMBOLS_SYNC: 同步股票列表，需传 exchange, market
-    - KLINE_SYNC: 同步K线，可传 assetIds[], daysBack, resolution
-    - QUOTE_REFRESH: 刷新行情快照，可传 assetIds[]
-    - DQ_CHECK: 数据质量校验，可传 assetIds[]
-    - CLEANUP: 清理过期快照，可传 daysToKeep
+    - SYMBOLS_SYNC:    同步股票列表（美股/港股），需传 exchange, market
+    - CN_SYMBOLS_SYNC: 同步 A 股标的列表（Tushare），可传 listStatus
+    - KLINE_SYNC:      同步K线，可传 assetIds[], daysBack, resolution, marketFilter
+    - QUOTE_REFRESH:   刷新行情快照（A股+美股自动路由），可传 assetIds[]
+    - DQ_CHECK:        数据质量校验，可传 assetIds[]
+    - CLEANUP:         清理过期快照，可传 daysToKeep
     """
     user = request.user
     if user.role not in ['MODERATOR', 'ADMIN']:
@@ -540,16 +571,24 @@ def trigger_job(request):
             job = symbols_sync(exchange=exchange, market=market)
             return Response({'code': 0, 'data': DataJobLogSerializer(job).data})
 
+        elif job_type == 'CN_SYMBOLS_SYNC':
+            from .tasks import cn_symbols_sync
+            list_status = request.data.get('listStatus', 'L')
+            job = cn_symbols_sync(list_status=list_status)
+            return Response({'code': 0, 'data': DataJobLogSerializer(job).data})
+
         elif job_type == 'KLINE_SYNC':
             asset_ids = request.data.get('assetIds')
             days_back = int(request.data.get('daysBack', 365))
             resolution = request.data.get('resolution', 'D')
             force = bool(request.data.get('forceRefetch', False))
+            market_filter = request.data.get('marketFilter')
             job = kline_sync(
                 asset_ids=asset_ids,
                 resolution=resolution,
                 days_back=days_back,
-                force_refetch=force
+                force_refetch=force,
+                market_filter=market_filter,
             )
             return Response({'code': 0, 'data': DataJobLogSerializer(job).data})
 
@@ -593,10 +632,11 @@ def trigger_job(request):
 @permission_classes([AllowAny])
 def market_status(request):
     """
-    系统状态查询（Key 配置状态 + 最近任务状态）
-    不暴露 Key 本身，只返回是否已配置
+    系统状态查询（Key/Token 配置状态 + 最近任务状态）
+    不暴露 Key/Token 本身，只返回是否已配置
     """
-    from .finnhub_service import is_api_key_configured
+    from .finnhub_service import is_api_key_configured as fh_configured
+    from .tushare_service import is_api_token_configured as ts_configured
 
     # 最近各类任务状态
     recent_jobs = {}
@@ -611,17 +651,21 @@ def market_status(request):
         else:
             recent_jobs[job_type] = None
 
-    # 数据库统计
+    # 数据库统计（按市场分组）
     from content.models import Asset
+    from .tushare_service import CN_MARKETS
     asset_count = Asset.objects.count()
+    cn_asset_count = Asset.objects.filter(market__in=list(CN_MARKETS)).count()
     snapshot_count = AssetQuoteSnapshot.objects.count()
     kline_count = AssetKline.objects.count()
 
     return Response({
         'code': 0,
         'data': {
-            'finnhubKeyConfigured': is_api_key_configured(),
+            'finnhubKeyConfigured': fh_configured(),
+            'tushareTokenConfigured': ts_configured(),
             'assetCount': asset_count,
+            'cnAssetCount': cn_asset_count,
             'snapshotCount': snapshot_count,
             'klineCount': kline_count,
             'recentJobs': recent_jobs,

@@ -72,23 +72,108 @@ chmod +x start_dev.sh
 ### 4. 手动初始化
 
 ```bash
-# 1. 安装依赖
+# ── Step 1：安装依赖 ─────────────────────────────────────────────
 pip install -r requirements.txt
 
-# 2. 数据库迁移
+# ── Step 2：数据库迁移 ───────────────────────────────────────────
 python manage.py makemigrations
 python manage.py migrate
 
-# 3. 创建超级用户
+# ── Step 3：创建超级用户 ─────────────────────────────────────────
 python manage.py createsuperuser
 
-# 4. 启动服务器
+# ── Step 4：启动开发服务器 ───────────────────────────────────────
 python manage.py runserver
 ```
-cd D:\invest\background
-$env:FINNHUB_API_KEY="d6e2ur1r01qmepi1jd9gd6e2ur1r01qmepi1jda0"
-$env:USE_REDIS="false"
-python manage.py runserver
+
+> **Windows PowerShell 每次启动前需设置环境变量：**
+> ```powershell
+> cd D:\invest\background
+> $env:FINNHUB_API_KEY="your_finnhub_key_here"
+> $env:USE_REDIS="false"
+> ```
+
+---
+
+## 📊 A股数据初始化命令（按顺序执行）
+
+> **说明**：以下命令用于首次初始化或全量回补行情数据，依赖 Tushare API Token（在 `.env` 中配置 `TUSHARE_API_TOKEN`）。
+
+### 🔰 阶段一：首次初始化（全新部署时执行一次）
+
+```bash
+# Step 1：导入全部上市A股列表（约5500只）+ 同步近一年日线K线 + 刷新行情快照
+python manage.py import_cn_stocks --kline --quote --days 365
+
+# Step 2：为所有用户持仓生成历史每日快照（基于已导入的K线）
+python manage.py fill_holding_snapshots --days 365
+```
+
+---
+
+### 🔄 阶段二：每日收盘后定时更新（16:30 之后执行）
+
+> Tushare 日K数据在 A 股收盘后（约16:00）才落库，建议每日 **16:30** 后执行。
+
+```bash
+# Step 1：更新A股日K线（只补今天新增的1根K线，跳过重新导入股票列表）
+python manage.py import_cn_stocks --kline-only --days 1
+
+# Step 2：从最新K线生成用户持仓每日快照（补缺模式，已有快照不重复写）
+python manage.py fill_holding_snapshots --days 1
+```
+
+> **注意**：若当天为非交易日（周末/节假日），Tushare 不返回数据，两条命令均会自动跳过，不会报错。
+
+---
+
+### 🔧 阶段三：服务重启 / 补缺历史数据
+
+```bash
+# 补近30天K线（服务中断后补缺）
+python manage.py import_cn_stocks --kline-only --days 30
+python manage.py fill_holding_snapshots --days 30
+
+# 全量重新回补近一年（数据异常时使用）
+python manage.py import_cn_stocks --kline-only --days 365
+python manage.py fill_holding_snapshots --days 365
+```
+
+---
+
+### 🎯 其他常用管理命令
+
+```bash
+# 只导入指定股票的K线+行情（快速测试用）
+python manage.py import_cn_stocks --codes 600519,000858,300750 --kline --quote
+
+# 只刷新行情快照（不更新K线）
+python manage.py import_cn_stocks --quote-only
+
+# 强制重建指定用户的持仓快照
+python manage.py fill_holding_snapshots --user-id 1 --force
+
+# 调试单条持仓快照生成
+python manage.py fill_holding_snapshots --holding-id 5
+```
+
+---
+
+### 📋 命令参数速查表
+
+| 命令 | 关键参数 | 说明 |
+|---|---|---|
+| `import_cn_stocks` | _(无)_ | 仅导入股票列表，不同步K线/行情 |
+| `import_cn_stocks` | `--kline --days N` | 导入列表 + 同步最近N天K线 |
+| `import_cn_stocks` | `--quote` | 导入列表 + 刷新行情快照 |
+| `import_cn_stocks` | `--kline --quote --days N` | 导入列表 + K线 + 行情（初始化一步到位） |
+| `import_cn_stocks` | `--kline-only --days N` | **跳过导入**，只同步K线 ✅ 每日更新用 |
+| `import_cn_stocks` | `--quote-only` | **跳过导入**，只刷新行情快照 |
+| `import_cn_stocks` | `--codes A,B --kline --quote` | 指定代码同步 |
+| `fill_holding_snapshots` | `--days N` | 补全最近N天持仓快照（补缺模式） |
+| `fill_holding_snapshots` | `--user-id N` | 只处理指定用户 |
+| `fill_holding_snapshots` | `--holding-id N` | 只处理指定持仓记录（调试用） |
+| `fill_holding_snapshots` | `--force` | 强制重建（先删后补） |
 
 ## 📡 API 接口
 

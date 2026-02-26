@@ -1,15 +1,20 @@
 """
-数据同步任务（Finnhub 规范 §5 三类任务）
-- 任务 A: symbols_sync        — 标的清单同步
-- 任务 B: kline_sync          — 日线数据同步（增量 + 回补）
-- 任务 C: quote_refresh       — 行情快照刷新（可高频调用）
-- 任务 C2: quote_refresh_popular — 热门标的行情刷新（定时调度，供榜单/列表稳定展示）
-- 任务 D: dq_check            — 数据质量校验（缺失/重复/异常检测）
+数据同步任务（支持 Finnhub（美股/港股）+ Tushare（A 股）双数据源）
+- 任务 A:  symbols_sync        — Finnhub 标的清单同步（美股/港股）
+- 任务 A2: cn_symbols_sync     — Tushare A 股标的清单同步
+- 任务 B:  kline_sync          — 日线数据同步（增量 + 回补，自动选择数据源）
+- 任务 C:  quote_refresh       — 行情快照刷新（自动选择数据源，可高频调用）
+- 任务 C2: quote_refresh_popular — 热门标的行情刷新（定时调度）
+- 任务 D:  dq_check            — 数据质量校验（缺失/重复/异常检测）
+
+数据源路由规则：
+  market in {'SH','SZ','BJ'}  → Tushare（A 股日线，收盘数据）
+  其他市场（US/HK）            → Finnhub（实时报价 + K 线）
 
 缓存分层策略：
   L1 Django Cache（LocMem / Redis）—— 命中直接返回，无 DB/API 开销
   L2 DB 快照（AssetQuoteSnapshot）—— TTL 内有效则写 L1 后返回
-  L3 Finnhub API                  —— 实时拉取，写 DB + 写 L1 后返回
+  L3 数据源 API               —— 实时/日线拉取，写 DB + 写 L1 后返回
 
 可通过 Django management commands 或 Celery Beat 调度。
 每次运行都会写 DataJobLog 记录。
@@ -26,6 +31,8 @@ from django.utils import timezone as dj_timezone
 
 from .models import AssetQuoteSnapshot, AssetKline, DataJobLog
 from . import finnhub_service as fh
+from . import tushare_service as ts_svc
+from .tushare_service import CN_MARKETS
 
 logger = logging.getLogger(__name__)
 
@@ -147,57 +154,223 @@ def symbols_sync(exchange: str, market: str = '') -> DataJobLog:
     return job
 
 
+# ---------- 任务 A2: A 股标的清单同步（Tushare）----------
+
+def cn_symbols_sync(list_status: str = 'L') -> DataJobLog:
+    """
+    从 Tushare 拉取 A 股股票列表并更新/新增到 Asset 表
+    list_status: L(上市) D(退市) P(暂停上市)，默认 L
+    覆盖范围：SH（上交所）、SZ（深交所）、BJ（北交所）
+    """
+    from content.models import Asset
+
+    job = _start_job('SYMBOLS_SYNC', market='CN')
+    try:
+        if not ts_svc.is_api_token_configured():
+            _finish_job(job, False, error='TUSHARE_API_TOKEN 未配置')
+            return job
+
+        stocks = ts_svc.get_stock_basic(list_status=list_status)
+        if stocks is None:
+            _finish_job(job, False, error='Tushare 返回 None，可能是 Token 无效或网络错误')
+            return job
+
+        created_count = 0
+        updated_count = 0
+
+        for s in stocks:
+            code   = s.get('code', '')
+            market = s.get('market', '')   # SH / SZ / BJ
+            name   = s.get('name', '')
+            industry = s.get('industry', '')
+
+            if not code or market not in CN_MARKETS:
+                continue
+
+            # 交易所映射：Tushare exchange → 内部 exchange 字段
+            # Tushare exchange: SSE(上交所) / SZSE(深交所) / BSE(北交所)
+            exchange_map = {'SSE': 'SH', 'SZSE': 'SZ', 'BSE': 'BJ'}
+            raw_exchange = s.get('exchange', '')
+            exchange = exchange_map.get(raw_exchange, raw_exchange)
+
+            defaults = {
+                'name':         name,
+                'asset_type':   'STOCK',
+                'market':       market,   # 放进 defaults，修正旧的 market='CN'
+                'currency':     'CNY',
+                'exchange':     exchange,
+                'industry':     industry,
+                'status':       'ACTIVE',
+                'meta_json':    {'tushare_code': s.get('ts_code', ''),
+                                 'area': s.get('area', ''),
+                                 'list_date': s.get('list_date', '')},
+                'last_sync_at': dj_timezone.now(),
+            }
+
+            try:
+                # DB 唯一约束 uk_asset_type_code 仅覆盖 (asset_type, code)，
+                # 查找键不含 market，避免旧记录（market='CN'）触发重复插入。
+                obj, created = Asset.objects.update_or_create(
+                    code=code,
+                    asset_type='STOCK',
+                    defaults=defaults,
+                )
+                if created:
+                    created_count += 1
+                else:
+                    updated_count += 1
+            except Exception as e:
+                logger.warning('[Task:cn_symbols_sync] 写入异常: code=%s err=%s', code, str(e))
+
+        total = created_count + updated_count
+        _finish_job(job, True, affected_rows=total,
+                    extra={'created': created_count, 'updated': updated_count,
+                           'list_status': list_status})
+        logger.info('[Task:cn_symbols_sync] 完成: total=%d created=%d updated=%d',
+                    total, created_count, updated_count)
+
+    except Exception as exc:
+        logger.exception('[Task:cn_symbols_sync] 未预期异常')
+        _finish_job(job, False, error=str(exc))
+
+    return job
+
+
 # ---------- 任务 B: K 线数据同步 ----------
 
 def kline_sync(
     asset_ids: Optional[List[int]] = None,
     resolution: str = 'D',
     days_back: int = 365,
-    force_refetch: bool = False
+    force_refetch: bool = False,
+    market_filter: Optional[str] = None,
 ) -> DataJobLog:
     """
-    增量同步 K 线（日线）
-    - asset_ids: 指定资产列表；None 表示同步所有有 finnhub_symbol 的资产
-    - resolution: K线周期，默认 'D'（日K）
-    - days_back: 向前拉取的天数（历史数据初始化时设大，增量时设 2~5 天）
-    - force_refetch: True 则清空并重拉（用于数据回补）
+    增量同步 K 线（日线），自动按市场选择数据源：
+      A 股（SH/SZ/BJ）→ Tushare（仅支持日线 'D'）
+      其他（US/HK）   → Finnhub
+
+    参数：
+    - asset_ids:     指定资产列表；None 表示全量同步
+    - resolution:    K线周期，默认 'D'（日K）；A 股仅支持 'D'
+    - days_back:     向前拉取的天数
+    - force_refetch: True 则清空并重拉（数据回补）
+    - market_filter: 只同步指定市场，如 'SH'/'US'；None 表示全市场
     """
     from content.models import Asset
 
-    job = _start_job('KLINE_SYNC', market='')
+    job = _start_job('KLINE_SYNC', market=market_filter or '')
     try:
-        queryset = Asset.objects.exclude(finnhub_symbol__isnull=True).exclude(finnhub_symbol='')
-        if asset_ids:
-            queryset = queryset.filter(id__in=asset_ids)
+        # 构建查询：A 股按市场过滤，非 A 股按 finnhub_symbol 过滤
+        cn_qs = Asset.objects.filter(market__in=CN_MARKETS)
+        fh_qs = Asset.objects.exclude(
+            finnhub_symbol__isnull=True
+        ).exclude(finnhub_symbol='').exclude(market__in=CN_MARKETS)
 
-        to_ts = fh.now_ts()
-        from_dt = datetime.now(tz=timezone.utc) - timedelta(days=days_back)
-        from_ts = fh.datetime_to_ts(from_dt)
+        if asset_ids:
+            cn_qs = cn_qs.filter(id__in=asset_ids)
+            fh_qs = fh_qs.filter(id__in=asset_ids)
+
+        if market_filter:
+            if market_filter in CN_MARKETS:
+                fh_qs = fh_qs.none()
+                cn_qs = cn_qs.filter(market=market_filter)
+            else:
+                cn_qs = cn_qs.none()
+                fh_qs = fh_qs.filter(market=market_filter)
 
         total_rows = 0
         failed_assets = []
 
-        for asset in queryset:
-            try:
-                data = fh.get_candles(asset.finnhub_symbol, resolution, from_ts, to_ts)
-                if data is None:
-                    logger.debug('[Task:kline_sync] %s 无 K 线数据', asset.finnhub_symbol)
+        # ── B1: Tushare（A 股日线）—— 按日期批量拉取，每天一次 API ──────────
+        if ts_svc.is_api_token_configured() and resolution == 'D':
+            from_dt  = datetime.now(tz=timezone.utc) - timedelta(days=days_back)
+            end_dt   = datetime.now(tz=timezone.utc)
+
+            # 构建 code → Asset 映射，供按日期拉取时路由
+            cn_assets   = list(cn_qs)
+            asset_map   = {a.code: a for a in cn_assets}
+            BATCH_SIZE  = 2000
+
+            # force 模式：一次性删除全部目标资产在时间范围内的旧 K 线
+            if force_refetch and cn_assets:
+                asset_ids = [a.id for a in cn_assets]
+                k_from = datetime(from_dt.year, from_dt.month, from_dt.day, tzinfo=timezone.utc)
+                k_to   = datetime(end_dt.year,  end_dt.month,  end_dt.day,  tzinfo=timezone.utc)
+                AssetKline.objects.filter(
+                    asset_id__in=asset_ids, resolution='D',
+                    k_time__gte=k_from, k_time__lte=k_to,
+                ).delete()
+
+            # 按日期迭代：每天一次 API 拿全市场，再 bulk_create 入库
+            cur = from_dt.date()
+            today = end_dt.date()
+            while cur <= today:
+                date_str = cur.strftime('%Y%m%d')
+                cur += timedelta(days=1)
+                try:
+                    daily_items = ts_svc.get_daily_klines_by_date(date_str)
+                except Exception as exc:
+                    logger.warning('[Task:kline_sync] 拉取 %s 失败: %s', date_str, str(exc))
+                    failed_assets.append({'code': f'[date:{date_str}]', 'error': str(exc)})
                     continue
 
-                items = data.get('items', [])
-                written = _write_klines(asset, resolution, items, force_refetch)
-                total_rows += written
+                if not daily_items:
+                    continue   # 非交易日，直接跳过
 
-            except Exception as exc:
-                logger.warning('[Task:kline_sync] 资产 %s 失败: %s', asset.finnhub_symbol, str(exc))
-                failed_assets.append({'code': asset.code, 'error': str(exc)})
+                objs = []
+                for item in daily_items:
+                    asset = asset_map.get(item['code'])
+                    if asset is None:
+                        continue
+                    objs.append(AssetKline(
+                        asset=asset,
+                        resolution='D',
+                        k_time=item['k_time'],
+                        open=item.get('open') or 0,
+                        high=item.get('high') or 0,
+                        low=item.get('low') or 0,
+                        close=item.get('close') or 0,
+                        volume=item.get('volume'),
+                    ))
+
+                for i in range(0, len(objs), BATCH_SIZE):
+                    AssetKline.objects.bulk_create(
+                        objs[i:i + BATCH_SIZE],
+                        batch_size=BATCH_SIZE,
+                        ignore_conflicts=True,
+                    )
+                total_rows += len(objs)
+                logger.info('[Task:kline_sync] A股 %s 入库 %d 条', date_str, len(objs))
+
+        elif resolution == 'D' and not ts_svc.is_api_token_configured():
+            logger.warning('[Task:kline_sync] TUSHARE_API_TOKEN 未配置，跳过 A 股同步')
+
+        # ── B2: Finnhub（US/HK K 线）──────────────────────────────────────
+        if fh.is_api_key_configured():
+            to_ts   = fh.now_ts()
+            from_dt = datetime.now(tz=timezone.utc) - timedelta(days=days_back)
+            from_ts = fh.datetime_to_ts(from_dt)
+
+            for asset in fh_qs:
+                try:
+                    data = fh.get_candles(asset.finnhub_symbol, resolution, from_ts, to_ts)
+                    if data is None:
+                        logger.debug('[Task:kline_sync] %s 无 K 线数据', asset.finnhub_symbol)
+                        continue
+                    items = data.get('items', [])
+                    written = _write_klines(asset, resolution, items, force_refetch)
+                    total_rows += written
+                except Exception as exc:
+                    logger.warning('[Task:kline_sync] %s 失败: %s', asset.finnhub_symbol, str(exc))
+                    failed_assets.append({'code': asset.code, 'error': str(exc)})
 
         success = len(failed_assets) == 0
         status_val = 'SUCCESS' if success else ('PARTIAL' if total_rows > 0 else 'FAILED')
         job.status = status_val
         job.finished_at = dj_timezone.now()
         job.affected_rows = total_rows
-        job.extra_info = {'failed_assets': failed_assets[:50]}  # 最多记录 50 条
+        job.extra_info = {'failed_assets': failed_assets[:50]}
         if not success and total_rows == 0:
             job.error_message = f'全部失败，共 {len(failed_assets)} 个资产'
         job.save(update_fields=['status', 'finished_at', 'affected_rows', 'error_message', 'extra_info'])
@@ -211,12 +384,25 @@ def kline_sync(
     return job
 
 
+_KLINE_BATCH_SIZE = 2000  # 每批写入 K 线数量（可通过 settings 覆盖）
+
+
 def _write_klines(asset, resolution: str, items: list, force_refetch: bool) -> int:
-    """批量写入 K 线（防重，支持 upsert）"""
+    """
+    批量写入 K 线（bulk_create + ignore_conflicts，彻底取消逐条写入）。
+
+    - 正常模式：INSERT IGNORE（UNIQUE KEY 保证不重复），一批 2000 条提交一次。
+    - force 模式：先按时间范围 DELETE，再 INSERT（保证最新数据覆盖旧值）。
+
+    返回"尝试写入条数"（force 模式下等于实际写入数）。
+    """
     from .models import AssetKline
 
-    if force_refetch and items:
-        # 回补模式：删除时间范围内旧数据
+    if not items:
+        return 0
+
+    # ── force 模式：先删除时间范围内旧数据，保证回补覆盖最新值 ──────────────
+    if force_refetch:
         times = [i['k_time'] for i in items if i.get('k_time')]
         if times:
             AssetKline.objects.filter(
@@ -224,32 +410,59 @@ def _write_klines(asset, resolution: str, items: list, force_refetch: bool) -> i
                 k_time__gte=min(times), k_time__lte=max(times)
             ).delete()
 
-    written = 0
+    # ── 构造 ORM 对象列表（不发 SQL，仅内存） ────────────────────────────────
+    objs = []
     for item in items:
         k_time = item.get('k_time')
         if not k_time:
             continue
-        try:
-            AssetKline.objects.update_or_create(
-                asset=asset,
-                resolution=resolution,
-                k_time=k_time,
-                defaults={
-                    'open': item.get('open') or 0,
-                    'high': item.get('high') or 0,
-                    'low': item.get('low') or 0,
-                    'close': item.get('close') or 0,
-                    'volume': item.get('volume'),
-                }
-            )
-            written += 1
-        except Exception as e:
-            logger.debug('[kline_write] 写入失败: asset=%s time=%s err=%s', asset.code, k_time, str(e))
+        objs.append(AssetKline(
+            asset=asset,
+            resolution=resolution,
+            k_time=k_time,
+            open=item.get('open') or 0,
+            high=item.get('high') or 0,
+            low=item.get('low') or 0,
+            close=item.get('close') or 0,
+            volume=item.get('volume'),
+        ))
 
-    return written
+    if not objs:
+        return 0
+
+    # ── 分批 bulk_create，ignore_conflicts 对应 INSERT IGNORE ────────────────
+    batch_size = int(getattr(settings, 'KLINE_BULK_BATCH_SIZE', _KLINE_BATCH_SIZE))
+    for i in range(0, len(objs), batch_size):
+        AssetKline.objects.bulk_create(
+            objs[i:i + batch_size],
+            batch_size=batch_size,
+            ignore_conflicts=True,
+        )
+
+    logger.debug('[kline_write] bulk_create: asset=%s resolution=%s count=%d',
+                 asset.code, resolution, len(objs))
+    return len(objs)
 
 
 # ---------- 任务 C: 行情快照刷新 ----------
+
+def _fetch_quote_for_asset(asset) -> Optional[dict]:
+    """
+    根据资产市场选择数据源拉取最新行情（内部工具函数）：
+    - A 股（SH/SZ/BJ）→ Tushare 最近交易日收盘数据
+    - 其他（US/HK）   → Finnhub 实时报价
+    返回统一格式的 quote dict，或 None
+    """
+    if asset.market in CN_MARKETS:
+        ts_code = ts_svc.get_tushare_code(asset.code, asset.market)
+        if not ts_code:
+            return None
+        return ts_svc.get_latest_daily_quote(ts_code)
+    else:
+        if not asset.finnhub_symbol:
+            return None
+        return fh.get_quote(asset.finnhub_symbol)
+
 
 def quote_refresh(
     asset_ids: Optional[List[int]] = None,
@@ -257,46 +470,113 @@ def quote_refresh(
     log_interval: int = 20,
 ) -> DataJobLog:
     """
-    刷新行情快照（可高频调用，建议交易时段每分钟调度）。
-    每次写入新快照后同步回填 L1 缓存，确保下次请求直接命中缓存层。
+    刷新行情快照（自动选择数据源，可高频调用）：
+    - A 股（SH/SZ/BJ）→ Tushare 全市场批量拉取（1 次 API + bulk_create，秒级完成）
+    - 其他（US/HK）   → Finnhub 实时报价（逐个调用，delay 节流）
 
-    - asset_ids=None：刷新所有有 finnhub_symbol 的 ACTIVE 资产
+    - asset_ids=None：刷新所有符合条件的 ACTIVE 资产（A 股 + 有 finnhub_symbol 的资产）
     - asset_ids=[...]：仅刷新指定资产
-    - delay：每次 API 请求之间的延迟（秒），免费版建议 >= 0.1，默认 0.12
-    - log_interval：每隔多少只打印一次进度日志，默认 20
+    - delay：Finnhub 请求之间的节流延迟（秒）；A 股批量模式不受此参数影响
+    - log_interval：Finnhub 支路每隔多少只打印一次进度日志
     """
     import time as _time
     from content.models import Asset
 
+    _BULK_BATCH = 2000
+
     ttl = _get_quote_ttl()
     job = _start_job('QUOTE_REFRESH')
     try:
-        queryset = Asset.objects.filter(status='ACTIVE').exclude(
-            finnhub_symbol__isnull=True).exclude(finnhub_symbol='')
+        queryset = Asset.objects.filter(status='ACTIVE').filter(
+            Q(market__in=list(CN_MARKETS)) |
+            (Q(finnhub_symbol__isnull=False) & ~Q(finnhub_symbol=''))
+        )
         if asset_ids:
             queryset = queryset.filter(id__in=asset_ids)
 
-        assets = list(queryset)
-        total = len(assets)
+        assets    = list(queryset)
+        cn_assets = [a for a in assets if a.market in CN_MARKETS]
+        fh_assets = [a for a in assets if a.market not in CN_MARKETS]
+        total   = len(assets)
         written = 0
         no_data = 0
-        failed = []
+        failed  = []
 
-        logger.info('[Task:quote_refresh] 开始刷新，共 %d 只资产，delay=%.2fs', total, delay)
+        logger.info(
+            '[Task:quote_refresh] 开始刷新：A股=%d 海外=%d 共=%d',
+            len(cn_assets), len(fh_assets), total
+        )
 
-        for idx, asset in enumerate(assets, 1):
+        # ── A 股：全市场批量拉取，一次 API + bulk_create ──────────────────────
+        if cn_assets:
             try:
-                quote = fh.get_quote(asset.finnhub_symbol)
+                daily_items = ts_svc.get_latest_daily_quotes_all(lookback_days=7)
+            except Exception as exc:
+                logger.warning('[Task:quote_refresh] A股批量行情拉取失败: %s', str(exc))
+                daily_items = None
+
+            if daily_items:
+                code_to_asset = {a.code: a for a in cn_assets}
+                cn_objs = []
+                for item in daily_items:
+                    asset = code_to_asset.get(item['code'])
+                    if asset is None or not item.get('close'):
+                        continue
+                    cn_objs.append(AssetQuoteSnapshot(
+                        asset=asset,
+                        price=item.get('close'),
+                        change_amount=item.get('change'),
+                        change_pct=item.get('pct_chg'),
+                        open=item.get('open'),
+                        high=item.get('high'),
+                        low=item.get('low'),
+                        prev_close=item.get('pre_close'),
+                        volume=item.get('volume'),
+                        amount=item.get('amount'),
+                        quote_time=item.get('k_time'),
+                        source='tushare',
+                    ))
+
+                for i in range(0, len(cn_objs), _BULK_BATCH):
+                    batch = cn_objs[i:i + _BULK_BATCH]
+                    created_batch = AssetQuoteSnapshot.objects.bulk_create(
+                        batch, batch_size=_BULK_BATCH
+                    )
+                    written += len(created_batch)
+
+                    # 回填缓存（批量回填）
+                    for snap in created_batch:
+                        try:
+                            result = _snapshot_to_dict(snap.asset, snap)
+                            cache.set(_quote_cache_key(snap.asset_id), result, timeout=ttl)
+                        except Exception:
+                            pass
+
+                cn_no_data = len(cn_assets) - len(cn_objs)
+                no_data += cn_no_data
+                logger.info(
+                    '[Task:quote_refresh] A股批量完成: 写入=%d 无价格=%d',
+                    len(cn_objs), cn_no_data
+                )
+            else:
+                no_data += len(cn_assets)
+                logger.warning('[Task:quote_refresh] A股批量行情无数据（可能为非交易日）')
+
+        # ── 海外资产（US/HK）：Finnhub 逐个调用 ─────────────────────────────
+        for idx, asset in enumerate(fh_assets, 1):
+            try:
+                quote = _fetch_quote_for_asset(asset)
                 if quote is None or not quote.get('price'):
                     no_data += 1
-                    if idx % log_interval == 0 or idx == total:
+                    if idx % log_interval == 0 or idx == len(fh_assets):
                         logger.info(
-                            '[Task:quote_refresh] 进度 %d/%d  written=%d  no_data=%d  failed=%d',
-                            idx, total, written, no_data, len(failed)
+                            '[Task:quote_refresh] 海外进度 %d/%d  written=%d  no_data=%d  failed=%d',
+                            idx, len(fh_assets), written, no_data, len(failed)
                         )
                     _time.sleep(delay)
                     continue
 
+                source = quote.get('source', 'finnhub')
                 new_snapshot = AssetQuoteSnapshot.objects.create(
                     asset=asset,
                     price=quote.get('price'),
@@ -306,19 +586,20 @@ def quote_refresh(
                     high=quote.get('high'),
                     low=quote.get('low'),
                     prev_close=quote.get('prev_close'),
+                    volume=quote.get('volume'),
+                    amount=quote.get('amount'),
                     quote_time=quote.get('quote_time'),
-                    source='finnhub',
+                    source=source,
                 )
                 written += 1
 
-                # 写入快照后同步回填 L1 缓存，下次请求直接命中
                 result = _snapshot_to_dict(asset, new_snapshot)
                 cache.set(_quote_cache_key(asset.id), result, timeout=ttl)
 
-                if idx % log_interval == 0 or idx == total:
+                if idx % log_interval == 0 or idx == len(fh_assets):
                     logger.info(
-                        '[Task:quote_refresh] 进度 %d/%d  written=%d  no_data=%d  failed=%d',
-                        idx, total, written, no_data, len(failed)
+                        '[Task:quote_refresh] 海外进度 %d/%d  written=%d  no_data=%d  failed=%d',
+                        idx, len(fh_assets), written, no_data, len(failed)
                     )
 
             except Exception as exc:
@@ -358,16 +639,19 @@ def quote_refresh(
 def get_popular_asset_ids(top_n: int = 20) -> List[int]:
     """
     按"关联的已发布内容数"降序取 Top-N 活跃资产 ID。
-    用于定时刷新热门标的行情，保证榜单/列表数据新鲜度。
-
+    涵盖 A 股（Tushare）和美股/港股（Finnhub）。
     fallback：若所有资产均无内容，则返回最早同步的 top_n 个资产 ID。
     """
     from content.models import Asset
 
+    # 符合行情刷新条件的资产：A 股市场 OR 有 finnhub_symbol
+    base_qs = Asset.objects.filter(status='ACTIVE').filter(
+        Q(market__in=list(CN_MARKETS)) |
+        (Q(finnhub_symbol__isnull=False) & ~Q(finnhub_symbol=''))
+    )
+
     ids = list(
-        Asset.objects.filter(status='ACTIVE')
-        .exclude(finnhub_symbol__isnull=True).exclude(finnhub_symbol='')
-        .annotate(
+        base_qs.annotate(
             pub_content_count=Count(
                 'contentasset',
                 filter=Q(contentasset__content__status='PUBLISHED'),
@@ -379,11 +663,8 @@ def get_popular_asset_ids(top_n: int = 20) -> List[int]:
     )
 
     if not ids:
-        # fallback：无内容时按最早同步的资产兜底
         ids = list(
-            Asset.objects.filter(status='ACTIVE')
-            .exclude(finnhub_symbol__isnull=True).exclude(finnhub_symbol='')
-            .order_by('last_sync_at', 'id')
+            base_qs.order_by('last_sync_at', 'id')
             .values_list('id', flat=True)[:top_n]
         )
 
@@ -526,14 +807,10 @@ def get_or_refresh_quote(asset) -> Optional[dict]:
             cache.set(cache_key, result, timeout=ttl)
             return result
 
-        # ── L3: Finnhub 实时拉取 ─────────────────────────────────────────────
-        if not asset.finnhub_symbol:
-            logger.debug('[get_or_refresh_quote] %s 无 finnhub_symbol，跳过', asset.code)
-            return None
-
-        quote = fh.get_quote(asset.finnhub_symbol)
+        # ── L3: 按市场选择数据源实时/日线拉取 ───────────────────────────────
+        quote = _fetch_quote_for_asset(asset)
         if quote is None:
-            # Finnhub 无数据时，若有旧快照仍返回（带 stale 标记，TTL 缩短为 30s）
+            # 无新数据时，若有旧快照仍返回（带 stale 标记，TTL 缩短为 30s）
             if snapshot:
                 result = _snapshot_to_dict(asset, snapshot)
                 result['is_stale'] = True
@@ -551,8 +828,10 @@ def get_or_refresh_quote(asset) -> Optional[dict]:
             high=quote.get('high'),
             low=quote.get('low'),
             prev_close=quote.get('prev_close'),
+            volume=quote.get('volume'),
+            amount=quote.get('amount'),
             quote_time=quote.get('quote_time'),
-            source='finnhub',
+            source=quote.get('source', 'finnhub'),
         )
 
         result = _snapshot_to_dict(asset, new_snapshot)

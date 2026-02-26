@@ -20709,3 +20709,357 @@ INFO 2026-02-23 21:26:46,240 views 37608 3236 [kline] 数据库无 ADFS [D] 数据，尝
 WARNING 2026-02-23 21:26:47,203 finnhub_service 37608 3236 [Finnhub] 无访问权限(403), endpoint=/stock/candle —— 免费版套餐限制，已标记端点后续跳过
 WARNING 2026-02-23 21:26:47,204 finnhub_service 37608 3236 [Finnhub] 端点已被标记为无权限（403），后续请求将跳过: /stock/candle
 INFO 2026-02-23 21:27:00,169 views 37608 33164 [kline] 数据库无 AGCCF [D] 数据，尝试从 Finnhub 拉取
+INFO 2026-02-25 12:54:33,996 autoreload 15296 12120 Watching for file changes with StatReloader
+INFO 2026-02-25 12:59:47,939 views 15296 19080 [kline] 数据库无 COST [D] 数据，尝试从 Finnhub 拉取
+WARNING 2026-02-25 12:59:49,095 finnhub_service 15296 19080 [Finnhub] 无访问权限(403), endpoint=/stock/candle —— 免费版套餐限制，已标记端点后续跳过
+WARNING 2026-02-25 12:59:49,097 finnhub_service 15296 19080 [Finnhub] 端点已被标记为无权限（403），后续请求将跳过: /stock/candle
+WARNING 2026-02-25 13:01:25,300 finnhub_service 15296 1840 [Finnhub] 无访问权限(403), endpoint=/quote, symbol=603288.SS —— 该标的无数据或需要付费套餐
+INFO 2026-02-25 13:01:25,370 views 15296 15972 [kline] 数据库无 603288 [D] 数据，尝试从 Finnhub 拉取
+WARNING 2026-02-25 13:01:26,275 finnhub_service 15296 26300 [Finnhub] 无访问权限(403), endpoint=/quote, symbol=603288.SS —— 该标的无数据或需要付费套餐
+WARNING 2026-02-25 13:01:26,282 log 15296 26300 Not Found: /api/assets/52/quote/
+INFO 2026-02-25 14:07:21,048 autoreload 15296 12120 D:\invest\background\market_data\tasks.py changed, reloading.
+INFO 2026-02-25 14:07:22,618 autoreload 25108 21884 Watching for file changes with StatReloader
+INFO 2026-02-25 14:08:07,541 autoreload 25108 21884 D:\invest\background\market_data\tasks.py changed, reloading.
+INFO 2026-02-25 14:08:08,402 autoreload 11572 2720 Watching for file changes with StatReloader
+INFO 2026-02-25 14:13:41,392 autoreload 11572 2720 D:\invest\background\market_data\tasks.py changed, reloading.
+INFO 2026-02-25 14:13:42,276 autoreload 18848 26732 Watching for file changes with StatReloader
+INFO 2026-02-25 14:14:16,720 autoreload 18848 26732 D:\invest\background\market_data\tasks.py changed, reloading.
+INFO 2026-02-25 14:14:17,596 autoreload 30740 28708 Watching for file changes with StatReloader
+INFO 2026-02-25 14:14:31,987 autoreload 30740 28708 D:\invest\background\market_data\tasks.py changed, reloading.
+INFO 2026-02-25 14:14:32,862 autoreload 2876 30744 Watching for file changes with StatReloader
+INFO 2026-02-25 14:14:46,105 autoreload 2876 30744 D:\invest\background\market_data\tasks.py changed, reloading.
+INFO 2026-02-25 14:14:46,895 autoreload 27300 31064 Watching for file changes with StatReloader
+INFO 2026-02-25 14:15:12,471 autoreload 27300 31064 D:\invest\background\market_data\views.py changed, reloading.
+INFO 2026-02-25 14:15:13,347 autoreload 8572 5068 Watching for file changes with StatReloader
+INFO 2026-02-25 14:15:29,945 autoreload 8572 5068 D:\invest\background\market_data\views.py changed, reloading.
+INFO 2026-02-25 14:15:30,744 autoreload 29568 9064 Watching for file changes with StatReloader
+INFO 2026-02-25 14:15:42,851 autoreload 29568 9064 D:\invest\background\market_data\views.py changed, reloading.
+INFO 2026-02-25 14:15:43,627 autoreload 18816 30072 Watching for file changes with StatReloader
+INFO 2026-02-25 14:15:59,063 autoreload 18816 30072 D:\invest\background\market_data\views.py changed, reloading.
+INFO 2026-02-25 14:15:59,848 autoreload 14056 29168 Watching for file changes with StatReloader
+INFO 2026-02-25 14:19:30,566 autoreload 14056 29168 D:\invest\background\market_data\views.py changed, reloading.
+INFO 2026-02-25 14:19:31,421 autoreload 28224 28940 Watching for file changes with StatReloader
+INFO 2026-02-25 14:24:30,018 autoreload 28224 28940 D:\invest\background\market_data\views.py changed, reloading.
+INFO 2026-02-25 14:24:30,871 autoreload 29824 29780 Watching for file changes with StatReloader
+INFO 2026-02-25 14:24:39,609 autoreload 29824 29780 D:\invest\background\market_data\views.py changed, reloading.
+INFO 2026-02-25 14:24:40,429 autoreload 3220 18488 Watching for file changes with StatReloader
+INFO 2026-02-25 14:25:18,262 autoreload 3220 18488 D:\invest\background\invest_backend\settings.py changed, reloading.
+INFO 2026-02-25 14:25:19,092 autoreload 25768 30724 Watching for file changes with StatReloader
+INFO 2026-02-25 14:34:14,092 autoreload 25768 30724 D:\invest\background\invest_backend\settings.py changed, reloading.
+INFO 2026-02-25 14:34:14,908 autoreload 24312 18484 Watching for file changes with StatReloader
+WARNING 2026-02-25 14:35:29,345 log 24312 31604 Unauthorized: /api/dashboard/overview/
+WARNING 2026-02-25 14:35:46,089 finnhub_service 24312 8476 [Finnhub] 无访问权限(403), endpoint=/quote, symbol=000001.SZ —— 该标的无数据或需要付费套餐
+INFO 2026-02-25 14:35:46,169 views 24312 31668 [kline] 数据库无 000001 [D] 数据，从 Finnhub 拉取
+WARNING 2026-02-25 14:35:47,227 finnhub_service 24312 31668 [Finnhub] 无访问权限(403), endpoint=/stock/candle —— 免费版套餐限制，已标记端点后续跳过
+WARNING 2026-02-25 14:35:47,227 finnhub_service 24312 31668 [Finnhub] 端点已被标记为无权限（403），后续请求将跳过: /stock/candle
+WARNING 2026-02-25 14:35:48,069 finnhub_service 24312 18424 [Finnhub] 无访问权限(403), endpoint=/quote, symbol=000001.SZ —— 该标的无数据或需要付费套餐
+WARNING 2026-02-25 14:35:48,073 log 24312 18424 Not Found: /api/assets/30/quote/
+ERROR 2026-02-25 14:35:56,429 tushare_service 24312 27696 [Tushare] tushare 包未安装，请运行: pip install tushare
+ERROR 2026-02-25 14:35:56,486 tushare_service 24312 12156 [Tushare] tushare 包未安装，请运行: pip install tushare
+INFO 2026-02-25 14:35:56,488 views 24312 14064 [kline] 数据库无 600276 [D] 数据，从 Tushare 拉取
+WARNING 2026-02-25 14:35:56,488 log 24312 12156 Not Found: /api/assets/50/quote/
+ERROR 2026-02-25 14:35:56,492 tushare_service 24312 14064 [Tushare] tushare 包未安装，请运行: pip install tushare
+ERROR 2026-02-25 14:36:01,847 tushare_service 24312 18700 [Tushare] tushare 包未安装，请运行: pip install tushare
+ERROR 2026-02-25 14:36:01,893 tushare_service 24312 31368 [Tushare] tushare 包未安装，请运行: pip install tushare
+WARNING 2026-02-25 14:36:01,896 log 24312 31368 Not Found: /api/assets/59/quote/
+INFO 2026-02-25 14:36:01,896 views 24312 13416 [kline] 数据库无 000651 [D] 数据，从 Tushare 拉取
+ERROR 2026-02-25 14:36:01,896 tushare_service 24312 13416 [Tushare] tushare 包未安装，请运行: pip install tushare
+ERROR 2026-02-25 14:36:41,678 tushare_service 1564 6404 [Tushare] tushare 包未安装，请运行: pip install tushare
+INFO 2026-02-25 14:41:10,273 tushare_service 28452 7416 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-02-25 14:41:14,552 tushare_service 28452 7416 [Tushare] get_stock_basic: 获取 5484 只 A 股
+WARNING 2026-02-25 14:41:14,575 import_cn_stocks 28452 7416 [import_cn_stocks] 写入失败: code=000001 err=(1062, "Duplicate entry 'STOCK-000001' for key 'asset.uk_asset_type_code'")
+WARNING 2026-02-25 14:41:14,584 import_cn_stocks 28452 7416 [import_cn_stocks] 写入失败: code=000333 err=(1062, "Duplicate entry 'STOCK-000333' for key 'asset.uk_asset_type_code'")
+WARNING 2026-02-25 14:41:14,596 import_cn_stocks 28452 7416 [import_cn_stocks] 写入失败: code=000858 err=(1062, "Duplicate entry 'STOCK-000858' for key 'asset.uk_asset_type_code'")
+WARNING 2026-02-25 14:41:14,611 import_cn_stocks 28452 7416 [import_cn_stocks] 写入失败: code=002594 err=(1062, "Duplicate entry 'STOCK-002594' for key 'asset.uk_asset_type_code'")
+WARNING 2026-02-25 14:41:14,619 import_cn_stocks 28452 7416 [import_cn_stocks] 写入失败: code=300750 err=(1062, "Duplicate entry 'STOCK-300750' for key 'asset.uk_asset_type_code'")
+WARNING 2026-02-25 14:41:14,622 import_cn_stocks 28452 7416 [import_cn_stocks] 写入失败: code=600036 err=(1062, "Duplicate entry 'STOCK-600036' for key 'asset.uk_asset_type_code'")
+WARNING 2026-02-25 14:41:14,632 import_cn_stocks 28452 7416 [import_cn_stocks] 写入失败: code=600519 err=(1062, "Duplicate entry 'STOCK-600519' for key 'asset.uk_asset_type_code'")
+WARNING 2026-02-25 14:41:14,641 import_cn_stocks 28452 7416 [import_cn_stocks] 写入失败: code=600900 err=(1062, "Duplicate entry 'STOCK-600900' for key 'asset.uk_asset_type_code'")
+WARNING 2026-02-25 14:41:14,652 import_cn_stocks 28452 7416 [import_cn_stocks] 写入失败: code=601166 err=(1062, "Duplicate entry 'STOCK-601166' for key 'asset.uk_asset_type_code'")
+WARNING 2026-02-25 14:41:14,658 import_cn_stocks 28452 7416 [import_cn_stocks] 写入失败: code=601318 err=(1062, "Duplicate entry 'STOCK-601318' for key 'asset.uk_asset_type_code'")
+INFO 2026-02-25 14:42:30,939 tushare_service 6168 30668 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-02-25 14:42:34,762 tushare_service 6168 30668 [Tushare] get_stock_basic: 获取 5484 只 A 股
+WARNING 2026-02-25 14:42:34,785 import_cn_stocks 6168 30668 [import_cn_stocks] 写入失败: code=000001 err=(1062, "Duplicate entry 'STOCK-000001' for key 'asset.uk_asset_type_code'")
+WARNING 2026-02-25 14:42:34,794 import_cn_stocks 6168 30668 [import_cn_stocks] 写入失败: code=000333 err=(1062, "Duplicate entry 'STOCK-000333' for key 'asset.uk_asset_type_code'")
+WARNING 2026-02-25 14:42:34,800 import_cn_stocks 6168 30668 [import_cn_stocks] 写入失败: code=000858 err=(1062, "Duplicate entry 'STOCK-000858' for key 'asset.uk_asset_type_code'")
+WARNING 2026-02-25 14:42:34,816 import_cn_stocks 6168 30668 [import_cn_stocks] 写入失败: code=002594 err=(1062, "Duplicate entry 'STOCK-002594' for key 'asset.uk_asset_type_code'")
+WARNING 2026-02-25 14:42:34,823 import_cn_stocks 6168 30668 [import_cn_stocks] 写入失败: code=300750 err=(1062, "Duplicate entry 'STOCK-300750' for key 'asset.uk_asset_type_code'")
+WARNING 2026-02-25 14:42:34,826 import_cn_stocks 6168 30668 [import_cn_stocks] 写入失败: code=600036 err=(1062, "Duplicate entry 'STOCK-600036' for key 'asset.uk_asset_type_code'")
+WARNING 2026-02-25 14:42:34,834 import_cn_stocks 6168 30668 [import_cn_stocks] 写入失败: code=600519 err=(1062, "Duplicate entry 'STOCK-600519' for key 'asset.uk_asset_type_code'")
+WARNING 2026-02-25 14:42:34,841 import_cn_stocks 6168 30668 [import_cn_stocks] 写入失败: code=600900 err=(1062, "Duplicate entry 'STOCK-600900' for key 'asset.uk_asset_type_code'")
+WARNING 2026-02-25 14:42:34,850 import_cn_stocks 6168 30668 [import_cn_stocks] 写入失败: code=601166 err=(1062, "Duplicate entry 'STOCK-601166' for key 'asset.uk_asset_type_code'")
+WARNING 2026-02-25 14:42:34,853 import_cn_stocks 6168 30668 [import_cn_stocks] 写入失败: code=601318 err=(1062, "Duplicate entry 'STOCK-601318' for key 'asset.uk_asset_type_code'")
+INFO 2026-02-25 14:51:43,671 tushare_service 2752 18128 [Tushare] Pro API 初始化成功（Token 已配置）
+WARNING 2026-02-25 14:51:49,091 tushare_service 2752 18128 [Tushare] get_stock_basic: 返回空数据 list_status=L
+INFO 2026-02-25 14:53:29,351 tushare_service 31780 13128 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-02-25 14:53:35,660 tushare_service 31780 13128 [Tushare] get_stock_basic: 获取 5484 只 A 股
+INFO 2026-02-25 14:53:49,036 tushare_service 8488 31024 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-02-25 14:53:53,172 tushare_service 8488 31024 [Tushare] get_stock_basic: 获取 5484 只 A 股
+INFO 2026-02-25 14:54:01,711 tushare_service 32408 2248 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-02-25 14:54:05,834 tushare_service 32408 2248 [Tushare] get_stock_basic: 获取 5484 只 A 股
+INFO 2026-02-25 14:56:02,545 tushare_service 32432 24772 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-02-25 14:56:06,784 tushare_service 32432 24772 [Tushare] get_stock_basic: 获取 5484 只 A 股
+INFO 2026-02-25 14:57:06,743 tushare_service 26016 22332 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-02-25 14:57:10,526 tushare_service 26016 22332 [Tushare] get_stock_basic: 获取 5484 只 A 股
+INFO 2026-02-25 15:10:53,703 autoreload 32332 32484 Watching for file changes with StatReloader
+INFO 2026-02-25 15:11:00,008 tushare_service 32332 23860 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-02-25 15:17:11,413 views 32332 17264 [kline] 数据库无 000001 [60] 数据，从 Finnhub 拉取
+WARNING 2026-02-25 15:17:14,530 finnhub_service 32332 17264 [Finnhub] 无访问权限(403), endpoint=/stock/candle —— 免费版套餐限制，已标记端点后续跳过
+WARNING 2026-02-25 15:17:14,533 finnhub_service 32332 17264 [Finnhub] 端点已被标记为无权限（403），后续请求将跳过: /stock/candle
+INFO 2026-02-25 15:17:16,681 views 32332 13840 [kline] 数据库无 000001 [15] 数据，从 Finnhub 拉取
+INFO 2026-02-25 15:17:18,380 views 32332 29664 [kline] 数据库无 000001 [15] 数据，从 Finnhub 拉取
+INFO 2026-02-25 18:40:39,492 tushare_service 25768 28496 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-02-25 18:40:40,416 tushare_service 25768 28496 [Tushare] get_stock_basic: 获取 5484 只 A 股
+INFO 2026-02-25 20:21:08,643 autoreload 36568 30688 Watching for file changes with StatReloader
+WARNING 2026-02-25 20:21:35,762 log 36568 18884 Unauthorized: /api/dashboard/overview/
+INFO 2026-02-25 20:21:56,565 tushare_service 36568 20828 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-02-25 20:24:02,345 views 36568 29524 [kline] 数据库无 AGIN [D] 数据，从 Finnhub 拉取
+WARNING 2026-02-25 20:24:03,815 finnhub_service 36568 29524 [Finnhub] 无访问权限(403), endpoint=/stock/candle —— 免费版套餐限制，已标记端点后续跳过
+WARNING 2026-02-25 20:24:03,818 finnhub_service 36568 29524 [Finnhub] 端点已被标记为无权限（403），后续请求将跳过: /stock/candle
+INFO 2026-02-25 20:26:14,433 views 36568 33020 [intraday] A股 600519 暂不支持分钟线（Tushare 积分限制）
+INFO 2026-02-26 13:11:47,531 autoreload 27536 7828 Watching for file changes with StatReloader
+WARNING 2026-02-26 13:12:09,794 log 27536 20980 Unauthorized: /api/dashboard/overview/
+INFO 2026-02-26 13:12:36,853 tushare_service 27536 7584 [Tushare] Pro API 初始化成功（Token 已配置）
+WARNING 2026-02-26 13:17:45,679 log 27536 19684 Bad Request: /api/posts/
+WARNING 2026-02-26 13:24:14,969 log 27536 27224 Not Found: /favicon.ico
+INFO 2026-02-26 13:38:12,190 autoreload 27536 7828 D:\invest\background\portfolios\models.py changed, reloading.
+INFO 2026-02-26 13:38:13,430 autoreload 5792 27732 Watching for file changes with StatReloader
+INFO 2026-02-26 13:40:04,113 autoreload 5792 27732 D:\invest\background\portfolios\serializers.py changed, reloading.
+INFO 2026-02-26 13:40:05,015 autoreload 30464 13156 Watching for file changes with StatReloader
+INFO 2026-02-26 13:40:39,790 autoreload 30464 13156 D:\invest\background\portfolios\views.py changed, reloading.
+INFO 2026-02-26 13:40:40,667 autoreload 26976 30448 Watching for file changes with StatReloader
+INFO 2026-02-26 13:40:48,474 autoreload 26976 30448 D:\invest\background\portfolios\urls.py changed, reloading.
+INFO 2026-02-26 13:40:49,336 autoreload 29212 29580 Watching for file changes with StatReloader
+INFO 2026-02-26 13:45:37,497 autoreload 29212 29580 D:\invest\background\portfolios\urls.py changed, reloading.
+INFO 2026-02-26 13:45:38,788 autoreload 30684 30032 Watching for file changes with StatReloader
+INFO 2026-02-26 14:29:50,304 autoreload 30684 30032 D:\invest\background\portfolios\models.py changed, reloading.
+INFO 2026-02-26 14:29:51,359 autoreload 26976 7580 Watching for file changes with StatReloader
+INFO 2026-02-26 14:30:56,730 autoreload 26976 7580 D:\invest\background\portfolios\views.py changed, reloading.
+INFO 2026-02-26 14:30:57,562 autoreload 30140 29988 Watching for file changes with StatReloader
+INFO 2026-02-26 14:31:20,975 autoreload 30140 29988 D:\invest\background\portfolios\views.py changed, reloading.
+INFO 2026-02-26 14:31:21,787 autoreload 27344 31136 Watching for file changes with StatReloader
+INFO 2026-02-26 14:31:30,598 autoreload 27344 31136 D:\invest\background\portfolios\urls.py changed, reloading.
+INFO 2026-02-26 14:31:31,389 autoreload 28744 31168 Watching for file changes with StatReloader
+WARNING 2026-02-26 14:32:32,516 log 28744 31676 Unauthorized: /api/holdings/
+INFO 2026-02-26 14:34:45,952 autoreload 28744 31168 D:\invest\background\portfolios\urls.py changed, reloading.
+INFO 2026-02-26 14:34:46,816 autoreload 17032 19144 Watching for file changes with StatReloader
+ERROR 2026-02-26 14:35:34,368 log 17032 20980 Internal Server Error: /api/holdings/performance/
+Traceback (most recent call last):
+  File "D:\invest\.venv\Lib\site-packages\django\db\backends\utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\db\backends\mysql\base.py", line 75, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\MySQLdb\cursors.py", line 179, in execute
+    res = self._query(mogrified_query)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\MySQLdb\cursors.py", line 330, in _query
+    db.query(q)
+  File "D:\invest\.venv\Lib\site-packages\MySQLdb\connections.py", line 255, in query
+    _mysql.connection.query(self, query)
+MySQLdb.ProgrammingError: (1146, "Table 'community_db.holding_daily_snapshot' doesn't exist")
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\invest\.venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\views\decorators\csrf.py", line 56, in wrapper_view
+    return view_func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\views\generic\base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\invest\.venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\invest\.venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\background\portfolios\views.py", line 284, in get
+    snapshots = list(
+                ^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\db\models\query.py", line 398, in __iter__
+    self._fetch_all()
+  File "D:\invest\.venv\Lib\site-packages\django\db\models\query.py", line 1881, in _fetch_all
+    self._result_cache = list(self._iterable_class(self))
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\db\models\query.py", line 91, in __iter__
+    results = compiler.execute_sql(
+              ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\db\models\sql\compiler.py", line 1562, in execute_sql
+    cursor.execute(sql, params)
+  File "D:\invest\.venv\Lib\site-packages\django\db\backends\utils.py", line 102, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\db\backends\utils.py", line 67, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\db\backends\utils.py", line 80, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\db\backends\utils.py", line 84, in _execute
+    with self.db.wrap_database_errors:
+  File "D:\invest\.venv\Lib\site-packages\django\db\utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "D:\invest\.venv\Lib\site-packages\django\db\backends\utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\db\backends\mysql\base.py", line 75, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\MySQLdb\cursors.py", line 179, in execute
+    res = self._query(mogrified_query)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\MySQLdb\cursors.py", line 330, in _query
+    db.query(q)
+  File "D:\invest\.venv\Lib\site-packages\MySQLdb\connections.py", line 255, in query
+    _mysql.connection.query(self, query)
+django.db.utils.ProgrammingError: (1146, "Table 'community_db.holding_daily_snapshot' doesn't exist")
+ERROR 2026-02-26 14:35:35,691 log 17032 10356 Internal Server Error: /api/holdings/performance/
+Traceback (most recent call last):
+  File "D:\invest\.venv\Lib\site-packages\django\db\backends\utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\db\backends\mysql\base.py", line 75, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\MySQLdb\cursors.py", line 179, in execute
+    res = self._query(mogrified_query)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\MySQLdb\cursors.py", line 330, in _query
+    db.query(q)
+  File "D:\invest\.venv\Lib\site-packages\MySQLdb\connections.py", line 255, in query
+    _mysql.connection.query(self, query)
+MySQLdb.ProgrammingError: (1146, "Table 'community_db.holding_daily_snapshot' doesn't exist")
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\invest\.venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\views\decorators\csrf.py", line 56, in wrapper_view
+    return view_func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\views\generic\base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\invest\.venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\invest\.venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\background\portfolios\views.py", line 284, in get
+    snapshots = list(
+                ^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\db\models\query.py", line 398, in __iter__
+    self._fetch_all()
+  File "D:\invest\.venv\Lib\site-packages\django\db\models\query.py", line 1881, in _fetch_all
+    self._result_cache = list(self._iterable_class(self))
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\db\models\query.py", line 91, in __iter__
+    results = compiler.execute_sql(
+              ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\db\models\sql\compiler.py", line 1562, in execute_sql
+    cursor.execute(sql, params)
+  File "D:\invest\.venv\Lib\site-packages\django\db\backends\utils.py", line 102, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\db\backends\utils.py", line 67, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\db\backends\utils.py", line 80, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\db\backends\utils.py", line 84, in _execute
+    with self.db.wrap_database_errors:
+  File "D:\invest\.venv\Lib\site-packages\django\db\utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "D:\invest\.venv\Lib\site-packages\django\db\backends\utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\db\backends\mysql\base.py", line 75, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\MySQLdb\cursors.py", line 179, in execute
+    res = self._query(mogrified_query)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\MySQLdb\cursors.py", line 330, in _query
+    db.query(q)
+  File "D:\invest\.venv\Lib\site-packages\MySQLdb\connections.py", line 255, in query
+    _mysql.connection.query(self, query)
+django.db.utils.ProgrammingError: (1146, "Table 'community_db.holding_daily_snapshot' doesn't exist")
+INFO 2026-02-26 14:35:46,503 autoreload 17032 19144 D:\invest\background\portfolios\models.py changed, reloading.
+INFO 2026-02-26 14:35:47,405 autoreload 25052 31520 Watching for file changes with StatReloader
+INFO 2026-02-26 14:36:44,776 autoreload 4304 28744 Watching for file changes with StatReloader
+INFO 2026-02-26 14:37:20,418 autoreload 26128 19148 Watching for file changes with StatReloader
+INFO 2026-02-26 15:01:08,113 tushare_service 29652 29836 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-02-26 15:25:02,882 tushare_service 17884 3100 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-02-26 16:48:25,639 tushare_service 9016 32544 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-02-26 16:48:28,416 tushare_service 9016 32544 [Tushare] get_daily_klines_by_date: 20260225 获取 5471 条（全市场）
+INFO 2026-02-26 16:48:32,089 tushare_service 9016 32544 [Tushare] get_daily_klines_by_date: 20260226 获取 5471 条（全市场）
+INFO 2026-02-26 16:49:05,108 autoreload 26036 27408 Watching for file changes with StatReloader
+WARNING 2026-02-26 16:49:33,346 log 26036 27152 Unauthorized: /api/holdings/
+WARNING 2026-02-26 16:49:33,348 log 26036 24704 Unauthorized: /api/holdings/performance/
+INFO 2026-02-26 16:56:00,132 tushare_service 26036 32248 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-02-26 16:56:08,050 views 26036 27128 [kline] 数据库无 000001 [60] 数据，从 Finnhub 拉取
+WARNING 2026-02-26 16:56:09,033 finnhub_service 26036 27128 [Finnhub] 无访问权限(403), endpoint=/stock/candle —— 免费版套餐限制，已标记端点后续跳过
+WARNING 2026-02-26 16:56:09,038 finnhub_service 26036 27128 [Finnhub] 端点已被标记为无权限（403），后续请求将跳过: /stock/candle
+INFO 2026-02-26 17:10:49,121 tushare_service 3432 27404 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-02-26 17:11:34,692 tushare_service 32096 33844 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-02-26 17:11:37,341 tushare_service 32096 33844 [Tushare] get_stock_basic: 获取 5485 只 A 股
+INFO 2026-02-26 17:11:59,323 tushare_service 32096 33844 [Tushare] get_daily_klines_by_date: 20250226 获取 5385 条（全市场）
+INFO 2026-02-26 17:12:04,659 tushare_service 32096 33844 [Tushare] get_daily_klines_by_date: 20250227 获取 5383 条（全市场）
+INFO 2026-02-26 17:12:10,259 tushare_service 32096 33844 [Tushare] get_daily_klines_by_date: 20250228 获取 5383 条（全市场）
+INFO 2026-02-26 17:12:20,191 tushare_service 32096 33844 [Tushare] get_daily_klines_by_date: 20250303 获取 5381 条（全市场）
+INFO 2026-02-26 17:12:24,857 tushare_service 32096 33844 [Tushare] get_daily_klines_by_date: 20250304 获取 5383 条（全市场）
+INFO 2026-02-26 17:12:29,515 tushare_service 32096 33844 [Tushare] get_daily_klines_by_date: 20250305 获取 5382 条（全市场）
+INFO 2026-02-26 17:12:34,495 tushare_service 32096 33844 [Tushare] get_daily_klines_by_date: 20250306 获取 5380 条（全市场）
+INFO 2026-02-26 17:12:39,113 tushare_service 32096 33844 [Tushare] get_daily_klines_by_date: 20250307 获取 5381 条（全市场）
+INFO 2026-02-26 17:12:47,662 tushare_service 32096 33844 [Tushare] get_daily_klines_by_date: 20250310 获取 5381 条（全市场）
+INFO 2026-02-26 17:12:53,670 tushare_service 32096 33844 [Tushare] get_daily_klines_by_date: 20250311 获取 5384 条（全市场）
+INFO 2026-02-26 17:12:58,377 tushare_service 32096 33844 [Tushare] get_daily_klines_by_date: 20250312 获取 5383 条（全市场）
+INFO 2026-02-26 17:13:03,940 tushare_service 32096 33844 [Tushare] get_daily_klines_by_date: 20250313 获取 5385 条（全市场）
+INFO 2026-02-26 17:13:09,255 tushare_service 32096 33844 [Tushare] get_daily_klines_by_date: 20250314 获取 5385 条（全市场）
+INFO 2026-02-26 17:13:20,088 tushare_service 32096 33844 [Tushare] get_daily_klines_by_date: 20250317 获取 5380 条（全市场）
+INFO 2026-02-26 17:13:25,073 tushare_service 32096 33844 [Tushare] get_daily_klines_by_date: 20250318 获取 5387 条（全市场）
+INFO 2026-02-26 17:13:30,077 tushare_service 32096 33844 [Tushare] get_daily_klines_by_date: 20250319 获取 5384 条（全市场）
+INFO 2026-02-26 17:13:34,702 tushare_service 32096 33844 [Tushare] get_daily_klines_by_date: 20250320 获取 5386 条（全市场）
+INFO 2026-02-26 17:13:39,282 tushare_service 32096 33844 [Tushare] get_daily_klines_by_date: 20250321 获取 5387 条（全市场）
+INFO 2026-02-26 17:13:59,514 tushare_service 34048 532 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-02-26 17:18:35,655 tushare_service 29572 32788 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-02-26 17:18:38,463 tushare_service 29572 32788 [Tushare] get_daily_klines_by_date: 20260226 获取 5471 条（全市场）
+INFO 2026-02-26 17:18:38,463 tushare_service 29572 32788 [Tushare] get_latest_daily_quotes_all: 取到 20260226 共 5471 条
+INFO 2026-02-26 17:18:55,213 tushare_service 34780 19532 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-02-26 17:18:58,026 tushare_service 34780 19532 [Tushare] get_stock_basic: 获取 5485 只 A 股
+INFO 2026-02-26 17:19:21,928 tushare_service 34780 19532 [Tushare] get_daily_klines_by_date: 20250226 获取 5385 条（全市场）
+INFO 2026-02-26 17:19:27,523 tushare_service 34780 19532 [Tushare] get_daily_klines_by_date: 20250227 获取 5383 条（全市场）
+INFO 2026-02-26 17:19:33,368 tushare_service 34780 19532 [Tushare] get_daily_klines_by_date: 20250228 获取 5383 条（全市场）
+INFO 2026-02-26 17:19:43,489 tushare_service 34780 19532 [Tushare] get_daily_klines_by_date: 20250303 获取 5381 条（全市场）
+INFO 2026-02-26 17:19:48,936 tushare_service 34780 19532 [Tushare] get_daily_klines_by_date: 20250304 获取 5383 条（全市场）
+INFO 2026-02-26 17:19:54,679 tushare_service 34780 19532 [Tushare] get_daily_klines_by_date: 20250305 获取 5382 条（全市场）
+INFO 2026-02-26 17:20:01,013 tushare_service 34780 19532 [Tushare] get_daily_klines_by_date: 20250306 获取 5380 条（全市场）
+INFO 2026-02-26 17:20:23,583 tushare_service 12336 27992 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-02-26 17:20:26,477 tushare_service 12336 27992 [Tushare] get_daily_klines_by_date: 20260225 获取 5471 条（全市场）
+INFO 2026-02-26 17:20:31,923 tushare_service 12336 27992 [Tushare] get_daily_klines_by_date: 20260226 获取 5471 条（全市场）
+INFO 2026-02-26 17:20:48,802 autoreload 33288 27964 Watching for file changes with StatReloader
+INFO 2026-02-26 17:21:35,853 autoreload 33288 27964 D:\invest\background\market_data\tushare_service.py changed, reloading.
+INFO 2026-02-26 17:21:36,683 autoreload 32332 30036 Watching for file changes with StatReloader
