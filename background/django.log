@@ -21063,3 +21063,38 @@ INFO 2026-02-26 17:20:31,923 tushare_service 12336 27992 [Tushare] get_daily_kli
 INFO 2026-02-26 17:20:48,802 autoreload 33288 27964 Watching for file changes with StatReloader
 INFO 2026-02-26 17:21:35,853 autoreload 33288 27964 D:\invest\background\market_data\tushare_service.py changed, reloading.
 INFO 2026-02-26 17:21:36,683 autoreload 32332 30036 Watching for file changes with StatReloader
+INFO 2026-02-27 13:40:57,859 tushare_service 17668 13056 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-02-27 13:40:58,873 tushare_service 17668 13056 [Tushare] get_daily_klines_by_date: 20260226 获取 5471 条（全市场）
+INFO 2026-02-27 13:42:23,280 autoreload 12204 23912 Watching for file changes with StatReloader
+WARNING 2026-02-27 13:42:40,969 log 12204 15592 Unauthorized: /api/dashboard/overview/
+INFO 2026-02-27 14:11:14,013 views 12204 30552 [kline] 数据库无 ACAI [D] 数据，从 Finnhub 拉取
+WARNING 2026-02-27 14:11:14,796 finnhub_service 12204 30552 [Finnhub] 无访问权限(403), endpoint=/stock/candle —— 免费版套餐限制，已标记端点后续跳过
+WARNING 2026-02-27 14:11:14,799 finnhub_service 12204 30552 [Finnhub] 端点已被标记为无权限（403），后续请求将跳过: /stock/candle
+WARNING 2026-02-27 14:51:59,566 log 12204 5296 Unauthorized: /api/holdings/
+WARNING 2026-02-27 14:51:59,569 log 12204 3852 Unauthorized: /api/holdings/performance/
+INFO 2026-02-27 14:57:27,663 autoreload 12204 23912 D:\invest\background\portfolios\views.py changed, reloading.
+INFO 2026-02-27 14:57:28,849 autoreload 29052 29256 Watching for file changes with StatReloader
+INFO 2026-02-27 14:57:32,005 autoreload 29052 29256 D:\invest\background\portfolios\urls.py changed, reloading.
+INFO 2026-02-27 14:57:32,850 autoreload 18960 28860 Watching for file changes with StatReloader
+INFO 2026-02-27 15:01:41,749 autoreload 18960 28860 D:\invest\background\portfolios\urls.py changed, reloading.
+INFO 2026-02-27 15:01:42,580 autoreload 20036 26352 Watching for file changes with StatReloader
+WARNING 2026-02-27 16:00:12,231 log 20036 26904 Unauthorized: /api/holdings/
+WARNING 2026-02-27 16:00:12,232 log 20036 12916 Unauthorized: /api/holdings/performance/
+WARNING 2026-02-27 16:00:12,234 log 20036 23600 Unauthorized: /api/holdings/returns-history/
+INFO 2026-02-27 16:19:25,120 tushare_service 20036 6484 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-02-27 16:37:22,604 tushare_service 32476 35880 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-02-27 16:37:25,311 tushare_service 32476 35880 [Tushare] get_stock_basic: 获取 5485 只 A 股
+INFO 2026-02-27 16:37:56,739 tushare_service 32476 35880 [Tushare] get_daily_klines_by_date: 20250227 获取 5383 条（全市场）
+INFO 2026-02-27 16:38:04,037 tushare_service 32476 35880 [Tushare] get_daily_klines_by_date: 20250228 获取 5383 条（全市场）
+INFO 2026-02-27 16:38:15,910 tushare_service 32476 35880 [Tushare] get_daily_klines_by_date: 20250303 获取 5381 条（全市场）
+INFO 2026-02-27 16:38:22,099 tushare_service 32476 35880 [Tushare] get_daily_klines_by_date: 20250304 获取 5383 条（全市场）
+INFO 2026-02-27 16:38:29,557 tushare_service 32476 35880 [Tushare] get_daily_klines_by_date: 20250305 获取 5382 条（全市场）
+INFO 2026-02-27 16:38:37,892 tushare_service 32476 35880 [Tushare] get_daily_klines_by_date: 20250306 获取 5380 条（全市场）
+INFO 2026-02-27 16:38:45,775 tushare_service 32476 35880 [Tushare] get_daily_klines_by_date: 20250307 获取 5381 条（全市场）
+INFO 2026-02-27 16:39:07,006 tushare_service 31348 34204 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-02-27 16:39:10,466 tushare_service 31348 34204 [Tushare] get_stock_basic: 获取 5485 只 A 股
+INFO 2026-02-27 16:39:45,982 tushare_service 31348 34204 [Tushare] get_daily_klines_by_date: 20260225 获取 5471 条（全市场）
+INFO 2026-02-27 16:39:52,160 tushare_service 31348 34204 [Tushare] get_daily_klines_by_date: 20260226 获取 5471 条（全市场）
+INFO 2026-02-27 16:39:58,183 tushare_service 31348 34204 [Tushare] get_daily_klines_by_date: 20260227 获取 5471 条（全市场）
+INFO 2026-02-27 16:40:02,645 tushare_service 31348 34204 [Tushare] get_daily_klines_by_date: 20260227 获取 5471 条（全市场）
+INFO 2026-02-27 16:40:02,647 tushare_service 31348 34204 [Tushare] get_latest_daily_quotes_all: 取到 20260227 共 5471 条

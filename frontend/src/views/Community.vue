@@ -69,7 +69,7 @@
 
         <el-form-item>
           <div class="asset-select-label">
-            <el-icon style="color:#A78BFA"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></el-icon>
+            <el-icon style="color:#3B82F6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></el-icon>
             关联标的（可选）
           </div>
           <AssetSelect v-model="createForm.assetIds" :max-count="5" />
@@ -255,7 +255,7 @@ const createRules: FormRules = {
   ],
   content: [
     { required: true, message: '请输入内容', trigger: 'blur' },
-    { min: 10, message: '内容至少10个字符', trigger: 'blur' }
+    { min: 10, message: '内容至少10个字', trigger: 'blur' }
   ]
 }
 
@@ -480,7 +480,7 @@ onMounted(() => {
   transition: $transition-all !important;
 
   &:hover {
-    box-shadow: 0 8px 24px rgba(124, 58, 237, 0.5) !important;
+    box-shadow: 0 8px 24px rgba(29, 78, 216, 0.3) !important;
     transform: translateY(-1px);
   }
 }
@@ -505,14 +505,14 @@ onMounted(() => {
 
   &:hover:not(.el-button--primary) {
     border-color: $primary-color !important;
-    color: $primary-light !important;
-    background: rgba(124, 58, 237, 0.08) !important;
+    color: $primary-color !important;
+    background: rgba(29, 78, 216, 0.06) !important;
   }
 
   &.el-button--primary {
-    background: rgba(124, 58, 237, 0.2) !important;
-    border-color: rgba(124, 58, 237, 0.4) !important;
-    color: $primary-light !important;
+    background: rgba(29, 78, 216, 0.12) !important;
+    border-color: rgba(29, 78, 216, 0.25) !important;
+    color: $primary-color !important;
   }
 }
 
@@ -541,14 +541,14 @@ onMounted(() => {
 
 .title-input {
   :deep(.el-input__wrapper) {
-    background: rgba(255, 255, 255, 0.04) !important;
+    background: rgba(15, 23, 42, 0.03) !important;
     border: 1px solid $border-default !important;
     border-radius: 10px !important;
     box-shadow: none !important;
 
     &.is-focus {
       border-color: $primary-color !important;
-      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2) !important;
+      box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12) !important;
     }
   }
 
@@ -566,7 +566,7 @@ onMounted(() => {
 
 .content-input {
   :deep(.el-textarea__inner) {
-    background: rgba(255, 255, 255, 0.04) !important;
+    background: rgba(15, 23, 42, 0.03) !important;
     border: 1px solid $border-default !important;
     border-radius: 10px !important;
     resize: none !important;
@@ -576,7 +576,7 @@ onMounted(() => {
 
     &:focus {
       border-color: $primary-color !important;
-      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2) !important;
+      box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12) !important;
     }
 
     &::placeholder {
@@ -605,7 +605,7 @@ onMounted(() => {
 }
 
 .post-skeleton {
-  background: linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
+  background: #FFFFFF;
   border: 1px solid $border-subtle;
   border-radius: $border-radius;
   padding: 1.5rem;
@@ -628,7 +628,7 @@ onMounted(() => {
 }
 
 .post-card {
-  background: linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+  background: #FFFFFF;
   border: 1px solid $border-subtle;
   border-radius: $border-radius;
   padding: 1.375rem 1.5rem;
@@ -651,7 +651,7 @@ onMounted(() => {
   }
 
   &:hover {
-    border-color: rgba(124, 58, 237, 0.25);
+    border-color: rgba(29, 78, 216, 0.16);
     background: linear-gradient(145deg, rgba(124, 58, 237, 0.06) 0%, rgba(255,255,255,0.02) 100%);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
     transform: translateY(-2px);
@@ -711,7 +711,7 @@ onMounted(() => {
   transition: $transition-colors;
 
   &:hover {
-    color: $primary-light;
+    color: $primary-color;
   }
 }
 
@@ -735,8 +735,8 @@ onMounted(() => {
 
 .post-tag {
   background: rgba(124, 58, 237, 0.1) !important;
-  border: 1px solid rgba(124, 58, 237, 0.2) !important;
-  color: $primary-light !important;
+  border: 1px solid rgba(29, 78, 216, 0.12) !important;
+  color: $primary-color !important;
   font-size: 0.7rem !important;
   font-weight: 600 !important;
   border-radius: 6px !important;
@@ -790,7 +790,7 @@ onMounted(() => {
   cursor: pointer;
 
   &:hover {
-    color: $primary-light !important;
+    color: $primary-color !important;
     background: rgba(124, 58, 237, 0.1) !important;
   }
 
@@ -816,3 +816,7 @@ onMounted(() => {
   to { opacity: 1; transform: translateY(0); }
 }
 </style>
+
+
+
+

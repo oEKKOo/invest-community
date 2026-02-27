@@ -13,4 +13,7 @@ urlpatterns = [
 
     # 持仓收益（基于每日快照）
     path('holdings/performance/', views.HoldingPerformanceView.as_view(), name='holding_performance'),
+
+    # 持仓累计收益历史（净值曲线）
+    path('holdings/returns-history/', views.HoldingReturnsHistoryView.as_view(), name='holding_returns_history'),
 ]

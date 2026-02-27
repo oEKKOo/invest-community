@@ -27,7 +27,7 @@
               <el-form-item prop="username">
                 <el-input
                   v-model="loginForm.username"
-                  placeholder="用户名 / 邮箱"
+                  placeholder="用户名/ 邮箱"
                   size="large"
                   clearable
                 >
@@ -253,7 +253,7 @@ const handleLogin = async () => {
     
     await authStore.login(loginForm)
     
-    ElMessage.success('登录成功！')
+    ElMessage.success('登录成功')
     router.push('/')
   } catch (error: any) {
     if (error.fields) {
@@ -297,7 +297,7 @@ const handleRegister = async () => {
 <style lang="scss" scoped>
 .login-page {
   min-height: 100vh;
-  background: $bg-darkest;
+  background: linear-gradient(135deg, #EFF6FF 0%, #F8FAFC 50%, #F0FDF4 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -306,15 +306,15 @@ const handleRegister = async () => {
   overflow: hidden;
 }
 
-// Decorative Background Elements
+// Subtle decorative background elements
 .login-page::before {
   content: '';
   position: absolute;
-  top: -20%;
-  left: -10%;
-  width: 600px;
-  height: 600px;
-  background: radial-gradient(circle, rgba(124, 58, 237, 0.2) 0%, transparent 65%);
+  top: -15%;
+  left: -8%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(29, 78, 216, 0.08) 0%, transparent 65%);
   border-radius: 50%;
   pointer-events: none;
 }
@@ -322,18 +322,18 @@ const handleRegister = async () => {
 .login-page::after {
   content: '';
   position: absolute;
-  bottom: -20%;
-  right: -10%;
-  width: 500px;
-  height: 500px;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 65%);
+  bottom: -15%;
+  right: -8%;
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle, rgba(22, 163, 74, 0.06) 0%, transparent 65%);
   border-radius: 50%;
   pointer-events: none;
 }
 
 .login-container {
   width: 100%;
-  max-width: 420px;
+  max-width: 440px;
   position: relative;
   z-index: 1;
   animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
@@ -360,7 +360,7 @@ const handleRegister = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: $glow-purple;
+  box-shadow: $shadow-blue;
   flex-shrink: 0;
 }
 
@@ -373,19 +373,18 @@ const handleRegister = async () => {
 }
 
 .subtitle {
-  font-size: 0.9rem;
-  color: $text-muted;
+  font-size: 0.875rem;
+  color: $text-secondary;
   margin: 0;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
+  font-weight: 500;
 }
 
 .login-card {
-  background: rgba(20, 27, 45, 0.85) !important;
-  border: 1px solid $border-default !important;
+  background: #FFFFFF !important;
+  border: 1px solid $border-subtle !important;
   border-radius: 20px !important;
-  box-shadow: 0 32px 64px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.06) !important;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08), 0 1px 4px rgba(15, 23, 42, 0.04) !important;
   overflow: hidden;
 
   :deep(.el-card__body) {
@@ -410,7 +409,7 @@ const handleRegister = async () => {
     padding: 0 1rem !important;
 
     &.is-active {
-      color: $primary-light !important;
+      color: $primary-color !important;
     }
 
     &:hover:not(.is-active) {
@@ -437,22 +436,22 @@ const handleRegister = async () => {
   }
 
   :deep(.el-input__wrapper) {
-    background: rgba(255, 255, 255, 0.04) !important;
+    background: $bg-surface !important;
     border: 1px solid $border-default !important;
     border-radius: 10px !important;
-    box-shadow: none !important;
+    box-shadow: $shadow-sm !important;
     transition: $transition-all !important;
     padding: 0 1rem !important;
 
     &:hover {
-      border-color: $border-strong !important;
-      background: rgba(255, 255, 255, 0.06) !important;
+      border-color: $primary-color !important;
+      background: #FFFFFF !important;
     }
 
     &.is-focus {
       border-color: $primary-color !important;
-      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2) !important;
-      background: rgba(255, 255, 255, 0.06) !important;
+      box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12) !important;
+      background: #FFFFFF !important;
     }
   }
 
@@ -471,7 +470,7 @@ const handleRegister = async () => {
   }
 
   :deep(.el-input__suffix) {
-    color: $text-muted !important;
+    color: $text-secondary !important;
   }
 }
 
@@ -485,11 +484,12 @@ const handleRegister = async () => {
   letter-spacing: 0.02em;
   background: $gradient-primary !important;
   border: none !important;
-  box-shadow: $shadow-purple !important;
+  box-shadow: $shadow-blue !important;
   transition: $transition-all !important;
+  color: #FFFFFF !important;
 
   &:hover:not(.is-loading) {
-    box-shadow: 0 8px 32px rgba(124, 58, 237, 0.55) !important;
+    box-shadow: 0 8px 24px rgba(29, 78, 216, 0.4) !important;
     transform: translateY(-1px);
   }
 

@@ -36,8 +36,8 @@ const router = useRouter()
 
 const marketLabel = computed(() => {
   const map: Record<string, string> = {
-    SH: 'A股', SZ: 'A股', HK: '港股', US: '美股',
-    'A股': 'A股', '港股': '港股', '美股': '美股'
+    SH: 'A股沪市', SZ: 'A股深市', HK: '港股', US: '美股',
+    'A股沪市': 'A股沪市', 'A股深市': 'A股深市', '港股': '港股', '美股': '美股'
   }
   return props.market ? (map[props.market] || props.market) : ''
 })
@@ -66,7 +66,7 @@ const handleClick = () => {
   border-radius: 6px;
   font-size: 0.75rem;
   font-weight: 500;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(15, 23, 42, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: #A0AABF;
   transition: all 0.2s ease;
@@ -76,9 +76,9 @@ const handleClick = () => {
     cursor: pointer;
 
     &:hover {
-      background: rgba(124, 58, 237, 0.12);
-      border-color: rgba(124, 58, 237, 0.3);
-      color: #A78BFA;
+      background: rgba(29, 78, 216, 0.08);
+      border-color: rgba(29, 78, 216, 0.18);
+      color: #3B82F6;
     }
   }
 
@@ -129,3 +129,6 @@ const handleClick = () => {
   }
 }
 </style>
+
+
+

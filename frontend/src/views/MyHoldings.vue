@@ -3,7 +3,7 @@
     <div class="holdings-header">
       <div class="header-left">
         <h2 class="page-title">我的持仓</h2>
-        <span class="subtitle">管理并跟踪您持有的资产仓位</span>
+        <span class="subtitle">管理并跟踪您持有的资产持仓</span>
       </div>
       <el-button
         type="primary"
@@ -23,19 +23,19 @@
       </div>
 
       <template v-else>
-        <!-- 左侧：总市值 + 总成本 -->
+        <!-- 左侧：总市值+ 总成本-->
         <div class="perf-section perf-section--main">
           <div class="perf-metric">
             <span class="perf-metric__label">总市值</span>
             <span class="perf-metric__val">
-              {{ perf ? formatMoney(perf.totalMarketValue) : '—' }}
+              {{ perf ? formatMoney(perf.totalMarketValue) : '--' }}
             </span>
           </div>
           <div class="perf-divider" />
           <div class="perf-metric">
             <span class="perf-metric__label">持仓成本</span>
             <span class="perf-metric__val perf-metric__val--sub">
-              {{ perf ? formatMoney(perf.totalCostValue) : '—' }}
+              {{ perf ? formatMoney(perf.totalCostValue) : '--' }}
             </span>
           </div>
         </div>
@@ -49,7 +49,7 @@
             class="perf-metric__pnl"
             :class="pnlClass(perf?.totalDailyPnl)"
           >
-            {{ perf ? formatPnl(perf.totalDailyPnl) : '—' }}
+            {{ perf ? formatPnl(perf.totalDailyPnl) : '--' }}
           </div>
           <div
             class="perf-metric__rate"
@@ -61,14 +61,14 @@
 
         <div class="perf-sep" />
 
-        <!-- 右：持有收益（浮盈亏） -->
+        <!-- 右：持有收益（浮盈亏）-->
         <div class="perf-section">
           <div class="perf-metric__label">持有收益（浮盈）</div>
           <div
             class="perf-metric__pnl"
             :class="pnlClass(perf?.totalUnrealizedPnl)"
           >
-            {{ perf ? formatPnl(perf.totalUnrealizedPnl) : '—' }}
+            {{ perf ? formatPnl(perf.totalUnrealizedPnl) : '--' }}
           </div>
           <div
             class="perf-metric__rate"
@@ -78,7 +78,7 @@
           </div>
         </div>
 
-        <!-- 估值日期 -->
+        <!-- 估值日期-->
         <div class="perf-date" v-if="perf?.asOf">
           估值日期：{{ perf.asOf }}
           <el-tooltip content="基于日K收盘价，每日一次更新，无实时行情" placement="top">
@@ -91,7 +91,7 @@
       </template>
     </div>
 
-    <!-- 持仓汇总卡片 -->
+    <!-- 持仓汇总卡片-->
     <div class="summary-cards" v-if="holdings.length > 0">
       <div class="summary-card">
         <div class="summary-label">持仓数量</div>
@@ -113,6 +113,53 @@
             {{ market }}: {{ count }}
           </el-tag>
         </div>
+      </div>
+    </div>
+
+    <!-- 累计收益曲线 -->
+    <div class="returns-chart-card" v-if="holdings.length > 0">
+      <div class="returns-chart-header">
+        <div class="returns-chart-title-row">
+          <h3 class="returns-chart-title">累计收益曲线</h3>
+          <el-tooltip content="基于每日收盘价快照计算，以持仓成本为基准线（0%）" placement="top">
+            <el-icon class="info-icon"><InfoFilled /></el-icon>
+          </el-tooltip>
+        </div>
+        <div class="returns-chart-meta" v-if="returnsHistory && returnsHistory.items.length">
+          <span class="meta-item">
+            <span class="meta-label">数据区间</span>
+            <span class="meta-value mono">{{ returnsHistory.items[0].date }} - {{ returnsHistory.items[returnsHistory.items.length - 1].date }}</span>
+          </span>
+          <span class="meta-item">
+            <span class="meta-label">{{ returnsHistory.items.length }} 个交易日</span>
+          </span>
+          <span
+            class="meta-item meta-return"
+            :class="Number(returnsHistory.items[returnsHistory.items.length - 1].unrealizedReturn) >= 0 ? 'pnl-up' : 'pnl-down'"
+          >
+            最新累计收益率：
+            <strong>
+              {{ Number(returnsHistory.items[returnsHistory.items.length - 1].unrealizedReturn) >= 0 ? '+' : '' }}{{ (Number(returnsHistory.items[returnsHistory.items.length - 1].unrealizedReturn) * 100).toFixed(2) }}%
+            </strong>
+          </span>
+        </div>
+      </div>
+
+      <div class="returns-chart-body">
+        <el-skeleton v-if="returnsHistoryLoading" :rows="4" animated style="padding: 1rem" />
+
+        <el-empty
+          v-else-if="!returnsHistory || !returnsHistory.items.length"
+          description="暂无收益历史数据，请先运行数据同步生成每日快照"
+          :image-size="80"
+        />
+
+        <v-chart
+          v-else
+          class="returns-chart"
+          :option="returnsChartOption"
+          autoresize
+        />
       </div>
     </div>
 
@@ -179,22 +226,22 @@
         </el-table-column>
 
         <!-- 今日估值价 -->
-        <el-table-column label="今日估值" width="110" align="right">
+        <el-table-column label="今日估值价" width="110" align="right">
           <template #default="{ row }">
             <template v-if="getPerfItem(row.id)?.hasData">
-              <span class="mono-value">¥ {{ formatPrice(getPerfItem(row.id)!.todayPrice!) }}</span>
+              <span class="mono-value">¥ {{ formatPrice(getPerfItem(row.id)?.todayPrice) }}</span>
             </template>
-            <span v-else class="no-data-dash">—</span>
+            <span v-else class="no-data-dash">--</span>
           </template>
         </el-table-column>
 
-        <!-- 市值 -->
+        <!-- 市值-->
         <el-table-column label="市值" width="120" align="right">
           <template #default="{ row }">
             <template v-if="getPerfItem(row.id)?.hasData">
-              <span class="mono-value">{{ formatMoneyShort(getPerfItem(row.id)!.marketValue!) }}</span>
+              <span class="mono-value">{{ formatMoneyShort(getPerfItem(row.id)?.marketValue) }}</span>
             </template>
-            <span v-else class="no-data-dash">—</span>
+            <span v-else class="no-data-dash">--</span>
           </template>
         </el-table-column>
 
@@ -202,12 +249,12 @@
         <el-table-column label="当日收益" width="130" align="right">
           <template #default="{ row }">
             <template v-if="getPerfItem(row.id)?.hasData">
-              <div class="pnl-cell" :class="pnlClass(getPerfItem(row.id)!.dailyPnl)">
-                <span>{{ formatPnl(getPerfItem(row.id)!.dailyPnl!) }}</span>
-                <span class="pnl-rate">{{ formatRate(getPerfItem(row.id)!.dailyReturn!) }}</span>
+              <div class="pnl-cell" :class="pnlClass(getPerfItem(row.id)?.dailyPnl)">
+                <span>{{ formatPnl(getPerfItem(row.id)?.dailyPnl) }}</span>
+                <span class="pnl-rate">{{ formatRate(getPerfItem(row.id)?.dailyReturn) }}</span>
               </div>
             </template>
-            <span v-else class="no-data-dash">—</span>
+            <span v-else class="no-data-dash">--</span>
           </template>
         </el-table-column>
 
@@ -215,19 +262,19 @@
         <el-table-column label="持有收益" width="130" align="right">
           <template #default="{ row }">
             <template v-if="getPerfItem(row.id)?.hasData">
-              <div class="pnl-cell" :class="pnlClass(getPerfItem(row.id)!.unrealizedPnl)">
-                <span>{{ formatPnl(getPerfItem(row.id)!.unrealizedPnl!) }}</span>
-                <span class="pnl-rate">{{ formatRate(getPerfItem(row.id)!.unrealizedReturn!) }}</span>
+              <div class="pnl-cell" :class="pnlClass(getPerfItem(row.id)?.unrealizedPnl)">
+                <span>{{ formatPnl(getPerfItem(row.id)?.unrealizedPnl) }}</span>
+                <span class="pnl-rate">{{ formatRate(getPerfItem(row.id)?.unrealizedReturn) }}</span>
               </div>
             </template>
-            <span v-else class="no-data-dash">—</span>
+            <span v-else class="no-data-dash">--</span>
           </template>
         </el-table-column>
 
         <!-- 备注 -->
         <el-table-column label="备注" min-width="100">
           <template #default="{ row }">
-            <span class="notes-text" :title="row.notes">{{ row.notes || '—' }}</span>
+            <span class="notes-text" :title="row.notes">{{ row.notes || '--' }}</span>
           </template>
         </el-table-column>
 
@@ -251,7 +298,7 @@
       </el-table>
     </div>
 
-    <!-- 添加/编辑持仓对话框 -->
+    <!-- 添加/编辑持仓对话框-->
     <el-dialog
       v-model="showDialog"
       :title="editingHolding ? '编辑持仓' : '添加持仓'"
@@ -313,7 +360,7 @@
             placeholder="持有股数/份额"
             controls-position="right"
           />
-          <div class="form-hint">股票单位：股；基金/ETF单位：份</div>
+            <div class="form-hint">股票单位：股；基金/ETF单位：份</div>
         </el-form-item>
 
         <el-form-item label="成本均价" prop="costPrice">
@@ -366,11 +413,24 @@ import { Plus, InfoFilled, Warning } from '@element-plus/icons-vue'
 import type { UserHolding, HoldingPerformance, HoldingPerformanceItem } from '@/types'
 import type { AssetWithQuote } from '@/api/market'
 import { getAssetsWithQuote } from '@/api/market'
-import { getMyHoldings, upsertHolding, updateHolding, deleteHolding, getHoldingPerformance } from '@/api/holdings'
+import { getMyHoldings, upsertHolding, updateHolding, deleteHolding, getHoldingPerformance, getHoldingReturnsHistory } from '@/api/holdings'
+import type { HoldingReturnsHistory } from '@/api/holdings'
+import { use } from 'echarts/core'
+import { CanvasRenderer } from 'echarts/renderers'
+import { LineChart } from 'echarts/charts'
+import {
+  GridComponent,
+  TooltipComponent,
+  LegendComponent,
+  MarkLineComponent,
+} from 'echarts/components'
+import VChart from 'vue-echarts'
+
+use([CanvasRenderer, LineChart, GridComponent, TooltipComponent, LegendComponent, MarkLineComponent])
 
 const router = useRouter()
 
-// ---- 状态 ----
+// ---- 状态----
 const loading = ref(false)
 const saving = ref(false)
 const holdings = ref<UserHolding[]>([])
@@ -380,8 +440,12 @@ const editingHolding = ref<UserHolding | null>(null)
 // 收益数据
 const perfLoading = ref(false)
 const perf = ref<HoldingPerformance | null>(null)
-// 建立 holdingId -> item 的映射，供表格按行查找
+// 建立 holdingId -> item 的映射，供表格按行查询
 const perfMap = ref<Map<number, HoldingPerformanceItem>>(new Map())
+
+// 累计收益历史
+const returnsHistoryLoading = ref(false)
+const returnsHistory = ref<HoldingReturnsHistory | null>(null)
 
 // 资产搜索
 const assetSearchLoading = ref(false)
@@ -411,7 +475,7 @@ const holdingRules: FormRules = {
   ]
 }
 
-// ---- 计算属性 ----
+// ---- 计算属性----
 const formatTotalCost = computed(() => {
   const total = holdings.value.reduce((sum, h) => {
     return sum + Number(h.quantity) * Number(h.costPrice)
@@ -459,6 +523,111 @@ const fetchPerformance = async () => {
     perfLoading.value = false
   }
 }
+
+const fetchReturnsHistory = async () => {
+  returnsHistoryLoading.value = true
+  try {
+    const data = await getHoldingReturnsHistory()
+    returnsHistory.value = data
+  } catch {
+    returnsHistory.value = null
+  } finally {
+    returnsHistoryLoading.value = false
+  }
+}
+
+// 累计收益折线图 ECharts 配置
+const returnsChartOption = computed(() => {
+  const items = returnsHistory.value?.items ?? []
+  if (!items.length) return {}
+
+  const dates = items.map(i => i.date)
+  const returnRates = items.map(i => (Number(i.unrealizedReturn) * 100).toFixed(2))
+  const marketValues = items.map(i => Number(i.totalMarketValue).toFixed(2))
+  const costValue = Number(returnsHistory.value?.totalCostValue ?? 0)
+
+  // 找最新值的颜色
+  const lastReturn = Number(returnRates[returnRates.length - 1])
+  const lineColor = lastReturn >= 0 ? '#10b981' : '#f43f5e'
+
+  return {
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: '#FFFFFF',
+      borderColor: 'rgba(29, 78, 216, 0.22)',
+      borderWidth: 1,
+      textStyle: { color: '#1F2937', fontFamily: 'IBM Plex Mono', fontSize: 12 },
+      formatter: (params: any[]) => {
+        const p = params[0]
+        const mv = Number(marketValues[p.dataIndex])
+        const pnl = mv - costValue
+        const pnlStr = pnl >= 0 ? `+${pnl.toFixed(2)}` : pnl.toFixed(2)
+        const pnlColor = pnl >= 0 ? '#10b981' : '#f43f5e'
+        const rateVal = Number(returnRates[p.dataIndex])
+        const rateStr = rateVal >= 0 ? `+${rateVal}%` : `${rateVal}%`
+        return `
+          <div style="min-width:160px">
+            <div style="color:#A0AABF;margin-bottom:4px">${p.axisValue}</div>
+            <div>市值：<span style="font-weight:700">¥ ${mv >= 10000 ? (mv / 10000).toFixed(2) + '万' : mv.toFixed(2)}</span></div>
+            <div>浮盈：<span style="color:${pnlColor};font-weight:700">${pnlStr}</span></div>
+            <div>收益率：<span style="color:${pnlColor};font-weight:700">${rateStr}</span></div>
+          </div>
+        `
+      }
+    },
+    grid: { top: 20, right: 20, bottom: 40, left: 60 },
+    xAxis: {
+      type: 'category',
+      data: dates,
+      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } },
+      axisLabel: {
+        color: '#475569',
+        fontSize: 11,
+        fontFamily: 'IBM Plex Mono',
+        rotate: dates.length > 60 ? 30 : 0,
+        interval: Math.floor(dates.length / 8),
+      },
+      splitLine: { show: false },
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: {
+        color: '#475569',
+        fontSize: 11,
+        fontFamily: 'IBM Plex Mono',
+        formatter: (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`,
+      },
+      axisLine: { show: false },
+      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
+    },
+    series: [
+      {
+        name: '累计收益',
+        type: 'line',
+        data: returnRates.map(Number),
+        smooth: true,
+        symbol: 'none',
+        lineStyle: { color: lineColor, width: 2 },
+        areaStyle: {
+          color: {
+            type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [
+              { offset: 0, color: lastReturn >= 0 ? 'rgba(16,185,129,0.25)' : 'rgba(244,63,94,0.25)' },
+              { offset: 1, color: 'rgba(0,0,0,0)' },
+            ]
+          }
+        },
+        markLine: {
+          silent: true,
+          symbol: ['none', 'none'],
+          lineStyle: { color: 'rgba(255,255,255,0.2)', type: 'dashed', width: 1 },
+          data: [{ yAxis: 0 }],
+        },
+      }
+    ]
+  }
+})
 
 /** 根据持仓 id 查找收益条目 */
 const getPerfItem = (holdingId: number): HoldingPerformanceItem | undefined => {
@@ -575,7 +744,7 @@ const goToAsset = (assetId: number) => {
   router.push(`/assets/${assetId}`)
 }
 
-// ---- 格式化工具 ----
+// ---- 格式化----
 const formatNumber = (val: number | string) => {
   return Number(val).toLocaleString('zh-CN')
 }
@@ -592,7 +761,7 @@ const formatCost = (quantity: number | string, price: number | string) => {
 }
 
 const formatDate = (dateStr: string) => {
-  if (!dateStr) return '—'
+  if (!dateStr) return '--';
   return new Date(dateStr).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })
 }
 
@@ -608,9 +777,9 @@ const getAssetTypeTag = (type: string) => {
 
 /** 格式化货币（带万/亿单位） */
 const formatMoney = (val: string | number | null | undefined) => {
-  if (val === null || val === undefined) return '—'
+  if (val === null || val === undefined) return '--';
   const n = Number(val)
-  if (isNaN(n)) return '—'
+  if (isNaN(n)) return '--';
   if (n >= 1e8) return `¥ ${(n / 1e8).toFixed(2)} 亿`
   if (n >= 1e4) return `¥ ${(n / 1e4).toFixed(2)} 万`
   return `¥ ${n.toFixed(2)}`
@@ -618,26 +787,26 @@ const formatMoney = (val: string | number | null | undefined) => {
 
 /** 简短金额格式（表格内） */
 const formatMoneyShort = (val: string | number | null | undefined) => {
-  if (val === null || val === undefined) return '—'
+  if (val === null || val === undefined) return '--';
   const n = Number(val)
-  if (isNaN(n)) return '—'
+  if (isNaN(n)) return '--';
   if (n >= 1e8) return `${(n / 1e8).toFixed(2)}亿`
   if (n >= 1e4) return `${(n / 1e4).toFixed(2)}万`
   return n.toFixed(2)
 }
 
-/** 格式化 PnL，带正负号 */
+  /** 格式化PnL，带正负号*/
 const formatPnl = (val: string | number | null | undefined) => {
-  if (val === null || val === undefined) return '—'
+  if (val === null || val === undefined) return '--';
   const n = Number(val)
-  if (isNaN(n)) return '—'
+  if (isNaN(n)) return '--';
   const prefix = n >= 0 ? '+' : ''
   if (Math.abs(n) >= 1e8) return `${prefix}${(n / 1e8).toFixed(2)}亿`
   if (Math.abs(n) >= 1e4) return `${prefix}${(n / 1e4).toFixed(2)}万`
   return `${prefix}${n.toFixed(2)}`
 }
 
-/** 格式化收益率，如 "0.0556" → "+5.56%" */
+/** 格式化收益率，如 "0.0556" --> "+5.56%" */
 const formatRate = (val: string | number | null | undefined) => {
   if (val === null || val === undefined) return ''
   const n = Number(val)
@@ -646,7 +815,7 @@ const formatRate = (val: string | number | null | undefined) => {
   return `${prefix}${(n * 100).toFixed(2)}%`
 }
 
-/** 根据 PnL 值返回颜色类名 */
+/** 根据 PnL 值返回颜色类*/
 const pnlClass = (val: string | number | null | undefined) => {
   if (val === null || val === undefined) return ''
   const n = Number(val)
@@ -657,6 +826,7 @@ const pnlClass = (val: string | number | null | undefined) => {
 onMounted(() => {
   fetchHoldings()
   fetchPerformance()
+  fetchReturnsHistory()
 })
 </script>
 
@@ -706,7 +876,7 @@ onMounted(() => {
   border-radius: 10px !important;
 
   &:hover {
-    box-shadow: 0 8px 24px rgba(124, 58, 237, 0.5) !important;
+    box-shadow: 0 8px 24px rgba(29, 78, 216, 0.3) !important;
     transform: translateY(-1px);
   }
 }
@@ -714,8 +884,8 @@ onMounted(() => {
 // ---- 收益 Banner ----
 .perf-banner {
   position: relative;
-  background: linear-gradient(135deg, rgba(124, 58, 237, 0.12) 0%, rgba(16, 185, 129, 0.06) 100%);
-  border: 1px solid rgba(124, 58, 237, 0.2);
+  background: linear-gradient(135deg, rgba(29, 78, 216, 0.08) 0%, rgba(16, 185, 129, 0.06) 100%);
+  border: 1px solid rgba(29, 78, 216, 0.12);
   border-radius: $border-radius;
   padding: 1.25rem 1.5rem;
   margin-bottom: 1.25rem;
@@ -834,7 +1004,7 @@ onMounted(() => {
   font-size: 0.85rem;
 }
 
-// ---- 汇总卡片 ----
+// ---- 汇总卡片----
 .summary-cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -843,7 +1013,7 @@ onMounted(() => {
 }
 
 .summary-card {
-  background: linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+  background: #FFFFFF;
   border: 1px solid $border-subtle;
   border-radius: $border-radius;
   padding: 1rem 1.25rem;
@@ -878,7 +1048,7 @@ onMounted(() => {
 
 // ---- 持仓表格 ----
 .holdings-table-wrap {
-  background: linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
+  background: #FFFFFF;
   border: 1px solid $border-subtle;
   border-radius: $border-radius;
   overflow: hidden;
@@ -904,7 +1074,7 @@ onMounted(() => {
     transition: background 0.2s;
 
     &:hover td {
-      background: rgba(124, 58, 237, 0.05) !important;
+      background: rgba(29, 78, 216, 0.04) !important;
     }
   }
 
@@ -924,7 +1094,7 @@ onMounted(() => {
 .asset-code {
   font-weight: 700;
   font-family: 'IBM Plex Mono', monospace;
-  color: $primary-light;
+  color: $primary-color;
   cursor: pointer;
   font-size: 0.9rem;
 
@@ -951,7 +1121,7 @@ onMounted(() => {
 }
 
 .cost-value {
-  color: $primary-light;
+  color: $primary-color;
 }
 
 .notes-text {
@@ -970,7 +1140,7 @@ onMounted(() => {
   font-family: 'IBM Plex Mono', monospace;
 }
 
-// ---- 对话框 ----
+// ---- 对话框----
 .holding-dialog {
   :deep(.el-dialog) {
     background: $bg-card !important;
@@ -1004,7 +1174,7 @@ onMounted(() => {
   margin-top: 0.25rem;
 
   strong {
-    color: $primary-light;
+    color: $primary-color;
     font-family: 'IBM Plex Mono', monospace;
   }
 }
@@ -1044,8 +1214,91 @@ onMounted(() => {
   justify-content: flex-end;
 }
 
+// ---- 累计收益曲线卡片 ----
+.returns-chart-card {
+  background: #FFFFFF;
+  border: 1px solid $border-subtle;
+  border-radius: $border-radius;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+
+.returns-chart-header {
+  padding: 1rem 1.5rem 0.75rem;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.returns-chart-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.returns-chart-title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: $text-primary;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.info-icon {
+  color: $text-muted;
+  font-size: 0.875rem;
+  cursor: help;
+}
+
+.returns-chart-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.meta-item {
+  font-size: 0.75rem;
+  color: $text-muted;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.meta-label {
+  color: $text-muted;
+}
+
+.meta-value {
+  color: $text-secondary;
+  &.mono { font-family: 'IBM Plex Mono', monospace; }
+}
+
+.meta-return {
+  font-size: 0.8125rem;
+
+  strong {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1rem;
+  }
+}
+
+.returns-chart-body {
+  padding: 0.5rem 0.5rem 0.25rem;
+}
+
+.returns-chart {
+  width: 100%;
+  height: 260px;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
 }
 </style>
+
+
+
+
+
+

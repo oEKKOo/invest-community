@@ -29,7 +29,7 @@
     <div class="stats-grid">
       <div class="stat-card pending">
         <div class="stat-content">
-          <p class="stat-label">待审核</p>
+          <p class="stat-label">待审核帖子</p>
           <p class="stat-value">{{ adminStats?.pendingPostsCount || 0 }}</p>
         </div>
         <div class="stat-icon">
@@ -139,7 +139,7 @@
       </div>
     </div>
 
-    <!-- 驳回原因对话框 -->
+    <!-- 驳回原因对话框-->
     <el-dialog
       v-model="showRejectForm"
       title="驳回原因"
@@ -151,7 +151,7 @@
             v-model="rejectForm.reason"
             type="textarea"
             :rows="4"
-            placeholder="请说明驳回原因..."
+              placeholder="请说明驳回原因..."
           />
         </el-form-item>
       </el-form>
@@ -186,7 +186,7 @@
           <div class="alert-content">
             <p class="alert-title">检测到潜在误导信息</p>
             <p class="alert-description">
-              AI检测到线程 #492 中存在未经验证的财务建议，误导概率较高。
+              AI检测到线程 #492 中存在未经验证的财务建议，误导概率较高
             </p>
             <div class="alert-actions">
               <el-button type="text" size="small">查看来源</el-button>
@@ -376,8 +376,8 @@ onMounted(() => {
     align-items: center;
     gap: 1rem;
     padding: 1rem 1.25rem;
-    background: rgba(124, 58, 237, 0.08);
-    border: 1px solid rgba(124, 58, 237, 0.2);
+    background: rgba(29, 78, 216, 0.06);
+    border: 1px solid rgba(29, 78, 216, 0.12);
     border-radius: 12px;
     text-decoration: none;
     color: inherit;
@@ -385,7 +385,7 @@ onMounted(() => {
 
     &:hover {
       background: rgba(124, 58, 237, 0.14);
-      border-color: rgba(124, 58, 237, 0.35);
+      border-color: rgba(29, 78, 216, 0.22);
     }
 
     .monitor-icon {
@@ -399,7 +399,7 @@ onMounted(() => {
       h4 {
         font-size: 0.9rem;
         font-weight: 600;
-        color: #A78BFA;
+        color: #3B82F6;
         margin: 0 0 3px;
       }
 
@@ -734,3 +734,4 @@ onMounted(() => {
   }
 }
 </style>
+

@@ -18,7 +18,7 @@
       remote
       :remote-method="searchAssets"
       :loading="searching"
-      placeholder="搜索并关联标的（代码/名称）..."
+      placeholder="搜索并关联标的（代码/名称...)"
       value-key="id"
       clearable
       @change="handleSelect"
@@ -34,7 +34,7 @@
           <span class="opt-code">{{ item.code }}</span>
           <span class="opt-name">{{ item.name }}</span>
           <el-tag size="small" :type="getMarketTagType(item.market)" class="opt-market">
-            {{ item.market || '—' }}
+            {{ item.market || '未知' }}
           </el-tag>
           <span class="opt-type">{{ item.asset_type }}</span>
         </div>
@@ -49,7 +49,7 @@
     </el-select>
 
     <p class="asset-hint" v-if="maxCount > 0">
-      最多关联 {{ maxCount }} 个标的（已选 {{ selectedAssets.length }}）
+      最多关联{{ maxCount }} 个标的（已关联{{ selectedAssets.length }}个）
     </p>
   </div>
 </template>
@@ -170,14 +170,14 @@ watch(() => props.modelValue, (ids) => {
   align-items: center;
   gap: 6px;
   padding: 4px 8px 4px 10px;
-  background: rgba(124, 58, 237, 0.15);
-  border: 1px solid rgba(124, 58, 237, 0.3);
+  background: rgba(29, 78, 216, 0.10);
+  border: 1px solid rgba(29, 78, 216, 0.18);
   border-radius: 8px;
   font-size: 0.8rem;
 
   .tag-code {
     font-weight: 700;
-    color: #A78BFA;
+    color: #3B82F6;
   }
 
   .tag-name {
@@ -204,7 +204,7 @@ watch(() => props.modelValue, (ids) => {
   width: 100%;
 
   :deep(.el-select__wrapper) {
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(15, 23, 42, 0.03);
     border-color: rgba(255, 255, 255, 0.1);
     color: #F0F4FF;
   }
@@ -259,3 +259,6 @@ watch(() => props.modelValue, (ids) => {
   margin: 0;
 }
 </style>
+
+
+

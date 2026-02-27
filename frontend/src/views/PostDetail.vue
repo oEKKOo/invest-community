@@ -136,7 +136,7 @@
       </section>
     </div>
 
-    <!-- 分享对话框 -->
+    <!-- 分享对话框-->
     <el-dialog v-model="showShareDialog" title="分享帖子" width="400px">
       <div class="share-options">
         <p>复制链接分享给朋友：</p>
@@ -289,14 +289,14 @@ onMounted(async () => {
 }
 
 .loading-container {
-  background: linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
+  background: #FFFFFF;
   border: 1px solid $border-subtle;
   border-radius: $border-radius;
   padding: 2rem;
 }
 
 .not-found {
-  background: linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
+  background: #FFFFFF;
   border: 1px solid $border-subtle;
   border-radius: $border-radius;
   padding: 2rem;
@@ -309,7 +309,7 @@ onMounted(async () => {
 }
 
 .post-article {
-  background: linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+  background: #FFFFFF;
   border: 1px solid $border-default;
   border-radius: $border-radius;
   padding: 2rem;
@@ -378,8 +378,8 @@ onMounted(async () => {
 
 .tag-item {
   background: rgba(124, 58, 237, 0.1) !important;
-  border: 1px solid rgba(124, 58, 237, 0.2) !important;
-  color: $primary-light !important;
+  border: 1px solid rgba(29, 78, 216, 0.12) !important;
+  color: $primary-color !important;
   border-radius: 6px !important;
   font-size: 0.7rem !important;
   font-weight: 600 !important;
@@ -424,7 +424,7 @@ onMounted(async () => {
   cursor: pointer;
 
   &:hover {
-    color: $primary-light !important;
+    color: $primary-color !important;
     background: rgba(124, 58, 237, 0.1) !important;
   }
 
@@ -440,7 +440,7 @@ onMounted(async () => {
 }
 
 .comments-section {
-  background: linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
+  background: #FFFFFF;
   border: 1px solid $border-default;
   border-radius: $border-radius;
   padding: 1.75rem;
@@ -462,7 +462,7 @@ onMounted(async () => {
   margin-bottom: 1rem;
 
   :deep(.el-textarea__inner) {
-    background: rgba(255, 255, 255, 0.04) !important;
+    background: rgba(15, 23, 42, 0.03) !important;
     border: 1px solid $border-default !important;
     border-radius: 10px !important;
     color: $text-primary !important;
@@ -471,7 +471,7 @@ onMounted(async () => {
 
     &:focus {
       border-color: $primary-color !important;
-      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2) !important;
+      box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12) !important;
     }
 
     &::placeholder {
@@ -512,3 +512,6 @@ onMounted(async () => {
   to { opacity: 1; transform: translateY(0); }
 }
 </style>
+
+
+

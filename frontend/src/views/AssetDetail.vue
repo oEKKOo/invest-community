@@ -1,6 +1,6 @@
 <template>
   <div class="asset-detail">
-    <!-- 面包屑导航 -->
+    <!-- 面包屑导航-->
     <div class="page-header">
       <el-breadcrumb separator="/">
         <el-breadcrumb-item :to="{ path: '/market' }">行情列表</el-breadcrumb-item>
@@ -8,7 +8,7 @@
       </el-breadcrumb>
     </div>
 
-    <!-- 加载中 -->
+    <!-- 加载状态-->
     <div v-if="assetLoading" class="loading-wrapper">
       <el-skeleton :rows="8" animated />
     </div>
@@ -34,7 +34,7 @@
           <el-skeleton :rows="2" animated />
         </div>
         <div v-else-if="quote" class="quote-body">
-          <!-- 主价格 -->
+          <!-- 主价格-->
           <div class="main-price-row">
             <span class="main-price" :class="priceColor">
               {{ formatPrice(quote.price) }}
@@ -45,7 +45,7 @@
             </div>
           </div>
 
-          <!-- 警告：数据陈旧 -->
+          <!-- 警告：数据陈旧-->
           <el-alert
             v-if="quote.isStale"
             type="warning"
@@ -53,21 +53,21 @@
             :closable="false"
             class="stale-alert"
           >
-            <template #title>行情数据已超过 60 秒，可能不是最新</template>
+            <template #title>行情数据已超过60秒，可能不是最新</template>
           </el-alert>
 
-          <!-- 开高低昨收成交量 -->
+          <!-- 开高低昨收成交量-->
           <div class="quote-metrics">
             <div class="metric-item">
-              <span class="metric-label">开盘</span>
+              <span class="metric-label">开盘价</span>
               <span class="metric-value">{{ formatPrice(quote.open) }}</span>
             </div>
             <div class="metric-item">
-              <span class="metric-label">最高</span>
+              <span class="metric-label">最高价</span>
               <span class="metric-value up">{{ formatPrice(quote.high) }}</span>
             </div>
             <div class="metric-item">
-              <span class="metric-label">最低</span>
+              <span class="metric-label">最低价</span>
               <span class="metric-value down">{{ formatPrice(quote.low) }}</span>
             </div>
             <div class="metric-item">
@@ -80,7 +80,7 @@
             </div>
           </div>
 
-          <!-- 数据来源和时间 -->
+          <!-- 数据来源和时间-->
           <div class="quote-footer">
             <span class="data-source">数据来源：Finnhub | 更新时间：{{ formatQuoteTime(quote.quoteTime) }}</span>
           </div>
@@ -92,7 +92,7 @@
         </div>
       </div>
 
-      <!-- 区块 2 & 3: K线图 + 分时图 -->
+      <!-- 区块 2 & 3: K线图 + 分时图-->
       <div class="chart-card card">
         <div class="card-header">
           <h3 class="card-title">走势图</h3>
@@ -211,12 +211,12 @@
         <!-- 查看更多 -->
         <div class="view-more" v-if="contentTotal > 0 && contentTotal <= contentPageSize">
           <router-link :to="`/community?assetId=${assetId}`" class="view-more-link">
-            查看全部相关讨论 →
+            查看全部相关讨论
           </router-link>
         </div>
       </div>
 
-      <!-- 区块 6: 快速发帖（登录用户） -->
+      <!-- 区块 6: 快速发帖（登录用户）-->
       <div class="quick-post-card card" v-if="authStore.isLoggedIn">
         <div class="card-header">
           <h3 class="card-title">发表看法</h3>
@@ -258,7 +258,7 @@
       </div>
     </template>
 
-    <!-- 资产不存在 -->
+    <!-- 资产不存在-->
     <div v-else-if="!assetLoading" class="not-found">
       <el-empty description="资产不存在" :image-size="80">
         <el-button @click="$router.push('/market')">返回行情列表</el-button>
@@ -328,7 +328,7 @@ const quickPostTitle = ref('')
 const quickPostContent = ref('')
 const quickPosting = ref(false)
 
-// SSE（lazy connect, 在行情加载完后手动 connect）
+// SSE（lazy connect, 在行情加载完后手动connect）
 const quoteStream = useQuoteStream(Number(assetId.value))
 const connectSSE = quoteStream.connect
 const disconnectSSE = quoteStream.disconnect
@@ -338,7 +338,7 @@ const marketLabel = computed(() => {
   const map: Record<string, string> = {
     SH: 'A股沪市', SZ: 'A股深市', HK: '港股', US: '美股'
   }
-  return asset.value?.market ? (map[asset.value.market] || asset.value.market) : '—'
+  return asset.value?.market ? (map[asset.value.market] || asset.value.market) : '未知'
 })
 
 const marketTagType = computed(() => {
@@ -362,7 +362,7 @@ const priceColor = computed(() => {
 
 // 格式化方法
 const formatPrice = (val: any) => {
-  if (val === null || val === undefined) return '—'
+  if (val === null || val === undefined) return '--'
   return parseFloat(String(val)).toFixed(2)
 }
 
@@ -381,14 +381,14 @@ const formatChangePct = (val: any) => {
 }
 
 const formatVolume = (val: number | null) => {
-  if (val === null || val === undefined) return '—'
+  if (val === null || val === undefined) return '--'
   if (val >= 1e8) return `${(val / 1e8).toFixed(2)}亿`
   if (val >= 1e4) return `${(val / 1e4).toFixed(2)}万`
   return String(val)
 }
 
 const formatQuoteTime = (timeStr: string | null) => {
-  if (!timeStr) return '—'
+  if (!timeStr) return '--'
   const d = new Date(timeStr)
   const mm = String(d.getMonth() + 1).padStart(2, '0')
   const dd = String(d.getDate()).padStart(2, '0')
@@ -413,7 +413,7 @@ const loadAsset = async () => {
     // 如果资产详情里已有行情数据，直接使用
     if (data.quote) {
       quote.value = data.quote
-      // 同步到 market store（供 watch 监听）并启动 SSE 实时推送
+      // 同步到market store（供 watch 监听）并启动 SSE 实时推送
       marketStore.updateQuoteFromStream({ assetId: Number(assetId.value), ...data.quote })
       connectSSE()
     } else {
@@ -529,10 +529,11 @@ onUnmounted(() => {
 }
 
 .card {
-  background: #141B2D;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 14px;
   padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
 }
 
 .card-header {
@@ -545,7 +546,7 @@ onUnmounted(() => {
 .card-title {
   font-size: 1rem;
   font-weight: 600;
-  color: #F0F4FF;
+  color: #1F2937;
   margin: 0;
 }
 
@@ -565,13 +566,13 @@ onUnmounted(() => {
   .asset-code {
     font-size: 1.5rem;
     font-weight: 700;
-    color: #F0F4FF;
+    color: #1F2937;
     letter-spacing: 0.02em;
   }
   
   .asset-name {
     font-size: 1rem;
-    color: #A0AABF;
+    color: #6B7280;
     font-weight: 500;
   }
   
@@ -616,8 +617,8 @@ onUnmounted(() => {
   gap: 1.5rem;
   flex-wrap: wrap;
   padding: 0.75rem 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   margin-bottom: 0.75rem;
   
   .metric-item {
@@ -628,13 +629,13 @@ onUnmounted(() => {
   
   .metric-label {
     font-size: 0.7rem;
-    color: #6B7A99;
+    color: #6B7280;
   }
   
   .metric-value {
     font-size: 0.9rem;
     font-weight: 600;
-    color: #A0AABF;
+    color: #1F2937;
     
     &.up { color: #f56c6c; }
     &.down { color: #67c23a; }
@@ -643,7 +644,7 @@ onUnmounted(() => {
 
 .quote-footer {
   font-size: 0.7rem;
-  color: #6B7A99;
+  color: #6B7280;
   
   .data-source {
     font-style: italic;
@@ -659,22 +660,22 @@ onUnmounted(() => {
 .chart-type-btn {
   padding: 4px 12px;
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   background: transparent;
-  color: #6B7A99;
+  color: #6B7280;
   font-size: 0.75rem;
   cursor: pointer;
   transition: all 0.2s;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.06);
-    color: #A0AABF;
+    background: rgba(0, 0, 0, 0.04);
+    color: #374151;
   }
 
   &.active {
-    background: rgba(124, 58, 237, 0.2);
-    border-color: rgba(124, 58, 237, 0.4);
-    color: #A78BFA;
+    background: rgba(29, 78, 216, 0.12);
+    border-color: rgba(29, 78, 216, 0.25);
+    color: #3B82F6;
     font-weight: 600;
   }
 }
@@ -694,18 +695,18 @@ onUnmounted(() => {
   
   .info-label {
     font-size: 0.7rem;
-    color: #6B7A99;
+    color: #6B7280;
   }
   
   .info-value {
     font-size: 0.875rem;
-    color: #A0AABF;
+    color: #374151;
   }
 }
 
 .company-desc {
   font-size: 0.85rem;
-  color: #A0AABF;
+  color: #4B5563;
   line-height: 1.7;
   margin: 0;
 }
@@ -716,9 +717,9 @@ onUnmounted(() => {
   
   .el-collapse-item__header {
     background: transparent;
-    color: #A78BFA;
+    color: #3B82F6;
     font-size: 0.85rem;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   }
   
   .el-collapse-item__wrap {
@@ -740,17 +741,17 @@ onUnmounted(() => {
 .sort-btn {
   padding: 3px 10px;
   border-radius: 5px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.06);
   background: transparent;
-  color: #6B7A99;
+  color: #6B7280;
   font-size: 0.75rem;
   cursor: pointer;
   transition: all 0.2s;
 
   &.active {
-    background: rgba(124, 58, 237, 0.15);
-    border-color: rgba(124, 58, 237, 0.3);
-    color: #A78BFA;
+    background: rgba(29, 78, 216, 0.10);
+    border-color: rgba(29, 78, 216, 0.18);
+    color: #3B82F6;
   }
 }
 
@@ -762,7 +763,7 @@ onUnmounted(() => {
 
 .content-item {
   padding: 1rem 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
   cursor: pointer;
   transition: background 0.2s;
   
@@ -771,7 +772,7 @@ onUnmounted(() => {
   }
 
   &:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: #F9FAFB;
     margin: 0 -1.5rem;
     padding: 1rem 1.5rem;
     border-radius: 8px;
@@ -782,14 +783,14 @@ onUnmounted(() => {
   .content-title {
     font-size: 0.9rem;
     font-weight: 600;
-    color: #E2E8F0;
+    color: #1F2937;
     margin: 0 0 4px;
     line-height: 1.4;
   }
   
   .content-excerpt {
     font-size: 0.8rem;
-    color: #6B7A99;
+    color: #6B7280;
     margin: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -803,7 +804,7 @@ onUnmounted(() => {
   gap: 6px;
   margin-top: 6px;
   font-size: 0.75rem;
-  color: #6B7A99;
+  color: #9CA3AF;
   
   .dot { opacity: 0.5; }
   
@@ -831,7 +832,7 @@ onUnmounted(() => {
   
   .view-more-link {
     font-size: 0.85rem;
-    color: #A78BFA;
+    color: #3B82F6;
     text-decoration: none;
     
     &:hover {
@@ -848,12 +849,12 @@ onUnmounted(() => {
   
   .quick-title-input, .quick-content-input {
     :deep(.el-input__wrapper), :deep(.el-textarea__inner) {
-      background: rgba(255, 255, 255, 0.04);
-      border-color: rgba(255, 255, 255, 0.1);
-      color: #F0F4FF;
+      background: #FFFFFF;
+      border-color: rgba(0, 0, 0, 0.1);
+      color: #1F2937;
       
       &::placeholder {
-        color: #6B7A99;
+        color: #9CA3AF;
       }
     }
   }
@@ -871,10 +872,10 @@ onUnmounted(() => {
   align-items: center;
   gap: 6px;
   font-size: 0.75rem;
-  color: #6B7A99;
+  color: #6B7280;
   padding: 0.75rem 1rem;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 8px;
   font-style: italic;
 }
@@ -907,3 +908,6 @@ onUnmounted(() => {
   justify-content: center;
 }
 </style>
+
+
+

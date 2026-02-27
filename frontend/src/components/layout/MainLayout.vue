@@ -1,6 +1,6 @@
 <template>
   <div class="main-layout">
-    <!-- 侧边栏 -->
+    <!-- 侧边栏-->
     <aside class="sidebar">
       <!-- 背景装饰 -->
       <div class="sidebar-glow"></div>
@@ -40,7 +40,7 @@
 
       <!-- 免责声明 -->
       <div class="sidebar-disclaimer">
-        <p>数据来源：Finnhub Finance，仅供参考，不构成投资建议。</p>
+        <p>数据来源：Finnhub Finance，仅供参考，不构成投资建议</p>
       </div>
 
       <div class="sidebar-footer">
@@ -71,9 +71,9 @@
       </div>
     </aside>
 
-    <!-- 主内容区域 -->
+    <!-- 主内容区-->
     <main class="main-content">
-      <!-- 顶部导航栏 -->
+      <!-- 顶部导航-->
       <header class="main-header">
         <div class="header-left">
           <div class="page-breadcrumb">
@@ -89,7 +89,7 @@
             </svg>
             <input
               v-model="searchQuery"
-              placeholder="搜索讨论、基金、组合..."
+              placeholder="搜索讨论、基金、组合..."  
               class="search-input"
             />
           </div>
@@ -199,7 +199,7 @@ const showNotifications = () => {
 // ============================================
 .sidebar {
   width: 260px;
-  background: rgba(10, 14, 26, 0.95);
+  background: #FFFFFF;
   border-right: 1px solid $border-subtle;
   display: flex;
   flex-direction: column;
@@ -207,12 +207,10 @@ const showNotifications = () => {
   height: 100vh;
   overflow-y: auto;
   z-index: 10;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
 
   @media (max-width: 768px) {
     width: 64px;
-    
+
     .logo-text-group,
     .nav-text,
     .user-details,
@@ -227,8 +225,8 @@ const showNotifications = () => {
   top: 0;
   left: 0;
   right: 0;
-  height: 200px;
-  background: radial-gradient(ellipse at 50% 0%, rgba(124, 58, 237, 0.15) 0%, transparent 70%);
+  height: 160px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(29, 78, 216, 0.06) 0%, transparent 70%);
   pointer-events: none;
   z-index: 0;
 }
@@ -254,7 +252,7 @@ const showNotifications = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: $shadow-purple;
+  box-shadow: $shadow-blue;
   flex-shrink: 0;
 }
 
@@ -274,9 +272,9 @@ const showNotifications = () => {
 
 .logo-tagline {
   font-size: 0.65rem;
-  color: $primary-light;
-  font-weight: 500;
-  letter-spacing: 0.05em;
+  color: $primary-color;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -294,7 +292,7 @@ const showNotifications = () => {
   display: flex;
   align-items: center;
   gap: 0.875rem;
-  padding: 0.75rem 1rem;
+  padding: 0.7rem 1rem;
   border-radius: 10px;
   color: $text-muted;
   text-decoration: none;
@@ -303,21 +301,23 @@ const showNotifications = () => {
   cursor: pointer;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: $bg-surface;
     color: $text-secondary;
 
     .nav-icon-wrap {
-      background: rgba(124, 58, 237, 0.15);
+      background: rgba(29, 78, 216, 0.08);
+      color: $primary-color;
     }
   }
 
   &.active {
-    background: rgba(124, 58, 237, 0.12);
-    color: $primary-light;
-    border: 1px solid rgba(124, 58, 237, 0.2);
+    background: rgba(29, 78, 216, 0.08);
+    color: $primary-color;
+    border: 1px solid rgba(29, 78, 216, 0.15);
 
     .nav-icon-wrap {
-      background: rgba(124, 58, 237, 0.25);
+      background: rgba(29, 78, 216, 0.12);
+      color: $primary-color;
     }
 
     .nav-text {
@@ -357,7 +357,7 @@ const showNotifications = () => {
   height: 20px;
   background: $gradient-primary;
   border-radius: 2px 0 0 2px;
-  box-shadow: $glow-purple;
+  box-shadow: $glow-blue;
 }
 
 .sidebar-footer {
@@ -373,12 +373,12 @@ const showNotifications = () => {
   gap: 0.75rem;
   padding: 0.625rem 0.75rem;
   border-radius: 10px;
-  background: $glass-bg;
+  background: $bg-surface;
   border: 1px solid $border-subtle;
   transition: $transition-all;
 
   &:hover {
-    background: $glass-bg-hover;
+    background: $bg-dark;
     border-color: $border-default;
   }
 }
@@ -419,7 +419,7 @@ const showNotifications = () => {
   border: none;
   color: $text-muted;
   cursor: pointer;
-  padding: 0.25rem;
+  padding: 0.375rem;
   border-radius: 6px;
   display: flex;
   align-items: center;
@@ -429,7 +429,7 @@ const showNotifications = () => {
 
   &:hover {
     color: $error-color;
-    background: rgba(239, 68, 68, 0.1);
+    background: rgba(220, 38, 38, 0.08);
   }
 }
 
@@ -450,7 +450,7 @@ const showNotifications = () => {
 
 .main-header {
   height: 64px;
-  background: rgba(10, 14, 26, 0.8);
+  background: rgba(255, 255, 255, 0.92);
   border-bottom: 1px solid $border-subtle;
   padding: 0 1.5rem;
   display: flex;
@@ -460,8 +460,8 @@ const showNotifications = () => {
   position: sticky;
   top: 0;
   z-index: 5;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .header-left {
@@ -475,11 +475,11 @@ const showNotifications = () => {
 }
 
 .breadcrumb-dot {
-  width: 6px;
-  height: 6px;
-  background: $primary-light;
+  width: 7px;
+  height: 7px;
+  background: $primary-color;
   border-radius: 50%;
-  box-shadow: 0 0 8px rgba(167, 139, 250, 0.8);
+  box-shadow: 0 0 8px rgba(29, 78, 216, 0.5);
 }
 
 .breadcrumb-text {
@@ -498,16 +498,17 @@ const showNotifications = () => {
   display: flex;
   align-items: center;
   gap: 0.625rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid $border-subtle;
+  background: $bg-surface;
+  border: 1px solid $border-default;
   border-radius: 10px;
   padding: 0.5rem 1rem;
   transition: $transition-all;
+  box-shadow: $shadow-sm;
 
   &:focus-within {
     border-color: $primary-color;
-    background: rgba(255, 255, 255, 0.07);
-    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+    background: #FFFFFF;
+    box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12);
   }
 }
 
@@ -522,7 +523,7 @@ const showNotifications = () => {
   border: none;
   outline: none;
   color: $text-primary;
-  font-family: 'IBM Plex Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 0.875rem;
 
   &::placeholder {
@@ -539,8 +540,8 @@ const showNotifications = () => {
 
 .notification-btn {
   position: relative;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid $border-subtle;
+  background: #FFFFFF;
+  border: 1px solid $border-default;
   color: $text-secondary;
   cursor: pointer;
   width: 38px;
@@ -550,11 +551,12 @@ const showNotifications = () => {
   align-items: center;
   justify-content: center;
   transition: $transition-all;
+  box-shadow: $shadow-sm;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: $text-primary;
-    border-color: $border-default;
+    background: $bg-surface;
+    color: $primary-color;
+    border-color: $primary-color;
   }
 }
 
@@ -572,6 +574,7 @@ const showNotifications = () => {
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 2px 4px rgba(22, 163, 74, 0.3);
 }
 
 .header-avatar {
@@ -579,9 +582,11 @@ const showNotifications = () => {
     cursor: pointer;
     border: 2px solid $border-default;
     transition: $transition-all;
+    box-shadow: $shadow-sm;
 
     &:hover {
-      border-color: $primary-light;
+      border-color: $primary-color;
+      box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12);
     }
   }
 }
@@ -593,12 +598,12 @@ const showNotifications = () => {
 }
 
 .sidebar-disclaimer {
-  padding: 0.5rem 1rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  
+  padding: 0.625rem 1rem;
+  border-top: 1px solid $border-subtle;
+
   p {
     font-size: 0.6rem;
-    color: rgba(107, 122, 153, 0.6);
+    color: $text-muted;
     line-height: 1.5;
     margin: 0;
     font-style: italic;
@@ -609,3 +614,4 @@ const showNotifications = () => {
   }
 }
 </style>
+

@@ -13,7 +13,7 @@
       </el-button>
     </div>
 
-    <!-- 创建组合对话框 -->
+    <!-- 创建组合对话框-->
     <el-dialog
       v-model="showCreatePortfolio"
       title="构建投资策略"
@@ -63,57 +63,125 @@
 
           <el-col :span="12">
             <div class="assets-section">
-              <h4 class="assets-title">资产配置</h4>
-              
-              <div class="add-asset">
-                <!-- 资产搜索选择器（关联真实数据库资产） -->
-                <el-select
-                  v-model="assetForm.selectedAsset"
-                  filterable
-                  remote
-                  clearable
-                  placeholder="搜索股票/基金/ETF"
-                  :remote-method="searchAssets"
-                  :loading="assetSearchLoading"
-                  size="small"
-                  style="flex: 1; min-width: 0"
-                  value-key="id"
-                  @change="onAssetSelected"
-                >
-                  <el-option
-                    v-for="item in assetSearchResults"
-                    :key="item.id"
-                    :label="`${item.code} ${item.name}`"
-                    :value="item"
-                  >
-                    <div class="asset-option">
-                      <span class="opt-code">{{ item.code }}</span>
-                      <span class="opt-name">{{ item.name }}</span>
-                      <el-tag size="small" class="opt-market">{{ item.market }}</el-tag>
-                    </div>
-                  </el-option>
-                </el-select>
-                <el-input-number
-                  v-model="assetForm.allocation"
-                  placeholder="比例%"
-                  size="small"
-                  style="width: 100px"
-                  :min="0"
-                  :max="100"
-                  :precision="1"
-                  controls-position="right"
-                />
-                <el-button
-                  size="small"
-                  type="primary"
-                  @click="addAsset"
-                  :disabled="!canAddAsset"
-                >
-                  添加
-                </el-button>
+              <div class="assets-header">
+                <h4 class="assets-title">资产配置</h4>
+                <div class="add-mode-tabs">
+                  <button
+                    type="button"
+                    class="mode-tab"
+                    :class="{ active: addMode === 'manual' }"
+                    @click="addMode = 'manual'"
+                  >手动添加</button>
+                  <button
+                    type="button"
+                    class="mode-tab"
+                    :class="{ active: addMode === 'import' }"
+                    @click="switchToImport"
+                  >从持仓导入</button>
+                </div>
               </div>
 
-              <div class="assets-list">
+              <!-- 手动添加模式 -->
+              <template v-if="addMode === 'manual'">
+                <div class="add-asset">
+                  <el-select
+                    v-model="assetForm.selectedAsset"
+                    filterable
+                    remote
+                    clearable
+                    placeholder="搜索股票/基金/ETF"
+                    :remote-method="searchAssets"
+                    :loading="assetSearchLoading"
+                    size="small"
+                    style="flex: 1; min-width: 0"
+                    value-key="id"
+                    @change="onAssetSelected"
+                  >
+                    <el-option
+                      v-for="item in assetSearchResults"
+                      :key="item.id"
+                      :label="`${item.code} ${item.name}`"
+                      :value="item"
+                    >
+                      <div class="asset-option">
+                        <span class="opt-code">{{ item.code }}</span>
+                        <span class="opt-name">{{ item.name }}</span>
+                        <el-tag size="small" class="opt-market">{{ item.market }}</el-tag>
+                      </div>
+                    </el-option>
+                  </el-select>
+                  <el-input-number
+                    v-model="assetForm.amount"
+                    placeholder="金额"
+                    size="small"
+                    style="width: 100px"
+                    :min="0.01"
+                    :precision="2"
+                    controls-position="right"
+                  />
+                  <el-button
+                    size="small"
+                    type="primary"
+                    @click="addAsset"
+                    :disabled="!canAddAsset"
+                  >
+                    添加
+                  </el-button>
+                </div>
+                <p class="mode-hint">输入持仓金额，占比将自动计算</p>
+              </template>
+
+              <!-- 从持仓导入模式-->
+              <template v-else>
+                <div v-if="holdingsLoading" class="holdings-loading">
+                  <el-skeleton :rows="3" animated />
+                </div>
+                <div v-else-if="myHoldings.length === 0" class="holdings-empty">
+                  <el-icon><InfoFilled /></el-icon>
+                  <span>暂无持仓记录</span>
+                </div>
+                <template v-else>
+                  <div class="import-toolbar">
+                    <el-checkbox
+                      :model-value="isAllSelected"
+                      :indeterminate="isIndeterminate"
+                      @change="toggleSelectAll"
+                    >全选</el-checkbox>
+                    <el-button
+                      size="small"
+                      type="primary"
+                      :disabled="selectedHoldingIds.size === 0"
+                      @click="importSelectedHoldings"
+                    >
+                      导入选中 ({{ selectedHoldingIds.size }})
+                    </el-button>
+                  </div>
+                  <div class="holdings-import-list">
+                    <div
+                      v-for="h in myHoldings"
+                      :key="h.id"
+                      class="holding-import-row"
+                      :class="{ selected: selectedHoldingIds.has(h.id), already: isAlreadyAdded(h) }"
+                      @click="!isAlreadyAdded(h) && toggleHolding(h.id)"
+                    >
+                      <el-checkbox
+                        :model-value="selectedHoldingIds.has(h.id)"
+                        :disabled="isAlreadyAdded(h)"
+                        @change="toggleHolding(h.id)"
+                        @click.stop
+                      />
+                      <span class="h-code">{{ h.code }}</span>
+                      <span class="h-name">{{ h.name }}</span>
+                      <el-tag size="small" class="opt-market">{{ h.displayMarket || h.market }}</el-tag>
+                      <span class="h-amount">¥{{ formatAmount(Number(h.quantity) * Number(h.costPrice)) }}</span>
+                      <span v-if="isAlreadyAdded(h)" class="h-added-badge">已添加</span>
+                    </div>
+                  </div>
+                </template>
+              </template>
+
+              <!-- 已配置资产列表（两种模式共享）-->
+              <div class="assets-list" v-if="createForm.assets.length > 0">
                 <div 
                   v-for="(asset, index) in createForm.assets"
                   :key="index"
@@ -126,7 +194,10 @@
                       {{ asset.displayMarket }}
                     </el-tag>
                   </div>
-                  <span class="asset-allocation">{{ asset.allocation }}%</span>
+                  <div class="asset-right">
+                    <span class="asset-amount-small">¥{{ formatAmount(asset.amount) }}</span>
+                    <span class="asset-allocation">{{ getAssetAllocation(asset.amount).toFixed(1) }}%</span>
+                  </div>
                   <el-button
                     size="small"
                     type="text"
@@ -138,8 +209,11 @@
                 </div>
               </div>
 
-              <div class="allocation-summary" :class="{ 'over-limit': totalAllocation > 100 }">
-                总配置: {{ totalAllocation.toFixed(1) }}% / 100%
+              <div class="allocation-summary">
+                <span>总金额： ¥{{ formatAmount(totalAmount) }}</span>
+                <span class="alloc-pct" :class="{ 'alloc-ok': createForm.assets.length > 0 }">
+                  占比合计: {{ createForm.assets.length > 0 ? '100.0' : '0.0' }}%
+                </span>
               </div>
             </div>
           </el-col>
@@ -153,7 +227,7 @@
             type="primary" 
             @click="handleCreatePortfolio" 
             :loading="creating"
-            :disabled="totalAllocation > 100"
+            :disabled="createForm.assets.length === 0"
           >
             发布组合
           </el-button>
@@ -258,9 +332,10 @@
 import { ref, onMounted, computed } from 'vue'
 import { usePortfoliosStore } from '../stores/portfolios'
 import { useAuthStore } from '../stores/auth'
-import type { PortfolioAsset } from '../types'
+import type { PortfolioAsset, UserHolding } from '../types'
 import type { AssetWithQuote } from '../api/market'
 import { getAssetsWithQuote } from '../api/market'
+import { getMyHoldings } from '../api/holdings'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
@@ -269,10 +344,16 @@ import { TooltipComponent, LegendComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import {
   Plus,
-  Star
+  Star,
+  InfoFilled
 } from '@element-plus/icons-vue'
 
 use([CanvasRenderer, PieChart, TooltipComponent, LegendComponent])
+
+// 扩展资产类型，包含持仓金额字段
+interface FormAsset extends PortfolioAsset {
+  amount: number  // 持仓金额（用于自动计算占比）
+}
 
 const portfoliosStore = usePortfoliosStore()
 const authStore = useAuthStore()
@@ -283,9 +364,17 @@ const creating = ref(false)
 const currentPage = ref(1)
 const pageSize = ref(12)
 
+// 添加模式：manual 手动 | import 从持仓导入
+const addMode = ref<'manual' | 'import'>('manual')
+
 // 资产搜索状态
 const assetSearchLoading = ref(false)
 const assetSearchResults = ref<AssetWithQuote[]>([])
+
+// 持仓导入状态
+const holdingsLoading = ref(false)
+const myHoldings = ref<UserHolding[]>([])
+const selectedHoldingIds = ref<Set<number>>(new Set())
 
 // 表单
 const createFormRef = ref<FormInstance>()
@@ -294,12 +383,12 @@ const createForm = ref({
   description: '',
   riskLevel: 'Medium' as 'Low' | 'Medium' | 'High',
   isPublic: true,
-  assets: [] as PortfolioAsset[]
+  assets: [] as FormAsset[]
 })
 
 const assetForm = ref({
   selectedAsset: null as AssetWithQuote | null,
-  allocation: 0
+  amount: 0  // 持仓金额（元），用于自动计算占比
 })
 
 const createRules: FormRules = {
@@ -316,20 +405,48 @@ const createRules: FormRules = {
 }
 
 // 图表颜色 - Dark theme palette
-const CHART_COLORS = ['#A78BFA', '#34D399', '#60A5FA', '#F472B6', '#FBBF24', '#818CF8']
+const CHART_COLORS = ['#3B82F6', '#34D399', '#60A5FA', '#F472B6', '#FBBF24', '#818CF8']
 
-// 计算属性
-const totalAllocation = computed(() => {
-  return createForm.value.assets.reduce((sum, asset) => sum + (Number(asset.allocation) || 0), 0)
+// ============ 计算属性============
+
+// 所有资产的总持仓金额
+const totalAmount = computed(() => {
+  return createForm.value.assets.reduce((sum, a) => sum + (Number(a.amount) || 0), 0)
 })
 
+// 根据金额计算单个资产的占比（%）
+const getAssetAllocation = (amount: number): number => {
+  if (totalAmount.value === 0) return 0
+  return (amount / totalAmount.value) * 100
+}
+
+// 手动添加时：是否可添加
 const canAddAsset = computed(() => {
   return assetForm.value.selectedAsset !== null &&
-         assetForm.value.allocation > 0 &&
-         totalAllocation.value + assetForm.value.allocation <= 100
+         assetForm.value.amount > 0 &&
+         !createForm.value.assets.some(a => a.assetId === assetForm.value.selectedAsset?.id)
 })
 
-// 资产搜索（远程搜索）
+// 全选状态
+const selectableHoldings = computed(() =>
+  myHoldings.value.filter(h => !isAlreadyAdded(h))
+)
+const isAllSelected = computed(() =>
+  selectableHoldings.value.length > 0 &&
+  selectableHoldings.value.every(h => selectedHoldingIds.value.has(h.id))
+)
+const isIndeterminate = computed(() =>
+  selectableHoldings.value.some(h => selectedHoldingIds.value.has(h.id)) && !isAllSelected.value
+)
+
+// ============ 格式化============
+const formatAmount = (val: number): string => {
+  if (val >= 1_0000_0000) return `${(val / 1_0000_0000).toFixed(2)}亿`
+  if (val >= 10_000) return `${(val / 10_000).toFixed(2)}万`
+  return val.toFixed(2)
+}
+
+// ============ 资产搜索（手动模式） ============
 const searchAssets = async (query: string) => {
   if (!query || query.length < 1) {
     assetSearchResults.value = []
@@ -350,7 +467,100 @@ const onAssetSelected = (asset: AssetWithQuote | null) => {
   assetForm.value.selectedAsset = asset
 }
 
-// 方法
+// ============ 持仓导入模式 ============
+const switchToImport = async () => {
+  addMode.value = 'import'
+  if (myHoldings.value.length === 0) {
+    holdingsLoading.value = true
+    try {
+      const res = await getMyHoldings()
+      myHoldings.value = res.items || []
+    } catch {
+      ElMessage.error('获取持仓数据失败')
+    } finally {
+      holdingsLoading.value = false
+    }
+  }
+}
+
+const isAlreadyAdded = (h: UserHolding): boolean => {
+  return createForm.value.assets.some(a => a.assetId === h.assetId)
+}
+
+const toggleHolding = (id: number) => {
+  const set = new Set(selectedHoldingIds.value)
+  if (set.has(id)) {
+    set.delete(id)
+  } else {
+    set.add(id)
+  }
+  selectedHoldingIds.value = set
+}
+
+const toggleSelectAll = (val: boolean) => {
+  if (val) {
+    const set = new Set(selectedHoldingIds.value)
+    selectableHoldings.value.forEach(h => set.add(h.id))
+    selectedHoldingIds.value = set
+  } else {
+    const set = new Set(selectedHoldingIds.value)
+    selectableHoldings.value.forEach(h => set.delete(h.id))
+    selectedHoldingIds.value = set
+  }
+}
+
+const importSelectedHoldings = () => {
+  if (selectedHoldingIds.value.size === 0) return
+  let importCount = 0
+  myHoldings.value.forEach(h => {
+    if (!selectedHoldingIds.value.has(h.id)) return
+    if (isAlreadyAdded(h)) return
+    const amount = Number(h.quantity) * Number(h.costPrice)
+    createForm.value.assets.push({
+      assetId: h.assetId,
+      symbol: h.code,
+      name: h.name,
+      market: h.market || '',
+      displayMarket: h.displayMarket || h.market || '',
+      allocation: 0,  // 占比（getAssetAllocation 动态计算）
+      amount
+    })
+    importCount++
+  })
+    // 清除已导入的勾选项
+  const remaining = new Set<number>()
+  selectedHoldingIds.value.forEach(id => {
+    const h = myHoldings.value.find(h => h.id === id)
+    if (h && !isAlreadyAdded(h)) remaining.add(id)
+  })
+  selectedHoldingIds.value = remaining
+  if (importCount > 0) {
+    ElMessage.success(`已导入 ${importCount} 个持仓`)
+  }
+}
+
+// ============ 手动添加资产 ============
+const addAsset = () => {
+  if (!canAddAsset.value || !assetForm.value.selectedAsset) return
+  const asset = assetForm.value.selectedAsset
+  createForm.value.assets.push({
+    assetId: asset.id,
+    symbol: asset.code,
+    name: asset.name,
+    market: asset.market || '',
+    displayMarket: (asset as any).displayMarket || asset.market || '',
+    allocation: 0,  // 占比（getAssetAllocation 动态计算）
+    amount: assetForm.value.amount
+  })
+  assetForm.value = { selectedAsset: null, amount: 0 }
+  assetSearchResults.value = []
+}
+
+const removeAsset = (index: number) => {
+  createForm.value.assets.splice(index, 1)
+}
+
+// ============ 分页 / 列表 ============
 const handlePageChange = (page: number) => {
   currentPage.value = page
   fetchPortfolios()
@@ -368,39 +578,9 @@ const fetchPortfolios = async () => {
   }
 }
 
-const addAsset = () => {
-  if (!canAddAsset.value || !assetForm.value.selectedAsset) return
-
-  const asset = assetForm.value.selectedAsset
-  // 检查是否已存在
-  if (createForm.value.assets.some(a => a.assetId === asset.id)) {
-    ElMessage.warning('该资产已在组合中')
-    return
-  }
-
-  createForm.value.assets.push({
-    assetId: asset.id,
-    symbol: asset.code,
-    name: asset.name,
-    market: asset.market || '',
-    displayMarket: (asset as any).displayMarket || asset.market || '',
-    allocation: assetForm.value.allocation
-  })
-
-  assetForm.value = {
-    selectedAsset: null,
-    allocation: 0
-  }
-  assetSearchResults.value = []
-}
-
-const removeAsset = (index: number) => {
-  createForm.value.assets.splice(index, 1)
-}
-
+// ============ 创建组合 ============
 const handleCreatePortfolio = async () => {
   if (!createFormRef.value) return
-
   try {
     await createFormRef.value.validate()
 
@@ -409,22 +589,34 @@ const handleCreatePortfolio = async () => {
       return
     }
 
-    if (totalAllocation.value > 100) {
-      ElMessage.warning('总配置比例不能超过100%')
-      return
-    }
-
     creating.value = true
 
-    // 转换为后端期望格式（使用 assetId 强关联）
-    const payload = {
-      ...createForm.value,
-      assets: createForm.value.assets.map(a => ({
+    // 将金额比例换算为 allocation（保留2位小数，最后一项补100%）
+    const assets = createForm.value.assets
+    const total = totalAmount.value
+    let usedPct = 0
+    const mappedAssets = assets.map((a, i) => {
+      let pct: number
+      if (i === assets.length - 1) {
+        pct = parseFloat((100 - usedPct).toFixed(1))
+      } else {
+        pct = parseFloat(((a.amount / total) * 100).toFixed(1))
+        usedPct += pct
+      }
+      return {
         assetId: a.assetId,
         symbol: a.symbol,
         name: a.name,
-        allocation: a.allocation
-      }))
+        allocation: pct
+      }
+    })
+
+    const payload = {
+      title: createForm.value.title,
+      description: createForm.value.description,
+      riskLevel: createForm.value.riskLevel,
+      isPublic: createForm.value.isPublic,
+      assets: mappedAssets
     }
 
     await portfoliosStore.createPortfolio(payload)
@@ -434,7 +626,7 @@ const handleCreatePortfolio = async () => {
     resetCreateForm()
     fetchPortfolios()
   } catch (error: any) {
-    if (error.fields) return // 表单验证错误
+    if (error.fields) return
     ElMessage.error('创建失败，请稍后重试')
   } finally {
     creating.value = false
@@ -449,11 +641,10 @@ const resetCreateForm = () => {
     isPublic: true,
     assets: []
   }
-  assetForm.value = {
-    selectedAsset: null,
-    allocation: 0
-  }
+  assetForm.value = { selectedAsset: null, amount: 0 }
   assetSearchResults.value = []
+  addMode.value = 'manual'
+  selectedHoldingIds.value = new Set()
   createFormRef.value?.clearValidate()
 }
 
@@ -484,11 +675,11 @@ const getPieChartOption = (assets: PortfolioAsset[]) => {
     tooltip: {
       trigger: 'item',
       formatter: '{a} <br/>{b}: {c}% ({d}%)',
-      backgroundColor: 'rgba(20, 27, 45, 0.95)',
-      borderColor: 'rgba(124, 58, 237, 0.4)',
+      backgroundColor: '#FFFFFF',
+      borderColor: 'rgba(29, 78, 216, 0.25)',
       borderWidth: 1,
       textStyle: {
-        color: '#F0F4FF',
+        color: '#1F2937',
         fontFamily: 'IBM Plex Mono'
       }
     },
@@ -563,7 +754,7 @@ onMounted(() => {
   transition: $transition-all !important;
 
   &:hover {
-    box-shadow: 0 8px 24px rgba(124, 58, 237, 0.5) !important;
+    box-shadow: 0 8px 24px rgba(29, 78, 216, 0.3) !important;
     transform: translateY(-1px);
   }
 }
@@ -604,8 +795,8 @@ onMounted(() => {
 .assets-title {
   font-size: 0.75rem;
   font-weight: 700;
-  color: $primary-light;
-  margin: 0 0 0.875rem 0;
+  color: $primary-color;
+  margin: 0;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -628,14 +819,14 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 0.5rem 0.75rem;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(15, 23, 42, 0.03);
   border: 1px solid $border-subtle;
   border-radius: 8px;
   margin-bottom: 0.5rem;
   transition: $transition-all;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.07);
+    background: rgba(15, 23, 42, 0.04);
     border-color: $border-default;
   }
 }
@@ -648,7 +839,7 @@ onMounted(() => {
 }
 
 .asset-allocation {
-  color: $primary-light;
+  color: $primary-color;
   font-weight: 700;
   font-family: 'IBM Plex Mono', monospace;
   font-size: 0.875rem;
@@ -662,21 +853,186 @@ onMounted(() => {
   }
 }
 
+
+// ============ 资产配置头部 & 模式切换 ============
+.assets-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.875rem;
+}
+
+.add-mode-tabs {
+  display: flex;
+  gap: 0;
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid $border-subtle;
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.mode-tab {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border: none;
+  background: transparent;
+  color: $text-muted;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: $transition-all;
+  letter-spacing: 0.02em;
+
+  &:hover {
+    color: $text-secondary;
+  }
+
+  &.active {
+    background: $primary-color;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(29, 78, 216, 0.25);
+  }
+}
+
+.mode-hint {
+  font-size: 0.7rem;
+  color: $text-muted;
+  margin: 0.25rem 0 0.5rem;
+  padding-left: 2px;
+}
+
+// ============ 持仓导入列表 ============
+.holdings-loading {
+  padding: 0.5rem 0;
+}
+
+.holdings-empty {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8125rem;
+  color: $text-muted;
+  padding: 0.75rem 0;
+}
+
+.import-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  padding: 0 2px;
+
+  :deep(.el-checkbox__label) {
+    font-size: 0.75rem;
+    color: $text-secondary;
+  }
+}
+
+.holdings-import-list {
+  max-height: 140px;
+  overflow-y: auto;
+  margin-bottom: 0.5rem;
+  border: 1px solid $border-subtle;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.holding-import-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.375rem 0.625rem;
+  cursor: pointer;
+  transition: $transition-all;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.03);
+  font-size: 0.75rem;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover:not(.already) {
+    background: rgba(29, 78, 216, 0.06);
+  }
+
+  &.selected {
+    background: rgba(124, 58, 237, 0.1);
+  }
+
+  &.already {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.h-code {
+  font-weight: 700;
+  font-family: 'IBM Plex Mono', monospace;
+  color: $text-primary;
+  min-width: 52px;
+}
+
+.h-name {
+  flex: 1;
+  color: $text-secondary;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.h-amount {
+  font-family: 'IBM Plex Mono', monospace;
+  color: $primary-color;
+  font-weight: 600;
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.h-added-badge {
+  font-size: 0.65rem;
+  color: $success-color;
+  background: rgba(52, 211, 153, 0.1);
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+// ============ 资产条目（含金额+占比）============
+.asset-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  margin-right: 0.25rem;
+}
+
+.asset-amount-small {
+  font-size: 0.65rem;
+  color: $text-muted;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+// 总配置摘要（新版）
 .allocation-summary {
   font-size: 0.8125rem;
   font-weight: 600;
   color: $text-secondary;
-  text-align: right;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding-top: 0.5rem;
   border-top: 1px solid $border-subtle;
   font-family: 'IBM Plex Mono', monospace;
 
-  &.over-limit {
-    color: $error-color;
+  .alloc-pct {
+    color: $text-muted;
+    &.alloc-ok {
+      color: $success-color;
+    }
   }
 }
 
-// 资产搜索下拉选项
+// ============ 原资产搜索下拉选项 ============
 .asset-option {
   display: flex;
   align-items: center;
@@ -707,7 +1063,7 @@ onMounted(() => {
   }
 }
 
-// 资产列表条目信息区
+// 资产列表条目信息
 .asset-info {
   display: flex;
   align-items: center;
@@ -755,7 +1111,7 @@ onMounted(() => {
 }
 
 .portfolio-skeleton {
-  background: linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
+  background: #FFFFFF;
   border: 1px solid $border-subtle;
   border-radius: $border-radius;
   padding: 1.5rem;
@@ -773,7 +1129,7 @@ onMounted(() => {
 }
 
 .portfolio-card {
-  background: linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+  background: #FFFFFF;
   border: 1px solid $border-subtle;
   border-radius: $border-radius;
   padding: 1.375rem;
@@ -798,9 +1154,9 @@ onMounted(() => {
   }
 
   &:hover {
-    border-color: rgba(124, 58, 237, 0.3);
-    background: linear-gradient(145deg, rgba(124, 58, 237, 0.07) 0%, rgba(255,255,255,0.02) 100%);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(124, 58, 237, 0.1);
+    border-color: rgba(29, 78, 216, 0.18);
+    background: linear-gradient(145deg, rgba(29, 78, 216, 0.05) 0%, rgba(255,255,255,0.02) 100%);
+    box-shadow: $shadow, 0 0 0 1px rgba(124, 58, 237, 0.1);
     transform: translateY(-4px);
 
     &::before {
@@ -947,3 +1303,9 @@ onMounted(() => {
   to { opacity: 1; transform: translateY(0); }
 }
 </style>
+
+
+
+
+
+

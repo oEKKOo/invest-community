@@ -11,7 +11,7 @@
         </router-link>
       </div>
 
-      <!-- 搜索 + 筛选 -->
+      <!-- 搜索 + 筛选-->
       <div class="filter-row">
         <el-input
           v-model="searchQ"
@@ -35,8 +35,8 @@
           class="filter-select"
         >
           <el-option label="全部市场" value="" />
-          <el-option label="A股沪市 (SH)" value="SH" />
-          <el-option label="A股深市 (SZ)" value="SZ" />
+          <el-option label="A股沪市(SH)" value="SH" />
+          <el-option label="A股深市(SZ)" value="SZ" />
           <el-option label="港股 (HK)" value="HK" />
           <el-option label="美股 (US)" value="US" />
         </el-select>
@@ -71,19 +71,19 @@
         <div class="col-time">更新时间</div>
       </div>
 
-      <!-- 骨架屏 -->
+      <!-- 骨架图-->
       <div v-if="loading" class="skeleton-wrapper">
         <div v-for="i in 10" :key="i" class="skeleton-row">
           <el-skeleton animated :rows="1" />
         </div>
       </div>
 
-      <!-- 空状态 -->
+      <!-- 空状态-->
       <div v-else-if="assets.length === 0" class="empty-state">
         <el-empty description="未找到相关资产" :image-size="80" />
       </div>
 
-      <!-- 资产行 -->
+      <!-- 资产列表-->
       <template v-else>
         <router-link
           v-for="item in assets"
@@ -98,7 +98,7 @@
           </div>
           <div class="col-market">
             <el-tag size="small" :type="getMarketTagType(item.market)">
-              {{ item.market || '—' }}
+              {{ item.market || '--' }}
             </el-tag>
           </div>
           <div class="col-type">
@@ -202,21 +202,21 @@ const handlePageChange = (newPage: number) => {
   loadData()
 }
 
-// 格式化
+// 格式化方法
 const formatPrice = (val: any) => {
-  if (val === null || val === undefined) return '—'
+  if (val === null || val === undefined) return '--'; 
   return parseFloat(String(val)).toFixed(2)
 }
 
 const formatChangePct = (val: any) => {
-  if (val === null || val === undefined) return '—'
+  if (val === null || val === undefined) return '--';
   const num = parseFloat(String(val))
   const sign = num > 0 ? '+' : ''
   return `${sign}${num.toFixed(2)}%`
 }
 
 const formatVolume = (val: any) => {
-  if (val === null || val === undefined) return '—'
+  if (val === null || val === undefined) return '--';
   const n = Number(val)
   if (n >= 1e8) return `${(n / 1e8).toFixed(2)}亿`
   if (n >= 1e4) return `${(n / 1e4).toFixed(2)}万`
@@ -224,7 +224,7 @@ const formatVolume = (val: any) => {
 }
 
 const formatTime = (str: string | null | undefined) => {
-  if (!str) return '—'
+  if (!str) return '--';
   const d = new Date(str)
   const mm = String(d.getMonth() + 1).padStart(2, '0')
   const dd = String(d.getDate()).padStart(2, '0')
@@ -275,7 +275,7 @@ onMounted(() => {
   .page-title {
     font-size: 1.375rem;
     font-weight: 700;
-    color: #F0F4FF;
+      color: #1F2937;
     margin: 0;
   }
 
@@ -294,13 +294,13 @@ onMounted(() => {
     min-width: 200px;
 
     :deep(.el-input__wrapper) {
-      background: rgba(255, 255, 255, 0.04);
-      border-color: rgba(255, 255, 255, 0.1);
+      background: #FFFFFF;
+      border-color: rgba(0, 0, 0, 0.12);
     }
 
     :deep(.el-input__inner) {
-      color: #F0F4FF;
-      &::placeholder { color: #6B7A99; }
+      color: #1F2937;
+      &::placeholder { color: #9CA3AF; }
     }
   }
 
@@ -308,19 +308,20 @@ onMounted(() => {
     width: 160px;
 
     :deep(.el-select__wrapper) {
-      background: rgba(255, 255, 255, 0.04);
-      border-color: rgba(255, 255, 255, 0.1);
-      color: #A0AABF;
+      background: #FFFFFF;
+      border-color: rgba(0, 0, 0, 0.12);
+      color: #111827;
     }
   }
 }
 
 // 列表卡片
 .card {
-  background: #141B2D;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 14px;
   overflow: hidden;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
 }
 
 .list-header {
@@ -328,8 +329,8 @@ onMounted(() => {
   grid-template-columns: 2fr 80px 80px 100px 100px 100px 110px;
   gap: 0;
   padding: 0.625rem 1.25rem;
-  background: rgba(255, 255, 255, 0.04);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: #F9FAFB;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   font-size: 0.75rem;
   color: #6B7A99;
   font-weight: 500;
@@ -351,7 +352,7 @@ onMounted(() => {
   grid-template-columns: 2fr 80px 80px 100px 100px 100px 110px;
   gap: 0;
   padding: 0.75rem 1.25rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
   text-decoration: none;
   color: inherit;
   transition: background 0.15s;
@@ -362,7 +363,7 @@ onMounted(() => {
   }
 
   &:hover {
-    background: rgba(255, 255, 255, 0.035);
+    background: #F9FAFB;
   }
 
   > div {
@@ -388,13 +389,13 @@ onMounted(() => {
 
   .asset-code {
     font-weight: 700;
-    color: #E2E8F0;
+    color: #1F2937;
     font-size: 0.875rem;
   }
 
   .asset-name {
     font-size: 0.75rem;
-    color: #6B7A99;
+    color: #6B7280;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -410,7 +411,7 @@ onMounted(() => {
 
 .type-label {
   font-size: 0.7rem;
-  color: #6B7A99;
+  color: #6B7280;
 }
 
 .col-price {
@@ -444,12 +445,12 @@ onMounted(() => {
 
 .col-volume {
   font-size: 0.8rem !important;
-  color: #6B7A99;
+  color: #6B7280;
 }
 
 .col-time {
   font-size: 0.75rem !important;
-  color: #6B7A99;
+  color: #6B7280;
 }
 
 .skeleton-wrapper {
@@ -457,7 +458,7 @@ onMounted(() => {
 
   .skeleton-row {
     padding: 0.75rem 1.25rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
   }
 }
 
@@ -475,7 +476,7 @@ onMounted(() => {
     --el-pagination-bg-color: transparent;
     --el-pagination-text-color: #A0AABF;
     --el-pagination-button-color: #A0AABF;
-    --el-pagination-hover-color: #A78BFA;
+    --el-pagination-hover-color: #3B82F6;
   }
 }
 
@@ -484,11 +485,13 @@ onMounted(() => {
   align-items: center;
   gap: 6px;
   font-size: 0.75rem;
-  color: #6B7A99;
+  color: #6B7280;
   padding: 0.75rem 1rem;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 8px;
   font-style: italic;
 }
 </style>
+
+

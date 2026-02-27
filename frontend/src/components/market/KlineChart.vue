@@ -16,13 +16,13 @@
       <span class="data-source-hint">数据来源：Finnhub</span>
     </div>
 
-    <!-- 加载状态 -->
+    <!-- 加载状态-->
     <div class="chart-loading" v-if="loading">
       <el-skeleton :rows="5" animated />
       <p class="loading-text" v-if="loadingTooLong">数据加载中...</p>
     </div>
 
-    <!-- 错误状态 -->
+    <!-- 错误状态-->  
     <div class="chart-error" v-else-if="error">
       <el-empty :image-size="60">
         <template #image>
@@ -52,7 +52,7 @@
         <template #description>
           <span class="empty-title">暂无历史K线数据</span>
           <span class="empty-sub">
-            历史K线需要 Finnhub 高级套餐，实时行情请查看上方价格卡片
+            历史K线需 Finnhub 高级套餐，实时行情请查看上方价格卡片
           </span>
         </template>
       </el-empty>
@@ -104,7 +104,7 @@ let loadingTimer: ReturnType<typeof setTimeout> | null = null
 const intervalTabs = [
   { label: '日K', value: '1d' },
   { label: '时K', value: '60m' },
-  { label: '15分', value: '15m' }
+  { label: '15m', value: '15m' }
 ]
 
 // 数字格式化
@@ -142,9 +142,9 @@ const chartOption = computed(() => {
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'cross' },
-      backgroundColor: 'rgba(10, 14, 26, 0.95)',
-      borderColor: 'rgba(255,255,255,0.1)',
-      textStyle: { color: '#A0AABF', fontSize: 12 },
+      backgroundColor: '#FFFFFF',
+      borderColor: 'rgba(0,0,0,0.1)',
+      textStyle: { color: '#475569', fontSize: 12 },
       formatter: (params: any[]) => {
         if (!params || !params[0]) return ''
         const d = klineData.value[params[0].dataIndex]
@@ -155,12 +155,12 @@ const chartOption = computed(() => {
         const c = parseFloat(String(d.close)).toFixed(2)
         const v = formatVol(d.volume || 0)
         return `<div style="line-height:1.8">
-          <div style="color:#F0F4FF;font-weight:600">${params[0].name}</div>
-          <div>开：<span style="color:#A78BFA">${o}</span></div>
+          <div style="color:#1F2937;font-weight:600">${params[0].name}</div>
+          <div>开：<span style="color:#3B82F6">${o}</span></div>
           <div>高：<span style="color:#f56c6c">${h}</span></div>
           <div>低：<span style="color:#67c23a">${l}</span></div>
-          <div>收：<span style="color:#F0F4FF;font-weight:600">${c}</span></div>
-          <div>量：<span style="color:#6B7A99">${v}</span></div>
+          <div>收：<span style="color:#1F2937;font-weight:600">${c}</span></div>
+          <div>量：<span style="color:#4B5563">${v}</span></div>
         </div>`
       }
     },
@@ -178,10 +178,10 @@ const chartOption = computed(() => {
         gridIndex: 0,
         scale: true,
         boundaryGap: false,
-        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } },
+        axisLine: { lineStyle: { color: 'rgba(0,0,0,0.1)' } },
         axisTick: { show: false },
         axisLabel: {
-          color: '#6B7A99',
+          color: '#6B7280',
           fontSize: 11,
           interval: Math.floor(times.length / 8)
         },
@@ -193,7 +193,7 @@ const chartOption = computed(() => {
         gridIndex: 1,
         scale: true,
         boundaryGap: false,
-        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } },
+        axisLine: { lineStyle: { color: 'rgba(0,0,0,0.1)' } },
         axisTick: { show: false },
         axisLabel: { show: false },
         splitLine: { show: false }
@@ -206,8 +206,8 @@ const chartOption = computed(() => {
         splitNumber: 5,
         axisLine: { show: false },
         axisTick: { show: false },
-        axisLabel: { color: '#6B7A99', fontSize: 11 },
-        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } }
+        axisLabel: { color: '#6B7280', fontSize: 11 },
+        splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } }
       },
       {
         scale: true,
@@ -216,7 +216,7 @@ const chartOption = computed(() => {
         axisLine: { show: false },
         axisTick: { show: false },
         axisLabel: {
-          color: '#6B7A99',
+          color: '#6B7280',
           fontSize: 10,
           formatter: (v: number) => formatVol(v)
         },
@@ -237,11 +237,11 @@ const chartOption = computed(() => {
         end: 100,
         top: '93%',
         height: 20,
-        borderColor: 'rgba(255,255,255,0.1)',
-        backgroundColor: 'rgba(255,255,255,0.03)',
-        fillerColor: 'rgba(124,58,237,0.1)',
-        handleStyle: { color: '#7C3AED' },
-        textStyle: { color: '#6B7A99' }
+        borderColor: 'rgba(0,0,0,0.1)',
+        backgroundColor: 'rgba(0,0,0,0.03)',
+        fillerColor: 'rgba(29,78,216,0.1)',
+        handleStyle: { color: '#1D4ED8' },
+        textStyle: { color: '#6B7280' }
       }
     ],
     series: [
@@ -265,7 +265,7 @@ const chartOption = computed(() => {
         yAxisIndex: 1,
         data: volumes,
         itemStyle: {
-          color: (params: any) => upColors[params.dataIndex] || '#6B7A99',
+          color: (params: any) => upColors[params.dataIndex] || '#6B7280',
           opacity: 0.7
         }
       }
@@ -336,29 +336,29 @@ onUnmounted(() => {
 .interval-btn {
   padding: 4px 12px;
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   background: transparent;
-  color: #6B7A99;
+  color: #6B7280;
   font-size: 0.75rem;
   cursor: pointer;
   transition: all 0.2s;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.06);
-    color: #A0AABF;
+    background: rgba(0, 0, 0, 0.04);
+    color: #374151;
   }
 
   &.active {
-    background: rgba(124, 58, 237, 0.2);
-    border-color: rgba(124, 58, 237, 0.4);
-    color: #A78BFA;
+    background: rgba(29, 78, 216, 0.12);
+    border-color: rgba(29, 78, 216, 0.25);
+    color: #3B82F6;
     font-weight: 600;
   }
 }
 
 .data-source-hint {
   font-size: 0.7rem;
-  color: #6B7A99;
+  color: #9CA3AF;
 }
 
 .chart-loading {
@@ -367,7 +367,7 @@ onUnmounted(() => {
 
 .loading-text {
   text-align: center;
-  color: #6B7A99;
+  color: #6B7280;
   font-size: 0.8rem;
   margin-top: 8px;
 }
@@ -391,16 +391,20 @@ onUnmounted(() => {
 :deep(.empty-title) {
   display: block;
   font-size: 0.875rem;
-  color: #A0AABF;
+  color: #6B7280;
   margin-bottom: 4px;
 }
 
 :deep(.empty-sub) {
   display: block;
   font-size: 0.75rem;
-  color: #6B7A99;
+  color: #9CA3AF;
   line-height: 1.5;
   max-width: 260px;
   text-align: center;
 }
 </style>
+
+
+
+

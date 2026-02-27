@@ -22,7 +22,7 @@
         <template #description>
           <span class="empty-title">暂无分时走势数据</span>
           <span class="empty-sub">
-            分时图需要 Finnhub 高级套餐，实时行情请查看上方价格卡片
+            分时图需 Finnhub 高级套餐，实时行情请查看上方价格卡片
           </span>
         </template>
       </el-empty>
@@ -60,7 +60,7 @@ const chartOption = computed(() => {
   const prices = items.value.map(d => d.price)
   const avgPrices = items.value.map(d => d.avgPrice)
 
-  // 判断涨跌色
+  // 判断涨跌
   const firstPrice = prices[0] || 0
   const lastPrice = prices[prices.length - 1] || firstPrice
   const lineColor = lastPrice >= firstPrice ? '#f56c6c' : '#67c23a'
@@ -70,17 +70,17 @@ const chartOption = computed(() => {
     animation: false,
     tooltip: {
       trigger: 'axis',
-      backgroundColor: 'rgba(10, 14, 26, 0.95)',
-      borderColor: 'rgba(255,255,255,0.1)',
-      textStyle: { color: '#A0AABF', fontSize: 12 },
+      backgroundColor: '#FFFFFF',
+      borderColor: 'rgba(0,0,0,0.1)',
+      textStyle: { color: '#475569', fontSize: 12 },
       formatter: (params: any[]) => {
         if (!params?.length) return ''
         const p = params[0]
         const avg = items.value[p.dataIndex]?.avgPrice?.toFixed(2)
         return `<div>
-          <div style="color:#F0F4FF">${p.name}</div>
+          <div style="color:#1F2937;font-weight:600">${p.name}</div>
           <div>价格：<span style="color:${lineColor};font-weight:600">${p.value?.toFixed(2)}</span></div>
-          ${avg ? `<div>均价：<span style="color:#A78BFA">${avg}</span></div>` : ''}
+          ${avg ? `<div>均价：<span style="color:#3B82F6">${avg}</span></div>` : ''}
         </div>`
       }
     },
@@ -89,17 +89,17 @@ const chartOption = computed(() => {
       type: 'category',
       data: times,
       boundaryGap: false,
-      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } },
+      axisLine: { lineStyle: { color: 'rgba(0,0,0,0.1)' } },
       axisTick: { show: false },
-      axisLabel: { color: '#6B7A99', fontSize: 11, interval: Math.floor(times.length / 6) },
+      axisLabel: { color: '#6B7280', fontSize: 11, interval: Math.floor(times.length / 6) },
       splitLine: { show: false }
     },
     yAxis: {
       scale: true,
       axisLine: { show: false },
       axisTick: { show: false },
-      axisLabel: { color: '#6B7A99', fontSize: 11 },
-      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } }
+      axisLabel: { color: '#6B7280', fontSize: 11 },
+      splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } }
     },
     dataZoom: [{
       type: 'inside',
@@ -131,8 +131,8 @@ const chartOption = computed(() => {
         type: 'line',
         data: avgPrices,
         smooth: true,
-        lineStyle: { color: '#A78BFA', width: 1, type: 'dashed' },
-        itemStyle: { color: '#A78BFA' },
+        lineStyle: { color: '#3B82F6', width: 1, type: 'dashed' },
+        itemStyle: { color: '#3B82F6' },
         showSymbol: false
       }
     ]
@@ -185,16 +185,19 @@ onMounted(fetchData)
 :deep(.empty-title) {
   display: block;
   font-size: 0.875rem;
-  color: #A0AABF;
+  color: #6B7280;
   margin-bottom: 4px;
 }
 
 :deep(.empty-sub) {
   display: block;
   font-size: 0.75rem;
-  color: #6B7A99;
+  color: #9CA3AF;
   line-height: 1.5;
   max-width: 260px;
   text-align: center;
 }
 </style>
+
+
+

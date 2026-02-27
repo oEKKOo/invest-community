@@ -34,11 +34,13 @@
             
             <div class="portfolio-stats">
               <div class="stat-item">
-                <span class="stat-label">年化收益</span>
-                <span class="stat-value positive">+{{ portfoliosStore.currentPortfolio.returnsYTD }}%</span>
+                <span class="stat-label">收益</span>
+                <span class="stat-value" :class="perf ? pnlClass(perf.totalUnrealizedReturn) : ''">
+                  {{ perf ? fmtRate(perf.totalUnrealizedReturn) : '--' }}
+                </span>
               </div>
               <div class="stat-item">
-                <span class="stat-label">点赞数</span>
+                <span class="stat-label">点赞</span>
                 <span class="stat-value">{{ portfoliosStore.currentPortfolio.likes }}</span>
               </div>
             </div>
@@ -50,7 +52,7 @@
             </el-avatar>
             <div class="author-info">
               <p class="author-name">{{ portfoliosStore.currentPortfolio.userName }}</p>
-              <p class="create-date">创建于 {{ formatDate(portfoliosStore.currentPortfolio.createdAt) }}</p>
+              <p class="create-date">创建于：{{ formatDate(portfoliosStore.currentPortfolio.createdAt) }}</p>
             </div>
           </div>
         </div>
@@ -90,19 +92,24 @@
             />
           </div>
 
-          <!-- 资产列表 -->
+          <!-- 资产列表（增强版：金额+ 比例 + 收益）-->
           <div class="assets-table">
-            <div class="table-header">
+            <div class="table-header table-header--enhanced">
               <span class="col-symbol">代码</span>
               <span class="col-name">名称</span>
+              <span class="col-market">市场</span>
               <span class="col-allocation">配置比例</span>
+              <span class="col-value" v-if="isOwner">持仓市值</span>
+              <span class="col-pnl" v-if="isOwner">持有收益</span>
+              <span class="col-rate" v-if="isOwner">收益率</span>
             </div>
             
             <div 
               v-for="(asset, index) in portfoliosStore.currentPortfolio.assets"
               :key="asset.symbol"
-              class="table-row"
+              class="table-row table-row--enhanced"
             >
+              <!-- 代码 -->
               <span class="col-symbol">
                 <div 
                   class="color-indicator"
@@ -110,8 +117,98 @@
                 ></div>
                 {{ asset.symbol }}
               </span>
+
+              <!-- 名称 -->
               <span class="col-name">{{ asset.name }}</span>
-              <span class="col-allocation">{{ asset.allocation }}%</span>
+
+              <!-- 市场 -->
+              <span class="col-market">
+                <el-tag size="small" class="market-tag-sm" v-if="asset.displayMarket || asset.market">
+                  {{ asset.displayMarket || asset.market }}
+                </el-tag>
+                <span v-else class="no-data">--</span>
+              </span>
+
+              <!-- 配置比例 -->
+              <span class="col-allocation">
+                <span class="alloc-badge">{{ asset.allocation }}%</span>
+                <div class="alloc-bar-wrap">
+                  <div
+                    class="alloc-bar-fill"
+                    :style="{ width: Math.min(asset.allocation, 100) + '%', backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }"
+                  ></div>
+                </div>
+              </span>
+
+              <!-- 持仓市值（owner only）-->
+              <span class="col-value" v-if="isOwner">
+                <template v-if="holdingPerfLoading">
+                  <el-skeleton-item variant="text" style="width:60px" />
+                </template>
+                <template v-else-if="getPerfByAssetId(asset.assetId)?.hasData">
+                  <span class="mono-val">{{ fmtMoney(getPerfByAssetId(asset.assetId)?.marketValue) }}</span>
+                </template>
+                <span v-else class="no-data">--</span>
+              </span>
+
+              <!-- 持有收益（owner only）-->
+              <span class="col-pnl" v-if="isOwner">
+                <template v-if="holdingPerfLoading">
+                  <el-skeleton-item variant="text" style="width:60px" />
+                </template>
+                <template v-else-if="getPerfByAssetId(asset.assetId)?.hasData">
+                  <span
+                    class="mono-val"
+                    :class="pnlClass(getPerfByAssetId(asset.assetId)?.unrealizedPnl)"
+                  >
+                    {{ fmtPnl(getPerfByAssetId(asset.assetId)?.unrealizedPnl) }}
+                  </span>
+                </template>
+                <span v-else class="no-data">--</span>
+              </span>
+
+              <!-- 收益率（owner only）-->
+              <span class="col-rate" v-if="isOwner">
+                <template v-if="holdingPerfLoading">
+                  <el-skeleton-item variant="text" style="width:50px" />
+                </template>
+                <template v-else-if="getPerfByAssetId(asset.assetId)?.hasData">
+                  <span
+                    class="mono-val rate-val"
+                    :class="pnlClass(getPerfByAssetId(asset.assetId)?.unrealizedReturn)"
+                  >
+                    {{ fmtRate(getPerfByAssetId(asset.assetId)?.unrealizedReturn) }}
+                  </span>
+                </template>
+                <span v-else class="no-data">--</span>
+              </span>
+            </div>
+
+            <!-- 合计行（owner only）-->
+            <div class="table-row table-row--total" v-if="isOwner && portfolioMarketValue !== null">
+              <span class="col-symbol total-label">合计</span>
+              <span class="col-name"></span>
+              <span class="col-market"></span>
+              <span class="col-allocation total-alloc">100%</span>
+              <span class="col-value total-value">{{ fmtMoney(portfolioMarketValue) }}</span>
+              <span class="col-pnl">
+                <span
+                  class="mono-val"
+                  :class="pnlClass((portfolioMarketValue ?? 0) - Number(perf?.totalCostValue ?? 0))"
+                  v-if="perf"
+                >
+                  {{ fmtPnl((portfolioMarketValue ?? 0) - Number(perf.totalCostValue)) }}
+                </span>
+              </span>
+              <span class="col-rate">
+                <span
+                  class="mono-val rate-val"
+                  :class="pnlClass(perf?.totalUnrealizedReturn)"
+                  v-if="perf"
+                >
+                  {{ fmtRate(perf.totalUnrealizedReturn) }}
+                </span>
+              </span>
             </div>
           </div>
         </div>
@@ -139,11 +236,38 @@
               </div>
             </div>
           </div>
+
+          <!-- 我的持仓收益（仅 owner）-->
+          <div class="stats-card" v-if="isOwner && !holdingPerfLoading && portfolioMarketValue !== null">
+            <h3 class="card-title">持仓收益概览</h3>
+            <div class="stats-list">
+              <div class="stat-row">
+                <span class="stat-name">持仓市值</span>
+                <span class="stat-data">{{ fmtMoney(portfolioMarketValue) }}</span>
+              </div>
+              <div class="stat-row" v-if="perf">
+                <span class="stat-name">持仓成本</span>
+                <span class="stat-data">{{ fmtMoney(perf.totalCostValue) }}</span>
+              </div>
+              <div class="stat-row" v-if="perf">
+                <span class="stat-name">持有收益</span>
+                <span class="stat-data" :class="pnlClass(perf.totalUnrealizedPnl)">
+                  {{ fmtPnl(perf.totalUnrealizedPnl) }}
+                </span>
+              </div>
+              <div class="stat-row" v-if="perf">
+                <span class="stat-name">收益率</span>
+                <span class="stat-data" :class="pnlClass(perf.totalUnrealizedReturn)">
+                  {{ fmtRate(perf.totalUnrealizedReturn) }}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- 分享对话框 -->
+    <!-- 分享对话框-->
     <el-dialog v-model="showShareDialog" title="分享投资组合" width="400px">
       <div class="share-options">
         <p>复制链接分享给朋友：</p>
@@ -178,6 +302,8 @@ import {
   Share
 } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
+import { getHoldingPerformance } from '../api/holdings'
+import type { HoldingPerformanceItem } from '../types'
 
 use([CanvasRenderer, PieChart, TooltipComponent, LegendComponent])
 
@@ -188,40 +314,139 @@ const authStore = useAuthStore()
 const showShareDialog = ref(false)
 
 // 图表颜色
-const CHART_COLORS = ['#A78BFA', '#34D399', '#60A5FA', '#F472B6', '#FBBF24', '#818CF8']
+const CHART_COLORS = ['#3B82F6', '#34D399', '#60A5FA', '#F472B6', '#FBBF24', '#818CF8']
+
+// 是否是本人的组合
+const isOwner = computed(() => {
+  if (!authStore.isLoggedIn || !portfoliosStore.currentPortfolio) return false
+  return authStore.user?.id === portfoliosStore.currentPortfolio.userId
+})
+
+// 持仓收益数据（仅组合归属于当前用户时加载）
+const holdingPerfMap = ref<Map<number, HoldingPerformanceItem>>(new Map())
+const holdingPerfLoading = ref(false)
+const perf = ref<any>(null)
+
+const fetchHoldingPerf = async () => {
+  if (!isOwner.value) return
+  holdingPerfLoading.value = true
+  try {
+    const data = await getHoldingPerformance()
+    perf.value = data
+    const map = new Map<number, HoldingPerformanceItem>()
+    data.items?.forEach(item => map.set(item.assetId, item))
+    holdingPerfMap.value = map
+  } catch {
+    holdingPerfMap.value = new Map()
+  } finally {
+    holdingPerfLoading.value = false
+  }
+}
+
+/** 根据 assetId 查找持仓收益 */
+const getPerfByAssetId = (assetId: number | null | undefined): HoldingPerformanceItem | undefined => {
+  if (!assetId) return undefined
+  return holdingPerfMap.value.get(assetId)
+}
+
+// ---- 格式化----
+const fmtMoney = (val: string | number | null | undefined): string => {
+  if (val === null || val === undefined) return '--';
+  const n = Number(val)
+  if (isNaN(n)) return '--';
+  if (n >= 1e8) return `¥${(n / 1e8).toFixed(2)}亿`
+  if (n >= 1e4) return `¥${(n / 1e4).toFixed(2)}万`
+  return `¥${n.toFixed(2)}`
+}
+
+const fmtPnl = (val: string | number | null | undefined): string => {
+  if (val === null || val === undefined) return '--';
+  const n = Number(val)
+  if (isNaN(n)) return '--';
+  const pfx = n >= 0 ? '+' : ''
+  if (Math.abs(n) >= 1e8) return `${pfx}${(n / 1e8).toFixed(2)}亿`
+  if (Math.abs(n) >= 1e4) return `${pfx}${(n / 1e4).toFixed(2)}万`
+  return `${pfx}${n.toFixed(2)}`
+}
+
+const fmtRate = (val: string | number | null | undefined): string => {
+  if (val === null || val === undefined) return ''
+  const n = Number(val)
+  if (isNaN(n)) return ''
+  return `${n >= 0 ? '+' : ''}${(n * 100).toFixed(2)}%`
+}
+
+const pnlClass = (val: string | number | null | undefined): string => {
+  if (val === null || val === undefined) return ''
+  const n = Number(val)
+  if (isNaN(n) || n === 0) return 'pnl-zero'
+  return n > 0 ? 'pnl-up' : 'pnl-down'
+}
+
+/** 本组合内所有资产的持仓总市值（当用户是 owner 且有持仓数据时可用） */
+const portfolioMarketValue = computed(() => {
+  if (!isOwner.value || !holdingPerfMap.value.size) return null
+  const assets = portfoliosStore.currentPortfolio?.assets ?? []
+  let total = 0
+  let hasAny = false
+  for (const a of assets) {
+    const perf = getPerfByAssetId(a.assetId)
+    if (perf?.hasData && perf.marketValue) {
+      total += Number(perf.marketValue)
+      hasAny = true
+    }
+  }
+  return hasAny ? total : null
+})
 
 const shareUrl = computed(() => {
   return `${window.location.origin}/portfolios/${route.params.id}`
 })
 
 const totalAllocation = computed(() => {
-  if (!portfoliosStore.currentPortfolio?.assets) return 0
-  return portfoliosStore.currentPortfolio.assets.reduce((sum, asset) => sum + asset.allocation, 0)
+  if (!portfoliosStore.currentPortfolio?.assets) return '0.00'
+  const sum = portfoliosStore.currentPortfolio.assets.reduce((acc, asset) => acc + Number(asset.allocation), 0)
+  return sum.toFixed(2)
 })
 
 const pieChartOption = computed(() => {
   if (!portfoliosStore.currentPortfolio?.assets) return {}
 
+  const assets = portfoliosStore.currentPortfolio.assets
+
   return {
     tooltip: {
       trigger: 'item',
-      formatter: '{a} <br/>{b}: {c}% ({d}%)',
-      backgroundColor: 'rgba(20, 27, 45, 0.95)',
-      borderColor: 'rgba(124, 58, 237, 0.4)',
+      backgroundColor: '#FFFFFF',
+      borderColor: 'rgba(29, 78, 216, 0.25)',
       borderWidth: 1,
-      textStyle: {
-        color: '#F0F4FF',
-        fontFamily: 'IBM Plex Mono'
+      textStyle: { color: '#1F2937', fontFamily: 'IBM Plex Mono', fontSize: 12 },
+      formatter: (params: any) => {
+        const asset = assets[params.dataIndex]
+        const perf = getPerfByAssetId(asset?.assetId)
+        let extra = ''
+        if (perf?.hasData && perf.marketValue) {
+          const mv = fmtMoney(perf.marketValue)
+          const pnlVal = Number(perf.unrealizedPnl)
+          const pnlStr = fmtPnl(perf.unrealizedPnl)
+          const rateStr = fmtRate(perf.unrealizedReturn)
+          const color = pnlVal >= 0 ? '#10b981' : '#f43f5e'
+          extra = `<div style="margin-top:4px;border-top:1px solid rgba(255,255,255,0.1);padding-top:4px">
+            <div>市值：<b>${mv}</b></div>
+            <div>持有收益 <b style="color:${color}">${pnlStr} (${rateStr})</b></div>
+          </div>`
+        }
+        return `<div>
+          <b>${params.name}</b><br/>
+          配置比例: <b>${params.value}%</b>${extra}
+        </div>`
       }
     },
     legend: {
       orient: 'horizontal',
       bottom: '0%',
       left: 'center',
-      textStyle: {
-        color: '#A0AABF',
-        fontFamily: 'IBM Plex Sans'
-      }
+      textStyle: { color: '#475569', fontFamily: 'Inter' }
     },
     series: [
       {
@@ -229,18 +454,16 @@ const pieChartOption = computed(() => {
         type: 'pie',
         radius: ['40%', '70%'],
         center: ['50%', '45%'],
-        data: portfoliosStore.currentPortfolio.assets.map((asset, index) => ({
+        data: assets.map((asset, index) => ({
           value: asset.allocation,
           name: asset.symbol,
-          itemStyle: {
-            color: CHART_COLORS[index % CHART_COLORS.length]
-          }
+          itemStyle: { color: CHART_COLORS[index % CHART_COLORS.length] }
         })),
         emphasis: {
           itemStyle: {
             shadowBlur: 10,
             shadowOffsetX: 0,
-            shadowColor: 'rgba(0, 0, 0, 0.5)'
+            shadowColor: 'rgba(0,0,0,0.5)'
           }
         }
       }
@@ -295,6 +518,8 @@ onMounted(async () => {
   if (portfolioId) {
     try {
       await portfoliosStore.fetchPortfolio(portfolioId)
+      // 如果是本人的组合，同步拉持仓收益（非阻塞）
+      fetchHoldingPerf()
     } catch (error) {
       ElMessage.error('获取投资组合详情失败')
     }
@@ -311,7 +536,7 @@ onMounted(async () => {
 
 .loading-container,
 .not-found {
-  background: linear-gradient(145deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%);
+  background: #FFFFFF;
   border: 1px solid $border-subtle;
   border-radius: $border-radius;
   padding: 2rem;
@@ -324,7 +549,7 @@ onMounted(async () => {
 }
 
 .portfolio-header {
-  background: linear-gradient(145deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);
+  background: #FFFFFF;
   border: 1px solid $border-default;
   border-radius: $border-radius;
   padding: 2rem;
@@ -479,7 +704,7 @@ onMounted(async () => {
 }
 
 .assets-overview {
-  background: linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+  background: #FFFFFF;
   border: 1px solid $border-default;
   border-radius: $border-radius;
   padding: 1.75rem;
@@ -523,8 +748,19 @@ onMounted(async () => {
   }
 }
 
+// 增强版（含收益列）
+.table-header--enhanced,
+.table-row--enhanced,
+.table-row--total {
+  grid-template-columns: 110px 1fr 70px 120px 110px 110px 90px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 90px 1fr 60px 100px;
+  }
+}
+
 .table-header {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(15, 23, 42, 0.03);
   font-weight: 600;
   color: $text-muted;
   font-size: 0.7rem;
@@ -544,6 +780,32 @@ onMounted(async () => {
   &:hover {
     background: rgba(124, 58, 237, 0.06);
   }
+}
+
+.table-row--total {
+  background: rgba(124, 58, 237, 0.06) !important;
+  border-top: 1px solid rgba(29, 78, 216, 0.12) !important;
+  border-bottom: none !important;
+}
+
+.total-label {
+  font-weight: 700 !important;
+  color: $primary-color !important;
+}
+
+.total-alloc,
+.total-value {
+  font-weight: 700 !important;
+  color: $text-primary !important;
+}
+
+// 合计行的配置比例列：纯文字，不需要进度条布局
+.total-alloc {
+  flex-direction: row !important;
+  align-items: center !important;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.8rem;
+  color: $primary-color !important;
 }
 
 .col-symbol {
@@ -567,12 +829,66 @@ onMounted(async () => {
   font-size: 0.8125rem;
 }
 
+.col-market {
+  .market-tag-sm {
+    font-size: 0.65rem !important;
+    padding: 0 5px !important;
+    height: 18px !important;
+    line-height: 18px !important;
+  }
+}
+
 .col-allocation {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
   font-weight: 700;
-  color: $primary-light;
-  text-align: right;
+  color: $primary-color;
   font-family: 'IBM Plex Mono', monospace;
 }
+
+.alloc-badge {
+  font-size: 0.8rem;
+}
+
+.alloc-bar-wrap {
+  width: 80%;
+  height: 3px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.alloc-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+.col-value,
+.col-pnl,
+.col-rate {
+  text-align: right;
+  font-size: 0.8125rem;
+}
+
+.mono-val {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.8125rem;
+}
+
+.rate-val {
+  font-size: 0.75rem;
+}
+
+.no-data {
+  color: $text-muted;
+  font-size: 0.8125rem;
+}
+
+.pnl-up   { color: #10b981; }
+.pnl-down { color: #f43f5e; }
+.pnl-zero { color: $text-muted; }
 
 .portfolio-sidebar {
   display: flex;
@@ -581,7 +897,7 @@ onMounted(async () => {
 }
 
 .stats-card {
-  background: linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+  background: #FFFFFF;
   border: 1px solid $border-default;
   border-radius: $border-radius;
   padding: 1.375rem;
@@ -648,3 +964,9 @@ onMounted(async () => {
   to { opacity: 1; transform: translateY(0); }
 }
 </style>
+
+
+
+
+
+

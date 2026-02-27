@@ -11,7 +11,7 @@
           <h2 class="page-title">涨跌幅榜</h2>
         </div>
 
-        <!-- 市场筛选 -->
+        <!-- 市场筛选-->
         <el-select
           v-model="selectedMarket"
           placeholder="全部市场"
@@ -21,8 +21,8 @@
           class="market-select"
         >
           <el-option label="全部市场" value="" />
-          <el-option label="A股沪市 (SH)" value="SH" />
-          <el-option label="A股深市 (SZ)" value="SZ" />
+          <el-option label="A股沪市(SH)" value="SH" />
+          <el-option label="A股深市(SZ)" value="SZ" />
           <el-option label="港股 (HK)" value="HK" />
           <el-option label="美股 (US)" value="US" />
         </el-select>
@@ -31,11 +31,11 @@
 
     <!-- 三列榜单 -->
     <div class="rankings-grid">
-      <!-- 涨幅榜 -->
+      <!-- 涨幅榜单-->
       <div class="ranking-card card">
         <div class="ranking-header up">
           <span class="ranking-icon">📈</span>
-          <h3 class="ranking-title">涨幅榜</h3>
+          <h3 class="ranking-title">涨幅榜单</h3>
           <el-tag size="small" type="danger" class="count-tag">TOP {{ gainers.length }}</el-tag>
         </div>
 
@@ -65,11 +65,11 @@
         </div>
       </div>
 
-      <!-- 跌幅榜 -->
+      <!-- 跌幅榜单-->
       <div class="ranking-card card">
         <div class="ranking-header down">
           <span class="ranking-icon">📉</span>
-          <h3 class="ranking-title">跌幅榜</h3>
+          <h3 class="ranking-title">跌幅榜单</h3>
           <el-tag size="small" type="success" class="count-tag">TOP {{ losers.length }}</el-tag>
         </div>
 
@@ -99,11 +99,11 @@
         </div>
       </div>
 
-      <!-- 活跃榜 -->
+      <!-- 活跃榜单-->
       <div class="ranking-card card">
         <div class="ranking-header active">
           <span class="ranking-icon">🔥</span>
-          <h3 class="ranking-title">活跃榜</h3>
+          <h3 class="ranking-title">活跃榜单</h3>
           <el-tag size="small" type="warning" class="count-tag">TOP {{ actives.length }}</el-tag>
         </div>
 
@@ -211,14 +211,14 @@ const loadAll = () => {
   loadActives()
 }
 
-// 格式化
+// 格式化方法
 const formatPrice = (val: number) => {
-  if (val === null || val === undefined) return '—'
+  if (val === null || val === undefined) return '--';
   return val.toFixed(2)
 }
 
 const formatChangePct = (val: number) => {
-  if (val === null || val === undefined) return '—'
+  if (val === null || val === undefined) return '--';
   const sign = val > 0 ? '+' : ''
   return `${sign}${val.toFixed(2)}%`
 }
@@ -267,7 +267,7 @@ onMounted(() => {
     display: flex;
     align-items: center;
     gap: 4px;
-    color: #A78BFA;
+    color: #3B82F6;
     text-decoration: none;
     font-size: 0.85rem;
 
@@ -279,7 +279,7 @@ onMounted(() => {
   .page-title {
     font-size: 1.375rem;
     font-weight: 700;
-    color: #F0F4FF;
+    color: #1F2937;
     margin: 0;
   }
 
@@ -287,9 +287,9 @@ onMounted(() => {
     width: 180px;
 
     :deep(.el-select__wrapper) {
-      background: rgba(255, 255, 255, 0.04);
-      border-color: rgba(255, 255, 255, 0.1);
-      color: #A0AABF;
+      background: #FFFFFF;
+      border-color: rgba(0, 0, 0, 0.12);
+      color: #111827;
     }
   }
 }
@@ -306,10 +306,11 @@ onMounted(() => {
 }
 
 .card {
-  background: #141B2D;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 14px;
   overflow: hidden;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
 }
 
 .ranking-header {
@@ -317,7 +318,7 @@ onMounted(() => {
   align-items: center;
   gap: 0.5rem;
   padding: 1rem 1.25rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 
   .ranking-icon {
     font-size: 1.1rem;
@@ -326,7 +327,7 @@ onMounted(() => {
   .ranking-title {
     font-size: 0.95rem;
     font-weight: 600;
-    color: #F0F4FF;
+    color: #1F2937;
     margin: 0;
     flex: 1;
   }
@@ -365,7 +366,7 @@ onMounted(() => {
   align-items: center;
   gap: 0.75rem;
   padding: 0.625rem 1.25rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
   text-decoration: none;
   color: inherit;
   transition: background 0.15s;
@@ -376,7 +377,7 @@ onMounted(() => {
   }
 
   &:hover {
-    background: rgba(255, 255, 255, 0.035);
+    background: #F9FAFB;
   }
 }
 
@@ -390,7 +391,7 @@ onMounted(() => {
   font-size: 0.75rem;
   font-weight: 700;
   flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(15, 23, 42, 0.04);
   color: #6B7A99;
 
   &.gold {
@@ -419,13 +420,13 @@ onMounted(() => {
   .asset-code {
     font-size: 0.8rem;
     font-weight: 600;
-    color: #E2E8F0;
+    color: #1F2937;
     white-space: nowrap;
   }
 
   .asset-name {
     font-size: 0.7rem;
-    color: #6B7A99;
+    color: #6B7280;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -458,11 +459,13 @@ onMounted(() => {
   align-items: center;
   gap: 6px;
   font-size: 0.75rem;
-  color: #6B7A99;
+  color: #6B7280;
   padding: 0.75rem 1rem;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 8px;
   font-style: italic;
 }
 </style>
+
+

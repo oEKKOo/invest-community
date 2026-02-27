@@ -37,3 +37,22 @@ export const deleteHolding = (id: number): Promise<void> => {
 export const getHoldingPerformance = (): Promise<HoldingPerformance> => {
   return get('/holdings/performance/')
 }
+
+// 持仓每日累计收益历史（净值曲线）
+export interface HoldingReturnPoint {
+  date: string              // YYYY-MM-DD
+  totalMarketValue: string  // 当日总市值
+  unrealizedPnl: string     // 累计浮盈亏
+  unrealizedReturn: string  // 累计收益率（如 "0.0556" = 5.56%）
+  coverage: number          // 当日有快照的持仓数
+}
+
+export interface HoldingReturnsHistory {
+  totalCostValue: string
+  holdingsCount: number
+  items: HoldingReturnPoint[]
+}
+
+export const getHoldingReturnsHistory = (): Promise<HoldingReturnsHistory> => {
+  return get('/holdings/returns-history/')
+}

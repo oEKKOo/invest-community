@@ -34,7 +34,7 @@
               </div>
               <div class="stat-item">
                 <span class="stat-value">{{ authStore.user?.following || 0 }}</span>
-                <span class="stat-label">关注中</span>
+                <span class="stat-label">关注数</span>
               </div>
               <div class="stat-item">
                 <span class="stat-value">{{ userPosts.length }}</span>
@@ -57,7 +57,7 @@
     </div>
 
     <div class="profile-content">
-      <!-- 左侧：账户设置 + 点赞收藏概览 -->
+      <!-- 左侧：账户设置+ 点赞收藏概览 -->
       <aside class="profile-sidebar">
         <div class="settings-card">
           <h3 class="card-title">账户与安全</h3>
@@ -97,7 +97,7 @@
                 </template>
                 <template v-else-if="likeRecords.length > 0">
                   <span class="overview-count">{{ likesTotal }} 条记录</span>
-                  <!-- 最近3条预览 -->
+                  <!-- 最新3条预览-->
                   <div class="overview-preview">
                     <el-tag
                       v-for="item in likeRecords.slice(0, 3)"
@@ -166,7 +166,7 @@
         </div>
       </aside>
 
-      <!-- 右侧：活动记录 -->
+      <!-- 右侧：活动记录-->
       <main class="profile-main-content">
         <h3 class="section-title">最近活动</h3>
         
@@ -185,7 +185,7 @@
               type="primary" 
               @click="$router.push('/community')"
             >
-              发表第一篇讨论
+              发表第一篇帖子
             </el-button>
           </el-empty>
         </div>
@@ -226,7 +226,7 @@
       </main>
     </div>
 
-    <!-- 编辑资料对话框 -->
+    <!-- 编辑资料对话框-->
     <el-dialog
       v-model="showEditProfile"
       title="编辑个人资料"
@@ -407,7 +407,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 const postsStore = usePostsStore()
 
-// ──────────── 基础状态 ────────────
+// ──────────── 基础状态────────────
 const loading = ref(false)
 const showEditProfile = ref(false)
 const updating = ref(false)
@@ -472,7 +472,7 @@ const loadMoreLikes = async () => {
 }
 
 // ──────────── 收藏记录 ────────────
-const favoriteRecords = ref<Post[]>([])    // 概览用
+const favoriteRecords = ref<Post[]>([])    // 概览前几条
 const allFavoriteRecords = ref<Post[]>([]) // 抽屉完整列表
 const favoritesTotal = ref(0)
 const favoritesLoading = ref(false)
@@ -621,7 +621,7 @@ const getLikeTypeText = (targetType: string) => {
 }
 const getLikePreviewText = (item: LikeRecord) => {
   if (!item.target) return `#${item.targetId}`
-  if (item.targetType === 'COMMENT') return item.target.body?.slice(0, 10) + '…' || `评论#${item.targetId}`
+  if (item.targetType === 'COMMENT') return item.target.body?.slice(0, 10) + '...' || `评论#${item.targetId}`
   return (item.target.title || `#${item.targetId}`).slice(0, 12)
 }
 const getLikeDisplayTitle = (item: LikeRecord) => {
@@ -904,9 +904,9 @@ watch(showEditProfile, (val) => {
   margin: 0.25rem 0;
 }
 
-/* ── 邀请卡片 ── */
+/* ── 邀请卡片── */
 .invite-card {
-  background: linear-gradient(135deg, #2563eb, #4f46e5);
+  background: linear-gradient(135deg, #2563eb, #1D4ED8);
   border-radius: 1rem;
   padding: 1.5rem;
   color: white;
@@ -928,7 +928,7 @@ watch(showEditProfile, (val) => {
 
 .invite-btn {
   width: 100%;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(15, 23, 42, 0.10);
   border: 1px solid rgba(255, 255, 255, 0.3);
   color: white;
 
@@ -1157,3 +1157,5 @@ watch(showEditProfile, (val) => {
   to   { opacity: 1; transform: translateY(0); }
 }
 </style>
+
+
