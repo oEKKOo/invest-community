@@ -6,16 +6,23 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.shortcuts import get_object_or_404
 from django.db import transaction
 from django.contrib.auth import get_user_model
+from django.db.models import Q
+
+from content.models import Content
+from content.serializers import ContentListSerializer
+from portfolios.models import Portfolio
+from portfolios.serializers import PortfolioListSerializer
 
 from .models import User, UserInvestProfile, UserFollow
 from .serializers import (
-    UserRegistrationSerializer, 
-    UserLoginSerializer, 
+    UserRegistrationSerializer,
+    UserLoginSerializer,
     UserProfileSerializer,
     UserInvestProfileSerializer,
     UserPublicSerializer,
-    UserFollowSerializer
+    UserFollowSerializer,
 )
+from notifications.events import publish_event
 
 User = get_user_model()
 
@@ -176,7 +183,10 @@ def manage_follow(request, user_id):
                 target_user.followers_count += 1
                 request.user.save(update_fields=['following_count'])
                 target_user.save(update_fields=['followers_count'])
-                
+
+                # 事件：关注已创建
+                publish_event("follow.created", follower=request.user, followee=target_user, follow=follow)
+
                 return Response({
                     'code': 0,
                     'message': '关注成功'
@@ -239,6 +249,108 @@ def logout(request):
     return Response({
         'code': 0,
         'message': '登出成功'
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def following_feed(request):
+    """
+    关注流 / 社交 Feed：当前用户关注的人发布的公开内容
+
+    - 仅返回已发布的帖子（PUBLISHED）
+    - 支持分页：page / pageSize
+    - 按发布时间倒序
+    """
+    user = request.user
+
+    # 当前用户关注的所有用户 ID
+    followee_ids = list(
+        UserFollow.objects.filter(follower=user).values_list('followee_id', flat=True)
+    )
+    if not followee_ids:
+        return Response({
+            'code': 0,
+            'data': {
+                'items': [],
+                'page': 1,
+                'pageSize': int(request.query_params.get('pageSize', 20)),
+                'total': 0,
+            }
+        })
+
+    queryset = Content.objects.select_related('author').prefetch_related('assets').filter(
+        status='PUBLISHED',
+        author_id__in=followee_ids,
+    ).order_by('-published_at', '-created_at')
+
+    page = int(request.query_params.get('page', 1))
+    page_size = int(request.query_params.get('pageSize', 20))
+    total = queryset.count()
+    start = (page - 1) * page_size
+    end = start + page_size
+
+    contents = queryset[start:end]
+    serializer = ContentListSerializer(contents, many=True, context={'request': request})
+
+    return Response({
+        'code': 0,
+        'data': {
+            'items': serializer.data,
+            'page': page,
+            'pageSize': page_size,
+            'total': total,
+        }
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def following_portfolios_feed(request):
+    """
+    关注用户的公开组合更新流：
+    - 只包含 is_public=True 的组合
+    - 组合拥有者在当前用户的关注列表中
+    - 默认按创建时间倒序
+    """
+    user = request.user
+
+    followee_ids = list(
+        UserFollow.objects.filter(follower=user).values_list('followee_id', flat=True)
+    )
+    if not followee_ids:
+        return Response({
+            'code': 0,
+            'data': {
+                'items': [],
+                'page': 1,
+                'pageSize': int(request.query_params.get('pageSize', 20)),
+                'total': 0,
+            }
+        })
+
+    queryset = Portfolio.objects.filter(
+        is_public=True,
+        owner_id__in=followee_ids,
+    ).select_related('owner').prefetch_related('assets', 'assets__asset').order_by('-created_at')
+
+    page = int(request.query_params.get('page', 1))
+    page_size = int(request.query_params.get('pageSize', 20))
+    total = queryset.count()
+    start = (page - 1) * page_size
+    end = start + page_size
+
+    portfolios = queryset[start:end]
+    serializer = PortfolioListSerializer(portfolios, many=True, context={'request': request})
+
+    return Response({
+        'code': 0,
+        'data': {
+            'items': serializer.data,
+            'page': page,
+            'pageSize': page_size,
+            'total': total,
+        }
     })
 
 

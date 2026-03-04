@@ -130,8 +130,23 @@
         </div>
 
         <div class="comments-list">
-          <!-- 这里可以添加评论列表 -->
-          <el-empty description="暂无评论" />
+          <el-skeleton v-if="loadingComments" :rows="3" animated />
+          <el-empty v-else-if="!comments.length" description="暂无评论" />
+          <div v-else class="comment-items">
+            <div
+              v-for="comment in comments"
+              :key="comment.id"
+              class="comment-item"
+            >
+              <div class="comment-header">
+                <span class="comment-author">{{ comment.authorName }}</span>
+                <span class="comment-time">{{ formatDate(comment.createdAt) }}</span>
+              </div>
+              <div class="comment-body">
+                {{ comment.body }}
+              </div>
+            </div>
+          </div>
         </div>
       </section>
     </div>
@@ -155,12 +170,13 @@
 </template>
 
 <script setup lang="ts">
-// @ts-nocheck
 import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { usePostsStore } from '../stores/posts'
 import { useAuthStore } from '../stores/auth'
+import type { Comment } from '../types'
 import { PostStatus } from '../types'
+import * as postsApi from '../api/posts'
 import { ElMessage } from 'element-plus'
 import {
   Star,
@@ -174,6 +190,8 @@ const authStore = useAuthStore()
 
 const newComment = ref('')
 const commenting = ref(false)
+const comments = ref<Comment[]>([])
+const loadingComments = ref(false)
 const showShareDialog = ref(false)
 
 const shareUrl = computed(() => {
@@ -213,9 +231,15 @@ const handleFavorite = async () => {
 const handleAddComment = async () => {
   if (!newComment.value.trim()) return
 
+  if (!postsStore.currentPost) return
+
   commenting.value = true
   try {
-    // TODO: 调用评论API
+    const comment = await postsApi.createComment(postsStore.currentPost.id, {
+      text: newComment.value.trim()
+    })
+    comments.value.push(comment)
+    postsStore.currentPost.comments += 1
     ElMessage.success('评论发表成功')
     newComment.value = ''
   } catch (error) {
@@ -269,11 +293,24 @@ const getAssetMarketType = (market?: string) => {
   return 'info'
 }
 
+const loadComments = async (postId: number) => {
+  loadingComments.value = true
+  try {
+    const data = await postsApi.getPostComments(postId)
+    comments.value = data
+  } catch (error) {
+    ElMessage.error('加载评论失败')
+  } finally {
+    loadingComments.value = false
+  }
+}
+
 onMounted(async () => {
   const postId = Number(route.params.id)
   if (postId) {
     try {
       await postsStore.fetchPost(postId)
+      await loadComments(postId)
     } catch (error) {
       ElMessage.error('获取帖子详情失败')
     }
@@ -487,6 +524,36 @@ onMounted(async () => {
 
 .comments-list {
   margin-top: 1.5rem;
+}
+
+.comment-items {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.comment-item {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid $border-subtle;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: $text-muted;
+  margin-bottom: 0.25rem;
+}
+
+.comment-author {
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.comment-body {
+  font-size: 0.9rem;
+  color: $text-secondary;
+  line-height: 1.6;
 }
 
 .share-options {

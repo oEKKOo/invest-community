@@ -5,35 +5,35 @@
       <div class="profile-card">
         <div class="profile-avatar">
           <el-avatar 
-            :src="authStore.user?.avatar" 
+            :src="displayUser?.avatar || authStore.user?.avatar" 
             :size="128"
             class="user-avatar"
           >
-            {{ authStore.user?.displayName?.[0] }}
+            {{ displayUser?.displayName?.[0] || authStore.user?.displayName?.[0] }}
           </el-avatar>
         </div>
         
         <div class="profile-info">
           <div class="profile-main">
             <div class="user-identity">
-              <h2 class="user-name">{{ authStore.user?.displayName }}</h2>
+              <h2 class="user-name">{{ displayUser?.displayName || authStore.user?.displayName }}</h2>
               <el-tag 
-                :type="getRoleType(authStore.user?.role)"
+                :type="getRoleType(displayUser?.role || authStore.user?.role)"
                 class="user-role-tag"
               >
-                {{ getRoleText(authStore.user?.role) }}
+                {{ getRoleText(displayUser?.role || authStore.user?.role) }}
               </el-tag>
             </div>
-            <p class="username">@{{ authStore.user?.username }}</p>
-            <p class="user-bio">{{ authStore.user?.bio || '这个人很懒，还没有填写个人简介' }}</p>
+            <p class="username">@{{ displayUser?.username || authStore.user?.username }}</p>
+            <p class="user-bio">{{ displayUser?.bio || authStore.user?.bio || '这个人很懒，还没有填写个人简介' }}</p>
             
             <div class="user-stats">
               <div class="stat-item">
-                <span class="stat-value">{{ authStore.user?.followers || 0 }}</span>
+                <span class="stat-value">{{ displayUser?.followers || authStore.user?.followers || 0 }}</span>
                 <span class="stat-label">关注者</span>
               </div>
               <div class="stat-item">
-                <span class="stat-value">{{ authStore.user?.following || 0 }}</span>
+                <span class="stat-value">{{ displayUser?.following || authStore.user?.following || 0 }}</span>
                 <span class="stat-label">关注数</span>
               </div>
               <div class="stat-item">
@@ -45,13 +45,24 @@
         </div>
 
         <div class="profile-actions">
-          <el-button 
-            type="primary" 
-            plain
-            @click="showEditProfile = true"
-          >
-            编辑资料
-          </el-button>
+          <template v-if="isSelf">
+            <el-button 
+              type="primary" 
+              plain
+              @click="showEditProfile = true"
+            >
+              编辑资料
+            </el-button>
+          </template>
+          <template v-else>
+            <el-button 
+              :type="isFollowing ? 'default' : 'primary'"
+              :plain="isFollowing"
+              @click="toggleFollow"
+            >
+              {{ isFollowing ? '已关注' : '关注' }}
+            </el-button>
+          </template>
         </div>
       </div>
     </div>
@@ -59,7 +70,7 @@
     <div class="profile-content">
       <!-- 左侧：账户设置+ 点赞收藏概览 -->
       <aside class="profile-sidebar">
-        <div class="settings-card">
+        <div v-if="isSelf" class="settings-card">
           <h3 class="card-title">账户与安全</h3>
           <ul class="settings-list">
             <li class="setting-item">
@@ -168,7 +179,7 @@
 
       <!-- 右侧：活动记录-->
       <main class="profile-main-content">
-        <h3 class="section-title">最近活动</h3>
+        <h3 class="section-title">{{ isSelf ? '最近活动' : 'TA 的最近发帖' }}</h3>
         
         <div v-if="loading" class="loading-container">
           <div v-for="i in 3" :key="i" class="activity-skeleton">
@@ -388,7 +399,7 @@
 <script setup lang="ts">
 // @ts-nocheck
 import { ref, onMounted, computed, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { usePostsStore } from '../stores/posts'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
@@ -402,8 +413,10 @@ import {
 import dayjs from 'dayjs'
 import { getMyLikes } from '@/api/likes'
 import { getMyFavorites } from '@/api/posts'
+import type { User } from '@/types'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const postsStore = usePostsStore()
 
@@ -517,6 +530,75 @@ const fetchAllFavorites = async (reset = false) => {
 const loadMoreFavorites = async () => {
   favoritesPage.value++
   await fetchAllFavorites(false)
+}
+
+// ──────────── 关注 / 粉丝相关（他人主页）────────────
+const displayUser = ref<User | null>(null)
+const isSelf = computed(() => {
+  const paramId = route.params.userId
+  if (!paramId) return true
+  return Number(paramId) === authStore.user?.id
+})
+
+const isFollowing = ref(false)
+
+const fetchDisplayUser = async () => {
+  if (!route.params.userId) {
+    displayUser.value = authStore.user
+    return
+  }
+  try {
+    const userId = Number(route.params.userId)
+    const res = await fetch(`/api/users/${userId}/`, {
+      headers: {
+        Authorization: authStore.token ? `Bearer ${authStore.token}` : ''
+      }
+    })
+    const data = await res.json()
+    if (data.code === 0) {
+      const d = data.data
+      displayUser.value = {
+        id: d.id,
+        username: d.username,
+        displayName: d.display_name,
+        avatar: d.avatar_url,
+        role: 'USER',
+        bio: d.bio,
+        followers: d.followers_count,
+        following: d.following_count,
+        created_at: d.created_at
+      }
+    }
+  } catch {
+    // 忽略错误，保持空状态
+  }
+}
+
+const toggleFollow = async () => {
+  if (!displayUser.value || !authStore.isLoggedIn) return
+  const userId = displayUser.value.id
+  const method = isFollowing.value ? 'DELETE' : 'POST'
+  try {
+    const res = await fetch(`/api/users/${userId}/follow/`, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: authStore.token ? `Bearer ${authStore.token}` : ''
+      }
+    })
+    const data = await res.json()
+    if (data.code === 0) {
+      isFollowing.value = !isFollowing.value
+      if (displayUser.value) {
+        displayUser.value.followers += isFollowing.value ? 1 : -1
+      }
+      ElMessage.success(isFollowing.value ? '关注成功' : '已取消关注')
+    } else {
+      ElMessage.error(data.message || '操作失败')
+    }
+  } catch {
+    ElMessage.error('操作失败')
+  }
 }
 
 // ──────────── 抽屉 ────────────

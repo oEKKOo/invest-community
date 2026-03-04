@@ -13,6 +13,7 @@ from .serializers import (
     ContentListSerializer, ContentDetailSerializer, ContentCreateSerializer,
     CommentSerializer, CommentCreateSerializer, AssetSerializer, LikeSerializer
 )
+from notifications.events import publish_event
 
 User = get_user_model()
 
@@ -70,29 +71,9 @@ class ContentListView(generics.ListCreateAPIView):
 
     def list(self, request, *args, **kwargs):
         """重写list方法以返回自定义响应格式"""
-        # 🔍 调试输出
-        print("🔍 开始调试帖子列表查询...")
-        
-        # 原始查询集（无任何过滤）
-        raw_queryset = Content.objects.all()
-        print(f"📊 数据库中总帖子数: {raw_queryset.count()}")
-        
-        if raw_queryset.exists():
-            print("📝 前5个帖子:")
-            for content in raw_queryset[:5]:
-                print(f"  ID:{content.id} | {content.title} | 状态:{content.status} | 作者:{content.author.username}")
-        
-        # 检查用户状态
-        user = request.user
-        print(f"👤 当前用户: {user} (认证状态: {user.is_authenticated})")
-        if user.is_authenticated:
-            print(f"   用户角色: {getattr(user, 'role', 'USER')}")
-        
-        # 应用权限过滤后
         queryset = self.get_queryset()
-        print(f"🔐 权限过滤后帖子数: {queryset.count()}")
-        
-        # 分页处理
+
+        # 分页处理（保持与前端约定的 page / pageSize / total 响应结构）
         page = int(request.query_params.get('page', 1))
         page_size = int(request.query_params.get('pageSize', 20))
         
@@ -101,11 +82,8 @@ class ContentListView(generics.ListCreateAPIView):
         end = start + page_size
         
         paginated_queryset = queryset[start:end]
-        print(f"📄 分页结果: 第{page}页, 每页{page_size}条, 总共{total}条, 当前页{paginated_queryset.count()}条")
-        
         serializer = self.get_serializer(paginated_queryset, many=True)
-        
-        print("✅ 调试完成，返回响应")
+
         return Response({
             'code': 0,
             'data': {
@@ -278,21 +256,24 @@ def post_comments(request, pk):
                           status=status.HTTP_401_UNAUTHORIZED)
         
         serializer = CommentCreateSerializer(
-            data=request.data, 
+            data=request.data,
             context={'request': request, 'content_id': content.id}
         )
-        
+
         if serializer.is_valid():
             comment = serializer.save()
-            
+
             # 更新内容的评论数
             Content.objects.filter(pk=pk).update(comment_count=F('comment_count') + 1)
-            
+
+            # 事件：评论已创建（用于通知 / 积分 / 推荐特征等扩展）
+            publish_event("comment.created", comment=comment)
+
             response_data = CommentSerializer(comment, context={'request': request}).data
             return Response({'code': 0, 'data': response_data}, status=status.HTTP_201_CREATED)
-        
-        return Response({'code': 4001, 'errors': serializer.errors}, 
-                       status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({'code': 4001, 'errors': serializer.errors},
+                        status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['DELETE'])
@@ -327,23 +308,33 @@ def toggle_like(request):
         if serializer.is_valid():
             target_type = serializer.validated_data['targetType']
             target_id = serializer.validated_data['targetId']
-            
+
             like, created = Like.objects.get_or_create(
                 user=request.user,
                 target_type=target_type,
                 target_id=target_id
             )
-            
+
             if created:
                 # 更新点赞计数
                 _update_like_count(target_type, target_id, 1)
+
+                # 事件：点赞已创建
+                publish_event(
+                    "like.created",
+                    user=request.user,
+                    target_type=target_type,
+                    target_id=target_id,
+                    like=like,
+                )
+
                 return Response({'code': 0, 'message': '点赞成功', 'data': {'id': like.id}})
             else:
-                return Response({'code': 4090, 'message': '已点赞过'}, 
-                               status=status.HTTP_409_CONFLICT)
-        
-        return Response({'code': 4001, 'message': '参数错误', 'errors': serializer.errors}, 
-                       status=status.HTTP_400_BAD_REQUEST)
+                return Response({'code': 4090, 'message': '已点赞过'},
+                                status=status.HTTP_409_CONFLICT)
+
+        return Response({'code': 4001, 'message': '参数错误', 'errors': serializer.errors},
+                        status=status.HTTP_400_BAD_REQUEST)
     
     elif request.method == 'DELETE':
         serializer = LikeSerializer(data=request.data)
@@ -644,9 +635,18 @@ def admin_post_status(request, pk):
         content.published_at = timezone.now()
     
     content.save()
-    
+
+    # 事件：帖子审核结果
+    publish_event(
+        "content.reviewed",
+        content=content,
+        new_status=new_status,
+        reject_reason=reject_reason,
+        reviewer=request.user,
+    )
+
     return Response({
-        'code': 0, 
+        'code': 0,
         'message': '状态更新成功'
     })
 

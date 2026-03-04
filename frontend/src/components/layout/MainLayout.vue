@@ -97,14 +97,14 @@
         <div class="header-actions">
           <button 
             class="notification-btn"
-            @click="showNotifications"
+            @click="toggleNotifications"
             title="通知"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               <path d="M13.73 21a2 2 0 01-3.46 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span class="notif-badge" v-if="unreadCount">{{ unreadCount }}</span>
+            <span class="notif-badge" v-if="unreadCountComputed">{{ unreadCountComputed }}</span>
           </button>
           <div class="header-avatar" v-if="authStore.user">
             <el-avatar 
@@ -117,6 +117,57 @@
         </div>
       </header>
 
+      <!-- 通知抽屉 -->
+      <el-drawer
+        v-model="notificationDrawerVisible"
+        title="通知中心"
+        size="360px"
+        direction="rtl"
+      >
+        <div class="notif-drawer-body">
+          <div class="notif-drawer-header">
+            <h3>最新通知</h3>
+            <el-button
+              v-if="notificationsStore.items.length"
+              type="text"
+              size="small"
+              @click="handleMarkAllRead"
+            >
+              全部标记已读
+            </el-button>
+          </div>
+
+          <el-skeleton v-if="notificationsStore.loading" :rows="4" animated />
+
+          <el-empty
+            v-else-if="!notificationsStore.items.length"
+            description="暂时没有通知"
+          />
+
+          <div v-else class="notif-list">
+            <div
+              v-for="item in notificationsStore.items"
+              :key="item.id"
+              class="notif-item"
+              :class="{ unread: !item.is_read }"
+              @click="handleNotificationClick(item)"
+            >
+              <div class="notif-main">
+                <div class="notif-title-row">
+                  <span class="notif-tag" :class="`type-${item.notification_type.toLowerCase()}`">
+                    {{ getNotificationTypeLabel(item.notification_type) }}
+                  </span>
+                  <span class="notif-time">{{ formatTime(item.created_at) }}</span>
+                </div>
+                <div class="notif-title">{{ item.title }}</div>
+                <div class="notif-content">{{ item.content }}</div>
+              </div>
+              <div class="notif-status-dot" v-if="!item.is_read"></div>
+            </div>
+          </div>
+        </div>
+      </el-drawer>
+
       <!-- 页面内容 -->
       <div class="page-content">
         <router-view />
@@ -126,10 +177,10 @@
 </template>
 
 <script setup lang="ts">
-// @ts-nocheck
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
+import { useNotificationsStore } from '../../stores/notifications'
 import { ElMessage } from 'element-plus'
 import {
   House,
@@ -144,9 +195,10 @@ import {
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const notificationsStore = useNotificationsStore()
 
 const searchQuery = ref('')
-const unreadCount = ref(0)
+const notificationDrawerVisible = ref(false)
 
 const menuItems = computed(() => [
   { name: 'Dashboard', path: '/', label: '市场总览', icon: House },
@@ -182,9 +234,92 @@ const handleLogout = async () => {
   }
 }
 
-const showNotifications = () => {
-  console.log('Show notifications')
+const unreadCountComputed = computed(() => notificationsStore.unreadCount)
+
+const toggleNotifications = async () => {
+  if (!authStore.isLoggedIn) {
+    ElMessage.warning('请先登录查看通知')
+    return
+  }
+  notificationDrawerVisible.value = !notificationDrawerVisible.value
+  if (notificationDrawerVisible.value) {
+    await notificationsStore.fetchNotifications({ page: 1, pageSize: 20 })
+  }
 }
+
+const handleMarkAllRead = async () => {
+  try {
+    await notificationsStore.markAllRead()
+    ElMessage.success('已全部标记为已读')
+  } catch (error) {
+    ElMessage.error('操作失败')
+  }
+}
+
+const handleNotificationClick = async (item: any) => {
+  try {
+    if (!item.is_read) {
+      await notificationsStore.markRead(item.id)
+    }
+
+    // 根据关联对象类型跳转到对应页面
+    if (item.related_object_type === 'POST' && item.related_object_id) {
+      router.push({ name: 'PostDetail', params: { id: item.related_object_id } })
+    } else if (item.related_object_type === 'PORTFOLIO' && item.related_object_id) {
+      router.push({ name: 'PortfolioDetail', params: { id: item.related_object_id } })
+    } else if (item.related_object_type === 'USER' && item.related_object_id) {
+      router.push({ name: 'Profile', params: { userId: item.related_object_id } })
+    }
+  } catch (error) {
+    ElMessage.error('操作失败')
+  }
+}
+
+const getNotificationTypeLabel = (type: string) => {
+  switch (type) {
+    case 'LIKE':
+      return '点赞'
+    case 'COMMENT':
+      return '评论'
+    case 'FOLLOW':
+      return '关注'
+    case 'REVIEW_RESULT':
+      return '审核'
+    case 'SYSTEM':
+      return '系统'
+    default:
+      return '通知'
+  }
+}
+
+const formatTime = (iso: string) => {
+  const d = new Date(iso)
+  return `${d.getMonth() + 1}-${d.getDate()} ${d.getHours().toString().padStart(2, '0')}:${d
+    .getMinutes()
+    .toString()
+    .padStart(2, '0')}`
+}
+
+onMounted(async () => {
+  if (authStore.isLoggedIn) {
+    try {
+      await notificationsStore.fetchNotifications({ page: 1, pageSize: 10 })
+    } catch {
+      // 忽略通知加载错误，不影响主功能
+    }
+  }
+})
+
+watch(
+  () => authStore.isLoggedIn,
+  async (loggedIn) => {
+    if (loggedIn) {
+      await notificationsStore.fetchNotifications({ page: 1, pageSize: 10 })
+    } else {
+      notificationsStore.items = []
+    }
+  }
+)
 </script>
 
 <style lang="scss" scoped>
@@ -595,6 +730,126 @@ const showNotifications = () => {
   flex: 1;
   padding: 1.5rem;
   overflow-y: auto;
+}
+
+.notif-drawer-body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.notif-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+
+  h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: $text-primary;
+  }
+}
+
+.notif-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+.notif-item {
+  position: relative;
+  padding: 0.75rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid $border-subtle;
+  background: #fff;
+  cursor: pointer;
+  transition: $transition-all;
+
+  &:hover {
+    border-color: $primary-color;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+  }
+
+  &.unread {
+    background: rgba(37, 99, 235, 0.04);
+    border-color: rgba(37, 99, 235, 0.18);
+  }
+}
+
+.notif-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.notif-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.15rem;
+}
+
+.notif-tag {
+  font-size: 0.675rem;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.notif-tag.type-like {
+  background: rgba(249, 115, 22, 0.08);
+  color: #ea580c;
+}
+
+.notif-tag.type-comment {
+  background: rgba(59, 130, 246, 0.08);
+  color: #2563eb;
+}
+
+.notif-tag.type-follow {
+  background: rgba(16, 185, 129, 0.08);
+  color: #059669;
+}
+
+.notif-tag.type-review_result {
+  background: rgba(234, 179, 8, 0.08);
+  color: #ca8a04;
+}
+
+.notif-tag.type-system {
+  background: rgba(148, 163, 184, 0.12);
+  color: #4b5563;
+}
+
+.notif-time {
+  font-size: 0.7rem;
+  color: $text-muted;
+}
+
+.notif-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.notif-content {
+  font-size: 0.8rem;
+  color: $text-secondary;
+}
+
+.notif-status-dot {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: $accent-color;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
 }
 
 .sidebar-disclaimer {

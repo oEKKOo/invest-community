@@ -116,8 +116,13 @@
             <el-tab-pane label="最新" name="new" />
             <el-tab-pane label="热门" name="hot" />
             <el-tab-pane
-              label="关注"
+              label="关注-帖子"
               name="follow"
+              :disabled="!authStore.isLoggedIn"
+            />
+            <el-tab-pane
+              label="关注-组合"
+              name="followPortfolios"
               :disabled="!authStore.isLoggedIn"
             />
             <el-tab-pane label="推荐" name="recommend" />
@@ -128,7 +133,7 @@
         </div>
 
         <!-- 登录提示（关注Tab时未登录）-->
-        <div v-if="activeFeedTab === 'follow' && !authStore.isLoggedIn" class="login-hint">
+        <div v-if="(activeFeedTab === 'follow' || activeFeedTab === 'followPortfolios') && !authStore.isLoggedIn" class="login-hint">
           <el-icon><Lock /></el-icon>
           <span>登录后查看关注用户的最新动态</span>
           <el-button type="primary" size="small" @click="$router.push('/login')">立即登录</el-button>
@@ -141,7 +146,7 @@
           </div>
         </div>
 
-        <!-- 帖子列表 -->
+        <!-- 帖子列表 / 组合列表 -->
         <div v-else-if="feedPosts.length" class="posts-feed">
           <div
             v-for="post in feedPosts"
@@ -572,16 +577,54 @@ const fetchFeed = async (tab: string = activeFeedTab.value) => {
   feedLoading.value = true
   try {
     if (tab === 'recommend') {
-      // 推荐：先获取dashboard trending posts，没有则获取hot
       if (dashboardStore.dashboardData?.trendingPosts?.length) {
         feedPosts.value = dashboardStore.dashboardData.trendingPosts
         return
       }
     }
+
+    if (tab === 'follow') {
+      if (!authStore.isLoggedIn) {
+        feedPosts.value = []
+        return
+      }
+      const { getFollowingFeed } = await import('@/api/users')
+      const res = await getFollowingFeed({ page: 1, pageSize: 8 })
+      feedPosts.value = res.items
+      return
+    }
+
+    if (tab === 'followPortfolios') {
+      if (!authStore.isLoggedIn) {
+        feedPosts.value = []
+        return
+      }
+      const { getFollowingPortfoliosFeed } = await import('@/api/users')
+      const res = await getFollowingPortfoliosFeed({ page: 1, pageSize: 8 })
+      // 将组合列表适配到 Post 卡片结构的 minimal 版本
+      feedPosts.value = res.items.map((pf: any) => ({
+        id: pf.id,
+        authorId: pf.userId,
+        authorName: pf.userName,
+        title: pf.title,
+        content: pf.description || '',
+        status: 'PUBLISHED',
+        tags: [],
+        likes: pf.likes ?? 0,
+        comments: 0,
+        createdAt: pf.createdAt,
+        assets: pf.assets,
+        isLiked: pf.isLiked,
+        isFavorited: false
+      })) as unknown as Post[]
+      return
+    }
+
     const sortMap: Record<string, string> = {
       new: 'new',
       hot: 'hot',
-      follow: 'new', // 关注 feed，后端暂无实现，fallback 为 new
+      follow: 'new',
+      followPortfolios: 'new',
       recommend: 'hot'
     }
     const response = await getPosts({ sort: sortMap[tab] as any, pageSize: 8 })

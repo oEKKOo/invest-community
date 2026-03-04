@@ -286,11 +286,13 @@
         <div class="portfolio-stats">
           <div class="stat-row">
             <span class="stat-label">主要配置</span>
-            <span class="stat-label">年化收益</span>
+            <span class="stat-label">收益</span>
           </div>
           <div class="stat-row">
             <span class="stat-value">{{ portfolio.assets[0]?.symbol || 'N/A' }}</span>
-            <span class="stat-value positive">+{{ portfolio.returnsYTD }}%</span>
+            <span class="stat-value" :class="pnlClass(getPortfolioReturn(portfolio) ?? portfolio.returnsYTD)">
+              {{ fmtRate(getPortfolioReturn(portfolio) ?? portfolio.returnsYTD) || '--' }}
+            </span>
           </div>
         </div>
 
@@ -335,7 +337,8 @@ import { useAuthStore } from '../stores/auth'
 import type { PortfolioAsset, UserHolding } from '../types'
 import type { AssetWithQuote } from '../api/market'
 import { getAssetsWithQuote } from '../api/market'
-import { getMyHoldings } from '../api/holdings'
+import { getMyHoldings, getHoldingPerformance } from '../api/holdings'
+import type { HoldingPerformance, HoldingPerformanceItem } from '../types'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
@@ -375,6 +378,10 @@ const assetSearchResults = ref<AssetWithQuote[]>([])
 const holdingsLoading = ref(false)
 const myHoldings = ref<UserHolding[]>([])
 const selectedHoldingIds = ref<Set<number>>(new Set())
+
+// 持仓收益数据（用于显示实际收益）
+const holdingPerf = ref<HoldingPerformance | null>(null)
+const holdingPerfMap = ref<Map<number, HoldingPerformanceItem>>(new Map())
 
 // 表单
 const createFormRef = ref<FormInstance>()
@@ -444,6 +451,20 @@ const formatAmount = (val: number): string => {
   if (val >= 1_0000_0000) return `${(val / 1_0000_0000).toFixed(2)}亿`
   if (val >= 10_000) return `${(val / 10_000).toFixed(2)}万`
   return val.toFixed(2)
+}
+
+const fmtRate = (val: string | number | null | undefined): string => {
+  if (val === null || val === undefined) return ''
+  const n = Number(val)
+  if (isNaN(n)) return ''
+  return `${n >= 0 ? '+' : ''}${(n * 100).toFixed(2)}%`
+}
+
+const pnlClass = (val: string | number | null | undefined): string => {
+  if (val === null || val === undefined) return ''
+  const n = Number(val)
+  if (isNaN(n) || n === 0) return 'pnl-zero'
+  return n > 0 ? 'pnl-up' : 'pnl-down'
 }
 
 // ============ 资产搜索（手动模式） ============
@@ -560,6 +581,54 @@ const removeAsset = (index: number) => {
   createForm.value.assets.splice(index, 1)
 }
 
+// ============ 持仓收益相关 ============
+const fetchHoldingPerf = async () => {
+  if (!authStore.isLoggedIn) return
+  try {
+    const data = await getHoldingPerformance()
+    holdingPerf.value = data
+    const map = new Map<number, HoldingPerformanceItem>()
+    data.items?.forEach(item => map.set(item.assetId, item))
+    holdingPerfMap.value = map
+  } catch {
+    // 收益接口失败不影响列表展示
+    holdingPerf.value = null
+    holdingPerfMap.value = new Map()
+  }
+}
+
+/** 计算指定组合的实际持仓收益（基于组合中的资产） */
+const getPortfolioReturn = (portfolio: any): string | null => {
+  if (!authStore.isLoggedIn || !holdingPerfMap.value.size || !portfolio.assets?.length) {
+    return null
+  }
+  
+  // 检查是否是当前用户的组合
+  if (portfolio.userId !== authStore.user?.id) {
+    return null
+  }
+
+  // 计算该组合中所有资产的持仓收益
+  let totalMarketValue = 0
+  let totalCostValue = 0
+  let hasAnyData = false
+  
+  portfolio.assets.forEach((asset: PortfolioAsset) => {
+    const perf = holdingPerfMap.value.get(asset.assetId)
+    if (perf?.hasData) {
+      hasAnyData = true
+      totalMarketValue += Number(perf.marketValue || 0)
+      totalCostValue += Number(perf.costValue || 0)
+    }
+  })
+
+  // 如果没有任何资产有持仓数据，返回 null（回退到 returnsYTD）
+  if (!hasAnyData || totalCostValue === 0) return null
+  
+  const totalReturn = (totalMarketValue - totalCostValue) / totalCostValue
+  return totalReturn.toString()
+}
+
 // ============ 分页 / 列表 ============
 const handlePageChange = (page: number) => {
   currentPage.value = page
@@ -573,6 +642,8 @@ const fetchPortfolios = async () => {
       pageSize: pageSize.value,
       sortBy: 'returnsYTD'
     })
+    // 获取持仓收益（如果已登录）
+    fetchHoldingPerf()
   } catch (error) {
     ElMessage.error('获取投资组合失败')
   }
@@ -1247,6 +1318,18 @@ onMounted(() => {
 
   &.positive {
     color: $success-color;
+  }
+
+  &.pnl-up {
+    color: #10b981;
+  }
+
+  &.pnl-down {
+    color: #f43f5e;
+  }
+
+  &.pnl-zero {
+    color: $text-muted;
   }
 }
 

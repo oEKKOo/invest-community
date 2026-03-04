@@ -73,6 +73,13 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'My Profile' }
       },
       {
+        path: '/users/:userId',
+        name: 'UserProfile',
+        component: Profile,
+        meta: { title: 'User Profile' },
+        props: true
+      },
+      {
         path: '/posts/:id',
         name: 'PostDetail',
         component: PostDetail,
