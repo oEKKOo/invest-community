@@ -8,6 +8,7 @@ const Community = () => import('../views/Community.vue')
 const Portfolios = () => import('../views/Portfolios.vue')
 const AdminPanel = () => import('../views/AdminPanel.vue')
 const Profile = () => import('../views/Profile.vue')
+const SearchView = () => import('../views/Search.vue')
 const Login = () => import('../views/Login.vue')
 const PostDetail = () => import('../views/PostDetail.vue')
 const PortfolioDetail = () => import('../views/PortfolioDetail.vue')
@@ -35,6 +36,12 @@ const routes: RouteRecordRaw[] = [
         name: 'Dashboard',
         component: Dashboard,
         meta: { title: 'Dashboard' }
+      },
+      {
+        path: '/search',
+        name: 'Search',
+        component: SearchView,
+        meta: { title: '搜索' }
       },
       {
         path: '/community',

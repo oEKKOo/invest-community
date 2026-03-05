@@ -156,10 +156,17 @@
           >
             <!-- 帖子头部：作者信息-->
             <div class="post-card-header">
-              <el-avatar :size="36" class="post-avatar">
+              <el-avatar
+                :size="36"
+                class="post-avatar author-clickable"
+                @click.stop="$router.push({ name: 'UserProfile', params: { userId: post.authorId } })"
+              >
                 {{ (post.authorName || 'U')[0].toUpperCase() }}
               </el-avatar>
-              <div class="post-author-info">
+              <div
+                class="post-author-info author-clickable"
+                @click.stop="$router.push({ name: 'UserProfile', params: { userId: post.authorId } })"
+              >
                 <span class="post-author-name">{{ post.authorName }}</span>
                 <span class="post-date">{{ formatDate(post.createdAt) }}</span>
               </div>
@@ -255,10 +262,19 @@
               <div class="pf-info">
                 <span class="pf-title">{{ pf.title }}</span>
                 <div class="pf-meta">
-                  <el-avatar :size="14" class="pf-avatar">
+                  <el-avatar
+                    :size="14"
+                    class="pf-avatar author-clickable"
+                    @click.stop="$router.push({ name: 'UserProfile', params: { userId: pf.userId } })"
+                  >
                     {{ (pf.userName || 'U')[0] }}
                   </el-avatar>
-                  <span class="pf-user">{{ pf.userName }}</span>
+                  <span
+                    class="pf-user author-clickable"
+                    @click.stop="$router.push({ name: 'UserProfile', params: { userId: pf.userId } })"
+                  >
+                    {{ pf.userName }}
+                  </span>
                   <span class="pf-risk">{{ RISK_LABELS[pf.riskLevel] || pf.riskLevel }}</span>
                 </div>
               </div>

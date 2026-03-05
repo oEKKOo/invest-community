@@ -82,16 +82,123 @@
           </div>
         </div>
         <div class="search-bar">
-          <div class="search-inner">
-            <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
-              <path d="m21 21-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            <input
-              v-model="searchQuery"
-              placeholder="搜索讨论、基金、组合..."  
-              class="search-input"
-            />
+          <div class="search-inner-wrap">
+            <div class="search-inner" @keyup.enter="handleSearchEnter">
+              <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/>
+                <path d="m21 21-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              <input
+                v-model="searchQuery"
+                placeholder="搜索讨论、资产、组合..."  
+                class="search-input"
+                @focus="handleSearchFocus"
+                @blur="handleSearchBlur"
+                @input="onSearchInput"
+              />
+            </div>
+
+            <div
+              v-if="showSearchDropdown"
+              class="search-dropdown"
+            >
+              <div class="search-dropdown-section search-primary-action" @mousedown.prevent="handleSearchEnter">
+                <span class="primary-label">搜索</span>
+                <span class="primary-keyword">“{{ searchQuery }}”</span>
+              </div>
+
+              <div v-if="searchLoading" class="search-dropdown-loading">
+                正在为你查找相关内容...
+              </div>
+
+              <template v-else>
+                <div
+                  v-if="hotKeywords.length && !searchQuery.trim()"
+                  class="search-dropdown-section"
+                >
+                  <div class="section-title">热门搜索</div>
+                  <div class="hot-list">
+                    <button
+                      v-for="word in hotKeywords"
+                      :key="word"
+                      class="hot-item"
+                      @mousedown.prevent="useHotKeyword(word)"
+                    >
+                      {{ word }}
+                    </button>
+                  </div>
+                </div>
+
+                <div
+                  v-if="searchResults.posts.items.length"
+                  class="search-dropdown-section"
+                >
+                  <div class="section-title">
+                    帖子
+                    <span class="count">共 {{ searchResults.posts.total }} 条</span>
+                  </div>
+                  <ul class="suggest-list">
+                    <li
+                      v-for="post in searchResults.posts.items"
+                      :key="post.id"
+                      class="suggest-item"
+                      @mousedown.prevent="goPost(post.id)"
+                    >
+                      <div class="suggest-main">
+                        <span class="suggest-title">{{ post.title }}</span>
+                        <span class="suggest-meta">{{ post.authorName }}</span>
+                      </div>
+                    </li>
+                  </ul>
+                </div>
+
+                <div
+                  v-if="searchResults.assets.items.length"
+                  class="search-dropdown-section"
+                >
+                  <div class="section-title">
+                    资产
+                    <span class="count">共 {{ searchResults.assets.total }} 条</span>
+                  </div>
+                  <ul class="suggest-list">
+                    <li
+                      v-for="asset in searchResults.assets.items"
+                      :key="asset.id"
+                      class="suggest-item"
+                      @mousedown.prevent="goAsset(asset.id)"
+                    >
+                      <div class="suggest-main">
+                        <span class="suggest-title">{{ asset.code }}</span>
+                        <span class="suggest-meta">{{ asset.name }}</span>
+                      </div>
+                    </li>
+                  </ul>
+                </div>
+
+                <div
+                  v-if="searchResults.portfolios.items.length"
+                  class="search-dropdown-section"
+                >
+                  <div class="section-title">
+                    组合
+                    <span class="count">共 {{ searchResults.portfolios.total }} 条</span>
+                  </div>
+                  <ul class="suggest-list">
+                    <li
+                      v-for="p in searchResults.portfolios.items"
+                      :key="p.id"
+                      class="suggest-item"
+                      @mousedown.prevent="goPortfolio(p.id)"
+                    >
+                      <div class="suggest-main">
+                        <span class="suggest-title">{{ p.title }}</span>
+                        <span class="suggest-meta">{{ p.userName }}</span>
+                      </div>
+                    </li>
+                  </ul>
+                </div>
+              </template>
+            </div>
           </div>
         </div>
         <div class="header-actions">
@@ -177,7 +284,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import { useNotificationsStore } from '../../stores/notifications'
@@ -191,6 +298,7 @@ import {
   DataLine,
   Coin
 } from '@element-plus/icons-vue'
+import { globalSearch, type GlobalSearchResult } from '../../api/search'
 
 const router = useRouter()
 const route = useRoute()
@@ -198,6 +306,17 @@ const authStore = useAuthStore()
 const notificationsStore = useNotificationsStore()
 
 const searchQuery = ref('')
+const searchFocused = ref(false)
+const searchLoading = ref(false)
+const hotKeywords = ref<string[]>(['AAPL', '平安银行', '科技ETF', '价值投资'])
+
+const searchResults = reactive<GlobalSearchResult>({
+  posts: { items: [], total: 0 },
+  assets: { items: [], total: 0 },
+  portfolios: { items: [], total: 0 }
+})
+
+let searchTimer: ReturnType<typeof setTimeout> | null = null
 const notificationDrawerVisible = ref(false)
 
 const menuItems = computed(() => [
@@ -222,6 +341,15 @@ const currentPageLabel = computed(() => {
   const item = menuItems.value.find(m => m.name === route.name)
   if (item) return item.label
   return extraPageLabels[route.name as string] || 'InvestHub'
+})
+
+const showSearchDropdown = computed(() => {
+  const hasResults =
+    searchResults.posts.items.length ||
+    searchResults.assets.items.length ||
+    searchResults.portfolios.items.length
+
+  return searchFocused.value && (searchQuery.value.trim().length > 0 || hasResults || hotKeywords.value.length > 0)
 })
 
 const handleLogout = async () => {
@@ -298,6 +426,95 @@ const formatTime = (iso: string) => {
     .getMinutes()
     .toString()
     .padStart(2, '0')}`
+}
+
+const resetSearchResults = () => {
+  searchResults.posts = { items: [], total: 0 }
+  searchResults.assets = { items: [], total: 0 }
+  searchResults.portfolios = { items: [], total: 0 }
+}
+
+const fetchSearchSuggestions = async () => {
+  const q = searchQuery.value.trim()
+  if (!q) {
+    resetSearchResults()
+    return
+  }
+  searchLoading.value = true
+  try {
+    const data = await globalSearch({ q, type: 'all' })
+    searchResults.posts = {
+      items: data.posts.items.slice(0, 3),
+      total: data.posts.total
+    }
+    searchResults.assets = {
+      items: data.assets.items.slice(0, 5),
+      total: data.assets.total
+    }
+    searchResults.portfolios = {
+      items: data.portfolios.items.slice(0, 3),
+      total: data.portfolios.total
+    }
+  } catch (e) {
+    resetSearchResults()
+  } finally {
+    searchLoading.value = false
+  }
+}
+
+const handleSearchFocus = () => {
+  searchFocused.value = true
+  if (searchQuery.value.trim()) {
+    fetchSearchSuggestions()
+  }
+}
+
+const handleSearchBlur = () => {
+  // 延迟收起，保证点击下拉项时事件能触发
+  setTimeout(() => {
+    searchFocused.value = false
+  }, 150)
+}
+
+const onSearchInput = () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  const q = searchQuery.value.trim()
+  if (!q) {
+    resetSearchResults()
+    return
+  }
+  searchTimer = setTimeout(() => {
+    fetchSearchSuggestions()
+  }, 300)
+}
+
+const handleSearchEnter = () => {
+  const q = searchQuery.value.trim()
+  if (!q) return
+  router.push({
+    name: 'Search',
+    query: {
+      q,
+      type: 'all'
+    }
+  })
+}
+
+const useHotKeyword = (word: string) => {
+  searchQuery.value = word
+  handleSearchEnter()
+}
+
+const goPost = (id: number) => {
+  router.push({ name: 'PostDetail', params: { id } })
+}
+
+const goAsset = (id: number) => {
+  router.push({ name: 'AssetDetail', params: { assetId: id } })
+}
+
+const goPortfolio = (id: number) => {
+  router.push({ name: 'PortfolioDetail', params: { id } })
 }
 
 onMounted(async () => {
@@ -629,6 +846,10 @@ watch(
   max-width: 420px;
 }
 
+.search-inner-wrap {
+  position: relative;
+}
+
 .search-inner {
   display: flex;
   align-items: center;
@@ -664,6 +885,127 @@ watch(
   &::placeholder {
     color: $text-muted;
   }
+}
+
+.search-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border-radius: 10px;
+  border: 1px solid $border-subtle;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+  padding: 0.4rem 0.5rem;
+  z-index: 20;
+}
+
+.search-dropdown-section {
+  padding: 0.35rem 0.25rem;
+
+  & + & {
+    border-top: 1px solid #f3f4f6;
+  }
+}
+
+.search-primary-action {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: $transition-all;
+
+  &:hover {
+    background: #f3f4ff;
+  }
+}
+
+.primary-label {
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
+.primary-keyword {
+  font-size: 0.8rem;
+  color: #111827;
+  font-weight: 500;
+}
+
+.search-dropdown-loading {
+  padding: 0.4rem 0.6rem;
+  font-size: 0.78rem;
+  color: #9ca3af;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: #6b7280;
+  margin-bottom: 0.25rem;
+
+  .count {
+    font-size: 0.72rem;
+    color: #9ca3af;
+  }
+}
+
+.hot-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.hot-item {
+  border-radius: 999px;
+  border: none;
+  padding: 0.12rem 0.6rem;
+  font-size: 0.78rem;
+  background: #f3f4f6;
+  color: #4b5563;
+  cursor: pointer;
+  transition: $transition-all;
+
+  &:hover {
+    background: #e5e7eb;
+  }
+}
+
+.suggest-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.suggest-item {
+  padding: 0.3rem 0.4rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: $transition-all;
+
+  &:hover {
+    background: #f3f4ff;
+  }
+}
+
+.suggest-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+}
+
+.suggest-title {
+  font-size: 0.8rem;
+  color: #111827;
+  font-weight: 500;
+}
+
+.suggest-meta {
+  font-size: 0.72rem;
+  color: #9ca3af;
 }
 
 .header-actions {

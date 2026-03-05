@@ -77,7 +77,7 @@
           <p>太棒了！审核队列为空</p>
         </div>
 
-        <div v-else class="reviews-list">
+          <div v-else class="reviews-list">
           <div 
             v-for="post in pendingPosts"
             :key="post.id"
@@ -88,10 +88,15 @@
                 <el-avatar 
                   :src="getAvatarUrl(post.authorId)" 
                   :size="32"
+                  class="author-clickable"
+                  @click.stop="$router.push({ name: 'UserProfile', params: { userId: post.authorId } })"
                 >
                   {{ post.authorName[0] }}
                 </el-avatar>
-                <div class="meta-info">
+                <div
+                  class="meta-info author-clickable"
+                  @click.stop="$router.push({ name: 'UserProfile', params: { userId: post.authorId } })"
+                >
                   <p class="author-name">{{ post.authorName }}</p>
                   <p class="post-date">{{ formatDate(post.createdAt) }}</p>
                 </div>

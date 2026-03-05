@@ -28,11 +28,11 @@
             <p class="user-bio">{{ displayUser?.bio || authStore.user?.bio || '这个人很懒，还没有填写个人简介' }}</p>
             
             <div class="user-stats">
-              <div class="stat-item">
+              <div class="stat-item clickable" @click="openFollowDrawer('followers')">
                 <span class="stat-value">{{ displayUser?.followers || authStore.user?.followers || 0 }}</span>
                 <span class="stat-label">关注者</span>
               </div>
-              <div class="stat-item">
+              <div class="stat-item clickable" @click="openFollowDrawer('following')">
                 <span class="stat-value">{{ displayUser?.following || authStore.user?.following || 0 }}</span>
                 <span class="stat-label">关注数</span>
               </div>
@@ -393,6 +393,84 @@
         </div>
       </template>
     </el-drawer>
+
+    <!-- 粉丝/关注列表抽屉 -->
+    <el-drawer
+      v-model="followDrawerVisible"
+      :title="followDrawerType === 'followers' ? '关注者' : '关注数'"
+      direction="rtl"
+      size="480px"
+      destroy-on-close
+    >
+      <div v-if="followListLoading" class="drawer-loading">
+        <el-skeleton :rows="5" animated />
+      </div>
+      <div v-else-if="followList.length === 0" class="drawer-empty">
+        <el-empty 
+          :description="followDrawerType === 'followers' ? '暂无关注者' : '暂无关注'" 
+          :image-size="100" 
+        />
+      </div>
+      <div v-else class="follow-list">
+        <div
+          v-for="item in followList"
+          :key="getFollowItemId(item)"
+          class="follow-item"
+        >
+          <div 
+            class="follow-item-content clickable"
+            @click="navigateToUser(getFollowUser(item))"
+          >
+            <el-avatar 
+              :src="getFollowUser(item).avatar" 
+              :size="48"
+              class="follow-avatar"
+            >
+              {{ getFollowUser(item).displayName?.[0] }}
+            </el-avatar>
+            <div class="follow-info">
+              <div class="follow-name-row">
+                <span class="follow-name">{{ getFollowUser(item).displayName }}</span>
+                <el-tag 
+                  v-if="getFollowUser(item).role === 'ADMIN'"
+                  type="danger"
+                  size="small"
+                  class="follow-role-tag"
+                >
+                  管理员
+                </el-tag>
+                <el-tag 
+                  v-else-if="getFollowUser(item).role === 'MODERATOR'"
+                  type="warning"
+                  size="small"
+                  class="follow-role-tag"
+                >
+                  版主
+                </el-tag>
+              </div>
+              <p class="follow-username">@{{ getFollowUser(item).username }}</p>
+              <p class="follow-stats">
+                <span>{{ getFollowUser(item).followers || 0 }} 关注者</span>
+                <span class="follow-stats-sep">·</span>
+                <span>{{ getFollowUser(item).following || 0 }} 关注</span>
+              </p>
+            </div>
+          </div>
+          <!-- 快速取关按钮（仅在自己的主页的关注列表中显示） -->
+          <div v-if="isSelf && followDrawerType === 'following'" class="follow-action">
+            <el-button
+              size="small"
+              type="danger"
+              plain
+              :loading="unfollowingIds.has(getFollowUser(item).id)"
+              @click.stop="handleUnfollow(getFollowUser(item))"
+            >
+              取关
+            </el-button>
+          </div>
+        </div>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
@@ -414,6 +492,7 @@ import dayjs from 'dayjs'
 import { getMyLikes } from '@/api/likes'
 import { getMyFavorites } from '@/api/posts'
 import type { User } from '@/types'
+import { getUserFollowers, getUserFollowing, unfollowUser, type UserFollowItem } from '@/api/users'
 
 const router = useRouter()
 const route = useRoute()
@@ -612,6 +691,101 @@ const openDrawer = async (type: 'likes' | 'favorites') => {
     await fetchAllLikes(true)
   } else {
     await fetchAllFavorites(true)
+  }
+}
+
+// ──────────── 粉丝/关注列表抽屉 ────────────
+const followDrawerVisible = ref(false)
+const followDrawerType = ref<'followers' | 'following'>('followers')
+const followList = ref<UserFollowItem[]>([])
+const followListLoading = ref(false)
+const unfollowingIds = ref<Set<number>>(new Set())
+
+const openFollowDrawer = async (type: 'followers' | 'following') => {
+  followDrawerType.value = type
+  followDrawerVisible.value = true
+  await fetchFollowList(type)
+}
+
+const fetchFollowList = async (type: 'followers' | 'following') => {
+  const targetUserId = displayUser.value?.id || authStore.user?.id
+  if (!targetUserId) return
+
+  followListLoading.value = true
+  try {
+    const data = type === 'followers' 
+      ? await getUserFollowers(targetUserId)
+      : await getUserFollowing(targetUserId)
+    
+    // 转换后端数据格式到前端格式
+    followList.value = data.map((item: any) => {
+      const user = type === 'followers' ? item.follower : item.followee
+      const transformedUser = user ? {
+        id: user.id,
+        username: user.username,
+        displayName: user.display_name || user.username,
+        avatar: user.avatar_url || '',
+        role: (user.role || 'USER') as 'USER' | 'MODERATOR' | 'ADMIN',
+        bio: user.bio || '',
+        followers: user.followers_count || 0,
+        following: user.following_count || 0,
+        created_at: user.created_at
+      } : null
+      
+      return {
+        ...item,
+        follower: type === 'followers' ? transformedUser : item.follower,
+        followee: type === 'following' ? transformedUser : item.followee
+      }
+    })
+  } catch (error) {
+    ElMessage.error(type === 'followers' ? '获取关注者列表失败' : '获取关注列表失败')
+    followList.value = []
+  } finally {
+    followListLoading.value = false
+  }
+}
+
+// 获取关注项中的用户（粉丝列表返回 follower，关注列表返回 followee）
+const getFollowUser = (item: UserFollowItem): User => {
+  return followDrawerType.value === 'followers' ? item.follower : item.followee
+}
+
+// 获取关注项的唯一ID
+const getFollowItemId = (item: UserFollowItem): number => {
+  const user = getFollowUser(item)
+  return user.id
+}
+
+// 导航到用户主页
+const navigateToUser = (user: User) => {
+  // 统一使用 UserProfile 路由，支持查看他人主页
+  router.push({ name: 'UserProfile', params: { userId: user.id } })
+}
+
+// 快速取关
+const handleUnfollow = async (user: User) => {
+  if (unfollowingIds.value.has(user.id)) return
+  
+  try {
+    unfollowingIds.value.add(user.id)
+    await unfollowUser(user.id)
+    
+    // 从列表中移除
+    followList.value = followList.value.filter(item => getFollowUser(item).id !== user.id)
+    
+    // 更新关注数
+    if (displayUser.value) {
+      displayUser.value.following = Math.max(0, (displayUser.value.following || 0) - 1)
+    } else if (authStore.user) {
+      authStore.user.following = Math.max(0, (authStore.user.following || 0) - 1)
+    }
+    
+    ElMessage.success('已取消关注')
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message || '取关失败')
+  } finally {
+    unfollowingIds.value.delete(user.id)
   }
 }
 
@@ -820,6 +994,19 @@ watch(showEditProfile, (val) => {
 
 .stat-item {
   text-align: center;
+  cursor: default;
+  
+  &.clickable {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      transform: translateY(-2px);
+      .stat-value {
+        color: var(--el-color-primary);
+      }
+    }
+  }
 }
 
 .stat-value {
@@ -1232,6 +1419,91 @@ watch(showEditProfile, (val) => {
   display: flex;
   gap: 0.75rem;
   justify-content: flex-end;
+}
+
+/* 粉丝/关注列表样式 */
+.follow-list {
+  padding: 0;
+}
+
+.follow-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #f3f4f6;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: #f9fafb;
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.follow-item-content {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 1rem;
+}
+
+.follow-avatar {
+  flex-shrink: 0;
+}
+
+.follow-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.follow-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.follow-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.follow-role-tag {
+  flex-shrink: 0;
+}
+
+.follow-username {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0 0 0.25rem 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.follow-stats {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.follow-stats-sep {
+  color: #d1d5db;
+}
+
+.follow-action {
+  flex-shrink: 0;
+  margin-left: 1rem;
 }
 
 @keyframes fadeIn {

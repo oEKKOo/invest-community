@@ -23,10 +23,15 @@
             <el-avatar 
               :src="postsStore.currentPost.authorAvatar || getAvatarUrl(postsStore.currentPost.authorId)" 
               :size="48"
+              class="author-clickable"
+              @click.stop="$router.push({ name: 'UserProfile', params: { userId: postsStore.currentPost.authorId } })"
             >
               {{ postsStore.currentPost.authorName[0] }}
             </el-avatar>
-            <div class="author-details">
+            <div
+              class="author-details author-clickable"
+              @click.stop="$router.push({ name: 'UserProfile', params: { userId: postsStore.currentPost.authorId } })"
+            >
               <h3 class="author-name">{{ postsStore.currentPost.authorName }}</h3>
               <p class="post-meta">{{ formatDate(postsStore.currentPost.createdAt) }}</p>
             </div>
@@ -139,7 +144,12 @@
               class="comment-item"
             >
               <div class="comment-header">
-                <span class="comment-author">{{ comment.authorName }}</span>
+                <span
+                  class="comment-author author-clickable"
+                  @click="$router.push({ name: 'UserProfile', params: { userId: comment.authorId } })"
+                >
+                  {{ comment.authorName }}
+                </span>
                 <span class="comment-time">{{ formatDate(comment.createdAt) }}</span>
               </div>
               <div class="comment-body">

@@ -47,10 +47,18 @@
           </div>
 
           <div class="portfolio-author">
-            <el-avatar :size="40" :src="getAvatarUrl(portfoliosStore.currentPortfolio.id)">
+            <el-avatar
+              :size="40"
+              :src="getAvatarUrl(portfoliosStore.currentPortfolio.id)"
+              class="author-clickable"
+              @click.stop="$router.push({ name: 'UserProfile', params: { userId: portfoliosStore.currentPortfolio.userId } })"
+            >
               {{ portfoliosStore.currentPortfolio.userName[0] }}
             </el-avatar>
-            <div class="author-info">
+            <div
+              class="author-info author-clickable"
+              @click.stop="$router.push({ name: 'UserProfile', params: { userId: portfoliosStore.currentPortfolio.userId } })"
+            >
               <p class="author-name">{{ portfoliosStore.currentPortfolio.userName }}</p>
               <p class="create-date">创建于：{{ formatDate(portfoliosStore.currentPortfolio.createdAt) }}</p>
             </div>

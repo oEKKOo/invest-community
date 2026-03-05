@@ -228,6 +228,14 @@ class UserFollowersView(generics.ListAPIView):
     def get_queryset(self):
         user_id = self.kwargs['user_id']
         return UserFollow.objects.filter(followee_id=user_id).select_related('follower')
+    
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            'code': 0,
+            'data': serializer.data
+        })
 
 
 class UserFollowingView(generics.ListAPIView):
@@ -238,6 +246,14 @@ class UserFollowingView(generics.ListAPIView):
     def get_queryset(self):
         user_id = self.kwargs['user_id']
         return UserFollow.objects.filter(follower_id=user_id).select_related('followee')
+    
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+        return Response({
+            'code': 0,
+            'data': serializer.data
+        })
 
 
 @api_view(['POST'])

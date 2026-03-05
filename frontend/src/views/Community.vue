@@ -124,10 +124,15 @@
               <el-avatar 
                 :src="post.authorAvatar || getAvatarUrl(post.authorId)" 
                 :size="40"
+                class="author-clickable"
+                @click.stop="$router.push({ name: 'UserProfile', params: { userId: post.authorId } })"
               >
                 {{ post.authorName[0] }}
               </el-avatar>
-              <div class="author-details">
+              <div
+                class="author-details author-clickable"
+                @click.stop="$router.push({ name: 'UserProfile', params: { userId: post.authorId } })"
+              >
                 <p class="author-name">{{ post.authorName }}</p>
                 <p class="post-date">{{ formatDate(post.createdAt) }}</p>
               </div>

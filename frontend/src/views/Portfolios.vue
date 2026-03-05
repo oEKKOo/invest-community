@@ -298,10 +298,20 @@
 
         <div class="portfolio-footer">
           <div class="portfolio-author">
-            <el-avatar :size="32" :src="getAvatarUrl(portfolio.id)">
+            <el-avatar
+              :size="32"
+              :src="getAvatarUrl(portfolio.id)"
+              class="author-clickable"
+              @click.stop="$router.push({ name: 'UserProfile', params: { userId: portfolio.userId } })"
+            >
               {{ portfolio.userName[0] }}
             </el-avatar>
-            <span class="author-name">{{ portfolio.userName }}</span>
+            <span
+              class="author-name author-clickable"
+              @click.stop="$router.push({ name: 'UserProfile', params: { userId: portfolio.userId } })"
+            >
+              {{ portfolio.userName }}
+            </span>
           </div>
           <el-button
             type="text"
