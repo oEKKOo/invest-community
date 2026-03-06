@@ -156,28 +156,42 @@ class ContentCreateSerializer(serializers.ModelSerializer):
 
 
 class CommentSerializer(serializers.ModelSerializer):
-    """评论序列化器"""
-    author_name = serializers.CharField(source='author.display_name', read_only=True)
-    author_avatar = serializers.URLField(source='author.avatar_url', read_only=True)
-    reply_to_username = serializers.CharField(source='reply_to_user.username', read_only=True)
+    """
+    评论序列化器
+
+    说明：
+    - 对外字段统一采用 camelCase，保持与接口文档及前端 `types.Comment` 一致；
+    - 内部通过 source 映射到模型字段，避免打破现有模型设计。
+    """
+    authorId = serializers.IntegerField(source='author_id', read_only=True)
+    authorName = serializers.CharField(source='author.display_name', read_only=True)
+    authorAvatar = serializers.URLField(source='author.avatar_url', read_only=True)
+    parentId = serializers.IntegerField(source='parent_id', allow_null=True, read_only=True)
+    replyToUserId = serializers.IntegerField(source='reply_to_user_id', allow_null=True, read_only=True)
+    replyToUsername = serializers.CharField(source='reply_to_user.username', allow_null=True, read_only=True)
+    likeCount = serializers.IntegerField(source='like_count', read_only=True)
+    createdAt = serializers.DateTimeField(source='created_at', read_only=True)
+
     replies = serializers.SerializerMethodField()
-    is_liked = serializers.SerializerMethodField()
+    isLiked = serializers.SerializerMethodField()
 
     class Meta:
         model = Comment
         fields = [
-            'id', 'author_id', 'author_name', 'author_avatar',
-            'parent_id', 'reply_to_user_id', 'reply_to_username',
-            'body', 'like_count', 'created_at', 'replies', 'is_liked'
+            'id',
+            'authorId', 'authorName', 'authorAvatar',
+            'parentId', 'replyToUserId', 'replyToUsername',
+            'body', 'likeCount', 'createdAt',
+            'replies', 'isLiked',
         ]
-        read_only_fields = ['author_id', 'like_count']
+        read_only_fields = ['authorId', 'likeCount']
 
     def get_replies(self, obj):
-        # 只返回前几条子评论
+        # 只返回前几条子评论，完整列表通过 /api/comments/{id}/replies/ 分页加载
         replies = obj.replies.filter(status='NORMAL')[:5]
         return CommentSerializer(replies, many=True, context=self.context).data
 
-    def get_is_liked(self, obj):
+    def get_isLiked(self, obj):
         user = self.context.get('request').user
         if user.is_authenticated:
             return Like.objects.filter(

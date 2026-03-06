@@ -1,4 +1,4 @@
-import { post } from './index'
+import { get, post, patch } from './index'
 import type { User, LoginResponse } from '../types'
 
 // 用户注册
@@ -36,5 +36,17 @@ export const logout = (): Promise<void> => {
 
 // 获取当前用户信息
 export const getCurrentUser = (): Promise<User> => {
-  return post('/users/me/')
+  return get('/users/me/')
+}
+
+// 更新当前用户信息
+export interface UpdateUserParams {
+  displayName?: string
+  bio?: string
+  avatar?: string
+  phone?: string
+}
+
+export const updateCurrentUser = (params: UpdateUserParams): Promise<User> => {
+  return patch('/users/me/', params)
 }

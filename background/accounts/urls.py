@@ -11,8 +11,4 @@ urlpatterns = [
 
     # 投资偏好
     path('users/me/invest-profile/', views.invest_profile, name='invest_profile'),
-
-    # 关注流 / 社交 Feed
-    path('feed/following/', views.following_feed, name='following_feed'),
-    path('feed/following-portfolios/', views.following_portfolios_feed, name='following_portfolios_feed'),
 ]

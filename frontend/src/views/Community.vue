@@ -200,6 +200,16 @@
             >
               <el-icon><Star /></el-icon>
             </el-button>
+
+            <el-button
+              v-if="authStore.isLoggedIn"
+              type="text"
+              @click.stop="openReportDialog('POST', post.id, post.title)"
+              class="action-btn report-btn"
+            >
+              <el-icon><Warning /></el-icon>
+              <span>举报</span>
+            </el-button>
           </div>
         </div>
       </div>
@@ -215,6 +225,15 @@
         />
       </div>
     </div>
+
+    <!-- 举报对话框 -->
+    <ReportDialog
+      v-model="showReportDialog"
+      :target-type="reportTargetType || 'POST'"
+      :target-id="reportTargetId || 0"
+      :target-summary="reportTargetSummary"
+      @submitted="handleReportSubmitted"
+    />
   </div>
 </template>
 
@@ -229,10 +248,12 @@ import {
   Plus,
   Star,
   ChatLineRound,
-  StarFilled
+  StarFilled,
+  Warning
 } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import AssetSelect from '@/components/market/AssetSelect.vue'
+import ReportDialog from '@/components/ReportDialog.vue'
 
 const postsStore = usePostsStore()
 const authStore = useAuthStore()
@@ -405,6 +426,27 @@ const handleFavorite = async (postId: number) => {
   } catch (error) {
     ElMessage.error('操作失败')
   }
+}
+
+// 举报
+const showReportDialog = ref(false)
+const reportTargetType = ref<'POST' | 'COMMENT' | null>(null)
+const reportTargetId = ref<number | null>(null)
+const reportTargetSummary = ref('')
+
+const openReportDialog = (targetType: 'POST' | 'COMMENT', targetId: number, summary: string) => {
+  if (!authStore.isLoggedIn) {
+    ElMessage.warning('请先登录')
+    return
+  }
+  reportTargetType.value = targetType
+  reportTargetId.value = targetId
+  reportTargetSummary.value = summary || '帖子'
+  showReportDialog.value = true
+}
+
+const handleReportSubmitted = () => {
+  // 举报提交成功后的回调
 }
 
 const getStatusType = (status: PostStatus) => {

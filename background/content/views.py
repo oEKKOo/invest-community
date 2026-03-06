@@ -234,18 +234,32 @@ class UserFavoritesView(generics.ListAPIView):
 
 @api_view(['GET', 'POST'])
 def post_comments(request, pk):
-    """处理帖子评论 - GET: 获取评论列表, POST: 创建评论"""
+    """
+    处理帖子评论
+    - GET: 获取评论列表（仅顶级评论，每条附带少量子回复预览）
+    - POST: 创建评论
+    """
     content = get_object_or_404(Content, pk=pk)
     
     if request.method == 'GET':
-        # 获取评论列表
-        # 只返回顶级评论
-        comments = Comment.objects.filter(
-            content=content, 
-            parent__isnull=True, 
+        # 获取顶级评论列表（按时间升序）
+        qs = Comment.objects.filter(
+            content=content,
+            parent__isnull=True,
             status='NORMAL'
         ).select_related('author', 'reply_to_user').order_by('created_at')
-        
+
+        # 可选分页参数（不改变原有返回结构，仍然返回数组）
+        try:
+            page = int(request.query_params.get('page', 1))
+            page_size = int(request.query_params.get('pageSize', 50))
+        except (TypeError, ValueError):
+            page, page_size = 1, 50
+
+        start = (page - 1) * page_size
+        end = start + page_size
+        comments = qs[start:end]
+
         serializer = CommentSerializer(comments, many=True, context={'request': request})
         return Response({'code': 0, 'data': serializer.data})
     
@@ -276,27 +290,91 @@ def post_comments(request, pk):
                         status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['DELETE'])
+@api_view(['PATCH', 'DELETE'])
 @permission_classes([IsAuthenticated])
-def delete_comment(request, comment_id):
-    """删除评论"""
+def comment_detail(request, comment_id):
+    """
+    评论详情：
+    - PATCH：编辑评论内容（仅作者在限定时间内可编辑）
+    - DELETE：删除评论（软删除）
+    """
     comment = get_object_or_404(Comment, pk=comment_id)
-    
-    # 权限检查
+
+    # 公共权限检查：作者或管理员
     if comment.author != request.user and request.user.role not in ['MODERATOR', 'ADMIN']:
-        return Response({'code': 4030, 'message': '无权删除'}, 
-                       status=status.HTTP_403_FORBIDDEN)
-    
+        return Response({'code': 4030, 'message': '无权操作该评论'},
+                        status=status.HTTP_403_FORBIDDEN)
+
+    if request.method == 'PATCH':
+        # 可选：仅允许在创建后 10 分钟内编辑
+        from datetime import timedelta
+
+        time_delta = timezone.now() - comment.created_at
+        if time_delta > timedelta(minutes=10) and request.user.role not in ['MODERATOR', 'ADMIN']:
+            return Response(
+                {'code': 4001, 'message': '评论已超过可编辑时间'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        new_text = request.data.get('text', '').strip()
+        if not new_text:
+            return Response(
+                {'code': 4001, 'message': '评论内容不能为空'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        comment.body = new_text
+        comment.updated_at = timezone.now()
+        comment.save()
+
+        data = CommentSerializer(comment, context={'request': request}).data
+        return Response({'code': 0, 'data': data})
+
+    # DELETE
     with transaction.atomic():
         comment.status = 'DELETED'
         comment.save()
-        
-        # 更新内容的评论数
+
+        # 更新内容的评论数（简单减一，复杂场景可根据实际可见评论数调整）
         Content.objects.filter(pk=comment.content_id).update(
             comment_count=F('comment_count') - 1
         )
-    
+
     return Response({'code': 0, 'message': '删除成功'})
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def comment_replies(request, comment_id):
+    """
+    获取某条评论的子回复列表（分页）
+    GET /api/comments/{id}/replies/
+    """
+    parent_comment = get_object_or_404(Comment, pk=comment_id)
+
+    qs = parent_comment.replies.filter(status='NORMAL').select_related('author', 'reply_to_user').order_by('created_at')
+
+    try:
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('pageSize', 20))
+    except (TypeError, ValueError):
+        page, page_size = 1, 20
+
+    total = qs.count()
+    start = (page - 1) * page_size
+    end = start + page_size
+    items = qs[start:end]
+
+    serializer = CommentSerializer(items, many=True, context={'request': request})
+    return Response({
+        'code': 0,
+        'data': {
+            'items': serializer.data,
+            'page': page,
+            'pageSize': page_size,
+            'total': total,
+        }
+    })
 
 
 @api_view(['POST', 'DELETE'])
@@ -360,6 +438,73 @@ def toggle_like(request):
         
         return Response({'code': 4001, 'message': '参数错误', 'errors': serializer.errors}, 
                        status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def comment_toggle_like(request, comment_id):
+    """
+    点赞/取消点赞评论的语义化别名接口：
+    - POST   /api/comments/{id}/like/
+    - DELETE /api/comments/{id}/like/
+    内部复用通用点赞逻辑。
+    """
+    # 构造针对 COMMENT 目标的参数
+    data = {
+        'targetType': 'COMMENT',
+        'targetId': comment_id,
+    }
+
+    if request.method == 'POST':
+        serializer = LikeSerializer(data=data)
+        if serializer.is_valid():
+            target_type = serializer.validated_data['targetType']
+            target_id = serializer.validated_data['targetId']
+
+            like, created = Like.objects.get_or_create(
+                user=request.user,
+                target_type=target_type,
+                target_id=target_id
+            )
+
+            if created:
+                _update_like_count(target_type, target_id, 1)
+                publish_event(
+                    "like.created",
+                    user=request.user,
+                    target_type=target_type,
+                    target_id=target_id,
+                    like=like,
+                )
+                return Response({'code': 0, 'message': '点赞成功', 'data': {'id': like.id}})
+
+            return Response({'code': 4090, 'message': '已点赞过'},
+                            status=status.HTTP_409_CONFLICT)
+
+        return Response({'code': 4001, 'message': '参数错误', 'errors': serializer.errors},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+    # DELETE
+    serializer = LikeSerializer(data=data)
+    if serializer.is_valid():
+        target_type = serializer.validated_data['targetType']
+        target_id = serializer.validated_data['targetId']
+
+        try:
+            like = Like.objects.get(
+                user=request.user,
+                target_type=target_type,
+                target_id=target_id
+            )
+            like.delete()
+            _update_like_count(target_type, target_id, -1)
+            return Response({'code': 0, 'message': '取消点赞成功'})
+        except Like.DoesNotExist:
+            return Response({'code': 4040, 'message': '未点赞过'},
+                            status=status.HTTP_404_NOT_FOUND)
+
+    return Response({'code': 4001, 'message': '参数错误', 'errors': serializer.errors},
+                    status=status.HTTP_400_BAD_REQUEST)
 
 
 def _update_like_count(target_type, target_id, delta):

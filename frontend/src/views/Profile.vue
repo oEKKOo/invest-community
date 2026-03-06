@@ -62,14 +62,22 @@
             >
               {{ isFollowing ? '已关注' : '关注' }}
             </el-button>
+            <el-button 
+              type="danger" 
+              plain
+              @click="openReportUserDialog"
+            >
+              <el-icon><Warning /></el-icon>
+              举报用户
+            </el-button>
           </template>
         </div>
       </div>
     </div>
 
-    <div class="profile-content">
-      <!-- 左侧：账户设置+ 点赞收藏概览 -->
-      <aside class="profile-sidebar">
+    <div class="profile-content" :class="{ 'no-sidebar': !isSelf }">
+      <!-- 左侧：账户设置+ 点赞收藏概览（仅在自己的主页展示） -->
+      <aside v-if="isSelf" class="profile-sidebar">
         <div v-if="isSelf" class="settings-card">
           <h3 class="card-title">账户与安全</h3>
           <ul class="settings-list">
@@ -471,6 +479,15 @@
         </div>
       </div>
     </el-drawer>
+
+    <!-- 举报用户对话框 -->
+    <ReportDialog
+      v-model="showReportDialog"
+      target-type="USER"
+      :target-id="reportTargetUserId || 0"
+      :target-summary="reportTargetUserSummary"
+      @submitted="handleReportSubmitted"
+    />
   </div>
 </template>
 
@@ -486,13 +503,16 @@ import {
   Star,
   ChatLineRound,
   Collection,
-  ArrowRight
+  ArrowRight,
+  Warning
 } from '@element-plus/icons-vue'
+import ReportDialog from '@/components/ReportDialog.vue'
 import dayjs from 'dayjs'
 import { getMyLikes } from '@/api/likes'
 import { getMyFavorites } from '@/api/posts'
 import type { User } from '@/types'
 import { getUserFollowers, getUserFollowing, unfollowUser, type UserFollowItem } from '@/api/users'
+import { updateCurrentUser } from '@/api/auth'
 
 const router = useRouter()
 const route = useRoute()
@@ -619,13 +639,23 @@ const isSelf = computed(() => {
   return Number(paramId) === authStore.user?.id
 })
 
+const targetUserId = computed<number | null>(() => {
+  const paramId = route.params.userId
+  if (paramId) {
+    return Number(paramId)
+  }
+  return authStore.user?.id ?? null
+})
+
 const isFollowing = ref(false)
 
 const fetchDisplayUser = async () => {
+  // 未传 userId 时显示当前登录用户
   if (!route.params.userId) {
     displayUser.value = authStore.user
     return
   }
+
   try {
     const userId = Number(route.params.userId)
     const res = await fetch(`/api/users/${userId}/`, {
@@ -641,7 +671,7 @@ const fetchDisplayUser = async () => {
         username: d.username,
         displayName: d.display_name,
         avatar: d.avatar_url,
-        role: 'USER',
+        role: (d.role || 'USER') as User['role'],
         bio: d.bio,
         followers: d.followers_count,
         following: d.following_count,
@@ -790,15 +820,17 @@ const handleUnfollow = async (user: User) => {
 }
 
 // ──────────── 用户帖子 ────────────
-const userPosts = computed(() =>
-  postsStore.posts.filter(post => post.authorId === authStore.user?.id)
-)
+const userPosts = computed(() => {
+  if (!targetUserId.value) return []
+  return postsStore.posts.filter(post => post.authorId === targetUserId.value)
+})
 
 const fetchUserPosts = async () => {
-  if (!authStore.user) return
+  const uid = targetUserId.value
+  if (!uid) return
   loading.value = true
   try {
-    await postsStore.fetchPosts({ authorId: authStore.user.id, sort: 'new' })
+    await postsStore.fetchPosts({ authorId: uid, sort: 'new' })
   } catch {
     ElMessage.error('获取用户帖子失败')
   } finally {
@@ -812,16 +844,24 @@ const handleUpdateProfile = async () => {
   try {
     await editFormRef.value.validate()
     updating.value = true
+
+    await updateCurrentUser({
+      displayName: editForm.value.displayName,
+      bio: editForm.value.bio,
+      avatar: editForm.value.avatar
+    })
+
+    // 重新拉取当前用户信息，刷新本地用户态
+    await authStore.fetchCurrentUser()
+    if (!route.params.userId) {
+      displayUser.value = authStore.user
+    }
+
     ElMessage.success('资料更新成功')
     showEditProfile.value = false
-    if (authStore.user) {
-      authStore.user.displayName = editForm.value.displayName
-      authStore.user.bio = editForm.value.bio
-      authStore.user.avatar = editForm.value.avatar
-    }
   } catch (error: any) {
-    if (error.fields) return
-    ElMessage.error('更新失败，请稍后重试')
+    if (error?.fields) return
+    ElMessage.error(error?.response?.data?.message || '更新失败，请稍后重试')
   } finally {
     updating.value = false
   }
@@ -892,12 +932,44 @@ const navigateLikeTarget = (item: LikeRecord) => {
   else if (item.targetType === 'PORTFOLIO') router.push(`/portfolios/${item.targetId}`)
 }
 
+// ──────────── 举报用户 ────────────
+const showReportDialog = ref(false)
+const reportTargetUserId = ref<number | null>(null)
+const reportTargetUserSummary = ref('')
+
+const openReportUserDialog = () => {
+  if (!authStore.isLoggedIn) {
+    ElMessage.warning('请先登录')
+    return
+  }
+  if (!displayUser.value) return
+  reportTargetUserId.value = displayUser.value.id
+  reportTargetUserSummary.value = `${displayUser.value.displayName || displayUser.value.username} (@${displayUser.value.username})`
+  showReportDialog.value = true
+}
+
+const handleReportSubmitted = () => {
+  // 举报提交成功后的回调
+}
+
 // ──────────── 生命周期 ────────────
+const initProfilePage = async () => {
+  await fetchDisplayUser()
+  await fetchUserPosts()
+}
+
 onMounted(() => {
-  fetchUserPosts()
+  initProfilePage()
   fetchLikesPreview()
   fetchFavoritesPreview()
 })
+
+watch(
+  () => route.params.userId,
+  () => {
+    initProfilePage()
+  }
+)
 
 watch(showEditProfile, (val) => {
   if (val && authStore.user) {
@@ -1033,6 +1105,10 @@ watch(showEditProfile, (val) => {
   gap: 2rem;
 
   @media (max-width: 768px) { grid-template-columns: 1fr; }
+}
+
+.profile-content.no-sidebar {
+  grid-template-columns: 1fr;
 }
 
 .profile-sidebar {

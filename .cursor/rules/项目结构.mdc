@@ -1,0 +1,180 @@
+---
+alwaysApply: true
+description: 前后端项目结构总览，帮助快速理解工程布局与主要入口
+---
+
+## 工程总览
+
+- **后端（Django + DRF）**: `background/`
+- **前端主应用（Vue 3 + Element Plus + Vite）**: `frontend/`
+- **前端实验/原型应用（React + Vite）**: `investhub-community/`
+- **技术文档**: `docs/`
+
+---
+
+## 后端结构（background/）
+
+- **Django 工程入口**
+  - `background/manage.py`: Django 管理命令入口（迁移、创建超级用户、本地运行等）。
+  - `background/invest_backend/settings.py`: 全局配置（数据库、应用注册、REST/JWT 配置等）。
+  - `background/invest_backend/urls.py`: 全局 URL 路由入口，汇总各业务 app 的 `urls.py`。
+  - `background/invest_backend/asgi.py` / `wsgi.py`: 部署入口（Gunicorn/Nginx 等）。
+  - `background/start_dev.bat` / `start_dev.sh`: 本地开发启动脚本。
+
+- **基础配置与环境**
+  - `background/requirements.txt`: 后端依赖列表（Django、DRF、JWT、MySQL 驱动等）。
+  - `background/database_config.py`: 数据库连接相关配置/辅助函数。
+  - `background/setup_database.py` / `fix_database.py`: 初始化、修复数据库的脚本。
+  - `background/reset_database.bat`: 重置数据库脚本。
+  - `background/setup.py`: 打包/安装相关配置（如作为模块使用时）。
+  - `background/django.log`: Django 运行日志（开发/调试用）。
+
+- **业务应用（Apps）**
+  - `background/accounts/`: **用户与权限模块**
+    - `models.py`: 用户模型扩展（如手机号、角色、状态：正常/禁言/封禁等）。
+    - `serializers.py`: 用户/认证相关序列化器（注册、登录、资料编辑等）。
+    - `views.py`: 注册/登录/退出、个人资料、修改密码、找回密码等接口。
+    - `urls.py` / `user_urls.py`: 账号与用户相关路由分发。
+    - `admin.py` / `apps.py` / `migrations/`: Django 标准 App 配置与迁移文件。
+  - `background/content/`: **社区内容模块（帖子/评论等 UGC）**
+    - `models.py`: 帖子、评论、话题标签、关联标的等模型。
+    - `serializers.py`: 帖子/评论创建、编辑、列表、详情等序列化逻辑。
+    - `views.py`: 发帖、编辑、删除、评论、内容审核等接口。
+    - `urls.py`: 社区内容相关 API 路由。
+  - `background/market_data/`: **行情与第三方数据模块**
+    - `finnhub_service.py` / `tushare_service.py`: 对接 Finnhub / Tushare 等行情数据服务。
+    - `models.py`: 行情、K 线、标的元数据等模型。
+    - `serializers.py`: 行情与标的相关序列化器。
+    - `views.py` / `urls.py`: 行情查询、K 线、榜单等接口。
+    - `tasks.py`: 与 Celery 相关的定时任务（拉取/更新行情数据等）。
+    - `management/`: 自定义管理命令（批量同步、初始化数据等）。
+  - `background/portfolios/`: **投资组合模块**
+    - `models.py`: 投资组合、持仓、历史记录等模型。
+    - `serializers.py`: 组合创建/编辑/分享、持仓明细等序列化逻辑。
+    - `views.py` / `urls.py`: 创建/编辑/浏览组合、分享页等接口。
+    - `management/`: 组合相关的定时任务或批处理命令。
+  - `background/notifications/`: **通知模块**
+    - `models.py`: 通知、消息记录等模型。
+    - `events.py`: 通知事件定义/封装（点赞、评论、系统消息等）。
+    - `serializers.py`: 通知列表、已读/未读等序列化器。
+    - `views.py` / `urls.py`: 通知获取、标记已读等接口。
+  - `background/reports/`: **报表与统计模块**
+    - `models.py`: 报表配置/统计结果等模型。
+    - `serializers.py`: 报表/统计接口返回结构。
+    - `views.py` / `urls.py`: 组合收益、持仓分析等报表接口。
+
+- **后端文档**
+  - `background/README.md`: 后端项目说明、安装与启动指南。
+  - `background/QUICKSTART.md`: 快速上手说明。
+  - `background/API_TESTING.md`: 接口测试说明（如 Postman/Apifox 配置）。
+  - `background/COMPLETE_API_DOCS.md`: 完整 API 文档（路由、参数、返回结构等）。
+
+---
+
+## 前端主应用结构（frontend/，Vue 3 + Element Plus + Vite）
+
+- **工程与构建相关**
+  - `frontend/package.json`: 前端依赖和脚本（开发、构建、预览等）。
+  - `frontend/vite.config.ts`: Vite 构建配置（别名、代理、打包等）。
+  - `frontend/tsconfig.json`: TypeScript 配置。
+  - `frontend/env.example` / `env.d.ts`: 环境变量示例与类型声明。
+  - `frontend/index.html`: 应用 HTML 入口模版。
+  - `frontend/start.bat`: 本地启动脚本。
+  - `frontend/dist/`: 生产构建输出目录。
+
+- **应用入口与全局布局**
+  - `frontend/src/main.ts`: 前端入口文件，挂载 Vue 应用、注册路由、状态管理、Element Plus 等。
+  - `frontend/src/App.vue`: 根组件，通常挂载全局布局、路由出口等。
+  - `frontend/src/components/layout/MainLayout.vue`: 主布局组件（顶部导航、侧边栏、内容区域等）。
+
+- **路由与页面（Views）**
+  - `frontend/src/router/index.ts`: 前端路由配置，映射各业务页面。
+  - `frontend/src/views/`: 主要页面视图：
+    - `Dashboard.vue`: 仪表盘/总览页面。
+    - `Community.vue`: 社区主页（帖子流、交互入口）。
+    - `PostDetail.vue`: 帖子详情页（正文 + 评论 + 点赞收藏等）。
+    - `AssetDetail.vue`: 单个标的详情（K 线、分时、基本信息等）。
+    - `MarketList.vue`: 标的列表/行情列表。
+    - `MarketRankings.vue`: 自选榜单/涨跌榜等排行页面。
+    - `MyHoldings.vue`: 我的持仓/个人投资组合视图。
+    - `Portfolios.vue`: 投资组合列表页。
+    - `PortfolioDetail.vue`: 组合详情页。
+    - `Profile.vue`: 个人资料页面（头像、简介、偏好标签等）。
+    - `Search.vue`: 搜索页面（帖子/作者/标的）。
+    - `Login.vue`: 登录页面。
+    - `AdminPanel.vue` / `admin/DataMonitor.vue`: 管理员控制台与数据监控/运营后台页面。
+
+- **API 封装（与后端交互）**
+  - `frontend/src/api/`: 按业务模块划分的 API 调用封装：
+    - `auth.ts`: 认证相关（登录、注册、刷新 Token 等）。
+    - `users.ts`: 用户资料、偏好设置等。
+    - `posts.ts`: 帖子/评论相关接口。
+    - `market.ts`: 行情、K 线、榜单等接口。
+    - `portfolios.ts`: 组合创建/编辑/详情等接口。
+    - `holdings.ts`: 持仓相关接口。
+    - `notifications.ts`: 通知列表、标记已读等。
+    - `search.ts`: 搜索接口。
+    - `admin.ts`: 管理员相关操作（内容审核、用户治理等）。
+    - `dashboard.ts`: 仪表盘数据。
+    - `index.ts`: 公共请求实例/基础配置（如 axios 实例等）。
+
+- **状态管理（Pinia/Store）**
+  - `frontend/src/stores/`:
+    - `auth.ts`: 登录状态、当前用户信息与权限。
+    - `dashboard.ts`: 仪表盘相关数据。
+    - `market.ts`: 行情、当前标的、订阅状态等。
+    - `notifications.ts`: 通知列表与未读数量。
+    - `portfolios.ts`: 组合列表与详情缓存。
+    - `posts.ts`: 帖子流、详情、点赞收藏状态等。
+
+- **组件与可复用模块**
+  - `frontend/src/components/market/`:
+    - `AssetChip.vue`: 标的标签小组件。
+    - `AssetSelect.vue`: 选择标的的下拉/搜索组件。
+    - `IntradayChart.vue`: 分时图组件。
+    - `KlineChart.vue`: K 线图组件。
+    - `QuoteMini.vue` / `QuoteTag.vue`: 迷你行情卡片/标签组件。
+  - `frontend/src/composables/useQuoteStream.ts`: 行情实时流/订阅的组合式函数（可能使用 WebSocket/SSE）。
+
+- **样式与类型**
+  - `frontend/src/styles/`:
+    - `index.scss`: 全局样式入口。
+    - `variables.scss`: 全局样式变量（颜色、间距等）。
+  - `frontend/src/types/`:
+    - `index.ts` / `market.ts`: 常用 TypeScript 类型定义（如 Post、User、Asset、Portfolio 等）。
+
+---
+
+## React 原型应用结构（investhub-community/）
+
+- **用途说明**
+  - `investhub-community/` 是使用 **React + Vite + TypeScript** 实现的社区原型/独立前端模块，可作为设计参考或备用前端实现。
+
+- **主要结构**
+  - `investhub-community/index.tsx` / `App.tsx`: React 应用入口与根组件。
+  - `investhub-community/modules/`: 按功能拆分的 React 模块/页面。
+  - `investhub-community/constants.tsx` / `types.ts`: 常量定义与类型声明。
+  - `investhub-community/vite.config.ts` / `tsconfig.json`: 构建与 TS 配置。
+  - `investhub-community/package.json`: 依赖与脚本。
+
+---
+
+## 顶层辅助目录
+
+- **docs/**
+  - `asset_id_association.md`: 资产 ID 关联设计。
+  - `holding_profit_calculation.md`: 持仓收益计算说明。
+  - `tushare_integration.md`: 与 Tushare 的集成说明。
+
+- **项目根 package-lock.json**
+  - 顶层 `package-lock.json` 可能用于统一管理部分前端依赖版本（具体可结合实际使用情况确认）。
+
+---
+
+## 使用建议
+
+- **快速定位前端页面**: 先看 `frontend/src/router/index.ts` 路由 → 对应 `views/` 中的页面组件 → 再查 `components/` 与 `stores/`。
+- **快速定位后端接口**: 通过 `background/invest_backend/urls.py` 找到对应 app 的 `urls.py` → `views.py` → `serializers.py` → `models.py`。
+- **联调思路**: 前端 `src/api/*.ts` 与后端 `background/*/urls.py`、`views.py` 一一对应，可以通过接口名称和 URL 路径进行双向查找。
+- **扩展新功能时**: 在后端新增 app 或扩展现有 app 的 `models/serializers/views/urls`；在前端新增对应 `api` 封装、`store` 状态、`views` 页面与必要的 `components`。
+

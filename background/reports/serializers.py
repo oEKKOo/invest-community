@@ -7,9 +7,19 @@ User = get_user_model()
 
 class ReportCreateSerializer(serializers.ModelSerializer):
     """举报创建序列化器"""
+    reportTypeDetail = serializers.CharField(
+        source='report_type_detail',
+        required=False,
+        allow_blank=True
+    )
+    evidence = serializers.JSONField(
+        source='evidence_json',
+        required=False
+    )
+
     class Meta:
         model = Report
-        fields = ['target_type', 'target_id', 'reason']
+        fields = ['target_type', 'target_id', 'reason', 'reportTypeDetail', 'evidence']
 
     def validate(self, attrs):
         target_type = attrs['target_type']
@@ -27,6 +37,10 @@ class ReportCreateSerializer(serializers.ModelSerializer):
         elif target_type == 'USER':
             if not User.objects.filter(id=target_id).exists():
                 raise serializers.ValidationError("用户不存在")
+        elif target_type == 'PORTFOLIO':
+            from portfolios.models import Portfolio
+            if not Portfolio.objects.filter(id=target_id).exists():
+                raise serializers.ValidationError("组合不存在")
         
         return attrs
 
@@ -37,15 +51,24 @@ class ReportCreateSerializer(serializers.ModelSerializer):
 
 class ReportListSerializer(serializers.ModelSerializer):
     """举报列表序列化器"""
-    reporter_name = serializers.CharField(source='reporter.username', read_only=True)
-    handled_by_name = serializers.CharField(source='handled_by.username', read_only=True)
+    reporterName = serializers.CharField(source='reporter.username', read_only=True)
+    handledByName = serializers.CharField(source='handled_by.username', read_only=True)
+    createdAt = serializers.DateTimeField(source='created_at', read_only=True)
+    handleTime = serializers.DateTimeField(source='handle_time', read_only=True)
+    reportTypeDetail = serializers.CharField(source='report_type_detail', read_only=True)
+    priority = serializers.IntegerField(read_only=True)
+    result = serializers.CharField(read_only=True)
 
     class Meta:
         model = Report
         fields = [
-            'id', 'reporter_name', 'target_type', 'target_id',
-            'reason', 'status', 'handled_by_name', 'handle_result',
-            'created_at', 'handle_time'
+            'id',
+            'reporterName',
+            'target_type', 'target_id',
+            'reason', 'status',
+            'reportTypeDetail', 'priority',
+            'handledByName', 'handle_result', 'result',
+            'createdAt', 'handleTime',
         ]
 
 

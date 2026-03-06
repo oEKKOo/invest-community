@@ -17,6 +17,16 @@ export const getFollowingPortfoliosFeed = (params?: {
   return get('/feed/following-portfolios/', { params })
 }
 
+// 关注推荐：你可能感兴趣的用户 / 组合
+export interface FollowingRecommendations {
+  users: User[]
+  portfolios: Portfolio[]
+}
+
+export const getFollowingRecommendations = (): Promise<FollowingRecommendations> => {
+  return get('/feed/following/recommendations/')
+}
+
 // 用户关注关系项
 export interface UserFollowItem {
   follower: User

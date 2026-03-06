@@ -11,6 +11,7 @@ class Report(models.Model):
         ('POST', '帖子'),
         ('COMMENT', '评论'),
         ('USER', '用户'),
+        ('PORTFOLIO', '组合'),
     ]
     
     STATUS_CHOICES = [
@@ -23,9 +24,13 @@ class Report(models.Model):
     target_id = models.PositiveIntegerField('举报目标ID')
     
     reason = models.TextField('举报原因')
+    report_type_detail = models.CharField('举报类型细分', max_length=100, blank=True)
+    evidence_json = models.JSONField('证据内容（截图、链接等）', default=dict, blank=True)
+    priority = models.IntegerField('优先级', default=0)
     status = models.CharField('处理状态', max_length=20, choices=STATUS_CHOICES, default='PENDING')
     
     # 处理信息
+    result = models.CharField('处理结果类型', max_length=20, blank=True)
     handled_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, 
                                    verbose_name='处理人', related_name='reports_handled')
     handle_result = models.TextField('处理结果', blank=True)

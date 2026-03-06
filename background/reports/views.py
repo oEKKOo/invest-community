@@ -75,7 +75,8 @@ def handle_report(request, pk):
     
     status_value = request.data.get('status')
     handle_result = request.data.get('handleResult', '')
-    
+    result_value = request.data.get('result', '')
+
     if status_value not in ['PENDING', 'RESOLVED']:
         return Response({
             'code': 4001, 
@@ -86,6 +87,8 @@ def handle_report(request, pk):
     report.handle_result = handle_result
     report.handled_by = request.user
     report.handle_time = timezone.now()
+    if result_value:
+        report.result = result_value
     report.save()
     
     return Response({

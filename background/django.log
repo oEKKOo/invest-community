@@ -21195,3 +21195,59 @@ WARNING 2026-03-05 13:47:06,084 log 22836 14644 Bad Request: /api/auth/login/
 WARNING 2026-03-05 13:50:02,298 log 22836 26288 Not Found: /api/feed/following/
 WARNING 2026-03-05 13:50:02,885 log 22836 29252 Not Found: /api/feed/following-portfolios/
 WARNING 2026-03-05 13:50:03,782 log 22836 324 Not Found: /api/feed/following/
+INFO 2026-03-05 14:09:49,937 tushare_service 22836 26480 [Tushare] Pro API 初始化成功（Token 已配置）
+WARNING 2026-03-05 14:11:31,383 log 22836 30652 Not Found: /api/feed/following/
+WARNING 2026-03-05 14:11:32,154 log 22836 4716 Not Found: /api/feed/following-portfolios/
+WARNING 2026-03-05 14:11:33,676 log 22836 29628 Not Found: /api/feed/following/
+WARNING 2026-03-05 14:11:34,289 log 22836 28828 Not Found: /api/feed/following-portfolios/
+WARNING 2026-03-05 14:22:24,232 log 22836 24800 Not Found: /api/feed/following/
+WARNING 2026-03-05 14:22:24,496 log 22836 30700 Not Found: /api/feed/following-portfolios/
+WARNING 2026-03-05 14:22:25,705 log 22836 11324 Not Found: /api/feed/following/
+INFO 2026-03-06 14:44:39,909 tushare_service 26396 16664 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-03-06 14:44:42,369 tushare_service 26396 16664 [Tushare] get_stock_basic: 获取 5488 只 A 股
+INFO 2026-03-06 14:45:07,014 tushare_service 26396 16664 [Tushare] get_daily_klines_by_date: 20260303 获取 5472 条（全市场）
+INFO 2026-03-06 14:45:12,742 tushare_service 26396 16664 [Tushare] get_daily_klines_by_date: 20260304 获取 5474 条（全市场）
+INFO 2026-03-06 14:45:17,656 tushare_service 26396 16664 [Tushare] get_daily_klines_by_date: 20260305 获取 5476 条（全市场）
+INFO 2026-03-06 14:45:32,098 tushare_service 26396 16664 [Tushare] get_daily_klines_by_date: 20260305 获取 5476 条（全市场）
+INFO 2026-03-06 14:45:32,098 tushare_service 26396 16664 [Tushare] get_latest_daily_quotes_all: 取到 20260305 共 5476 条
+INFO 2026-03-06 14:46:23,941 autoreload 28496 18404 Watching for file changes with StatReloader
+WARNING 2026-03-06 14:46:44,039 log 28496 27472 Unauthorized: /api/dashboard/overview/
+WARNING 2026-03-06 14:46:44,039 log 28496 27164 Unauthorized: /api/market/rankings/
+WARNING 2026-03-06 14:46:44,039 log 28496 22376 Unauthorized: /api/posts/
+WARNING 2026-03-06 14:46:44,039 log 28496 29424 Unauthorized: /api/portfolios/top/
+WARNING 2026-03-06 14:46:44,039 log 28496 7972 Unauthorized: /api/notifications/
+WARNING 2026-03-06 14:46:44,039 log 28496 6956 Unauthorized: /api/market/rankings/
+INFO 2026-03-06 15:02:59,679 autoreload 28496 18404 D:\invest\background\accounts\urls.py changed, reloading.
+INFO 2026-03-06 15:03:00,628 autoreload 4764 26368 Watching for file changes with StatReloader
+INFO 2026-03-06 15:03:29,875 autoreload 4764 26368 D:\invest\background\invest_backend\urls.py changed, reloading.
+INFO 2026-03-06 15:03:30,851 autoreload 29808 27044 Watching for file changes with StatReloader
+INFO 2026-03-06 15:03:44,243 autoreload 29808 27044 D:\invest\background\accounts\views.py changed, reloading.
+INFO 2026-03-06 15:03:45,175 autoreload 21648 21076 Watching for file changes with StatReloader
+INFO 2026-03-06 15:07:36,318 autoreload 21648 21076 D:\invest\background\accounts\views.py changed, reloading.
+INFO 2026-03-06 15:07:37,296 autoreload 31300 27800 Watching for file changes with StatReloader
+INFO 2026-03-06 15:33:04,268 autoreload 31300 27800 D:\invest\background\accounts\views.py changed, reloading.
+INFO 2026-03-06 15:33:05,230 autoreload 296 27868 Watching for file changes with StatReloader
+INFO 2026-03-06 15:58:02,548 autoreload 296 27868 D:\invest\background\content\serializers.py changed, reloading.
+INFO 2026-03-06 15:58:03,441 autoreload 30164 31312 Watching for file changes with StatReloader
+INFO 2026-03-06 15:58:56,432 autoreload 30164 31312 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-03-06 15:58:57,212 autoreload 30240 24264 Watching for file changes with StatReloader
+INFO 2026-03-06 15:59:05,917 autoreload 30240 24264 D:\invest\background\content\urls.py changed, reloading.
+INFO 2026-03-06 15:59:06,713 autoreload 27828 28556 Watching for file changes with StatReloader
+INFO 2026-03-06 15:59:12,064 autoreload 27828 28556 D:\invest\background\reports\models.py changed, reloading.
+INFO 2026-03-06 15:59:12,867 autoreload 27320 10964 Watching for file changes with StatReloader
+INFO 2026-03-06 15:59:28,426 autoreload 27320 10964 D:\invest\background\reports\serializers.py changed, reloading.
+INFO 2026-03-06 15:59:29,249 autoreload 22184 31684 Watching for file changes with StatReloader
+INFO 2026-03-06 15:59:36,995 autoreload 22184 31684 D:\invest\background\reports\views.py changed, reloading.
+INFO 2026-03-06 15:59:37,805 autoreload 24184 10364 Watching for file changes with StatReloader
+WARNING 2026-03-06 15:59:46,590 log 24184 29288 Unauthorized: /api/users/7/
+WARNING 2026-03-06 15:59:46,590 log 24184 7252 Unauthorized: /api/users/me/likes/
+WARNING 2026-03-06 15:59:46,591 log 24184 28180 Unauthorized: /api/users/me/favorites/
+WARNING 2026-03-06 15:59:46,604 log 24184 9884 Unauthorized: /api/posts/
+INFO 2026-03-06 16:03:35,544 autoreload 24184 10364 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-03-06 16:03:36,408 autoreload 8608 12340 Watching for file changes with StatReloader
+INFO 2026-03-06 16:05:00,503 autoreload 8608 12340 D:\invest\background\content\serializers.py changed, reloading.
+INFO 2026-03-06 16:05:01,445 autoreload 16836 28388 Watching for file changes with StatReloader
+INFO 2026-03-06 16:10:47,698 autoreload 16836 28388 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-03-06 16:10:48,531 autoreload 27924 3508 Watching for file changes with StatReloader
+INFO 2026-03-06 16:10:55,035 autoreload 27924 3508 D:\invest\background\content\urls.py changed, reloading.
+INFO 2026-03-06 16:10:55,843 autoreload 29968 31632 Watching for file changes with StatReloader

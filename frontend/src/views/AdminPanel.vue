@@ -175,30 +175,54 @@
       </template>
     </el-dialog>
 
-    <!-- 社区告警 -->
-    <div class="alerts-section">
-      <h3 class="section-title">最近社区告警</h3>
-      
-      <div class="alerts-list">
-        <div 
-          v-for="i in 2" 
-          :key="i"
-          class="alert-card"
+    <!-- 举报处理中心 -->
+    <div class="reports-section">
+      <div class="section-header">
+        <h3 class="section-title">举报处理中心</h3>
+        <p class="section-subtitle">查看并处理用户举报</p>
+      </div>
+      <div class="reports-container">
+        <el-skeleton v-if="loadingReports" :rows="4" animated class="reports-skeleton" />
+        <el-empty v-else-if="!pendingReports.length" description="暂无待处理举报" />
+        <el-table
+          v-else
+          :data="pendingReports"
+          border
+          size="small"
+          class="reports-table"
         >
-          <div class="alert-icon">
-            <el-icon><InfoFilled /></el-icon>
-          </div>
-          <div class="alert-content">
-            <p class="alert-title">检测到潜在误导信息</p>
-            <p class="alert-description">
-              AI检测到线程 #492 中存在未经验证的财务建议，误导概率较高
-            </p>
-            <div class="alert-actions">
-              <el-button type="text" size="small">查看来源</el-button>
-              <el-button type="text" size="small">忽略</el-button>
-            </div>
-          </div>
-        </div>
+          <el-table-column prop="id" label="ID" width="70" />
+          <el-table-column prop="targetType" label="目标类型" width="100" />
+          <el-table-column prop="targetId" label="目标ID" width="90" />
+          <el-table-column prop="reporterName" label="举报人" width="120" />
+          <el-table-column prop="reason" label="原因">
+            <template #default="{ row }">
+              <span class="report-reason">{{ row.reason }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="createdAt" label="时间" width="160">
+            <template #default="{ row }">
+              {{ formatDate(row.createdAt) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="220" fixed="right">
+            <template #default="{ row }">
+              <el-button
+                size="small"
+                type="success"
+                @click="handleResolveReport(row, 'VALID')"
+              >
+                有效
+              </el-button>
+              <el-button
+                size="small"
+                @click="handleResolveReport(row, 'INVALID')"
+              >
+                无效
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
       </div>
     </div>
   </div>
@@ -209,7 +233,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import * as adminApi from '../api/admin'
-import type { Post, AdminStats } from '../types'
+import type { Post, AdminStats, Report } from '../types'
 import {
   Setting,
   Clock,
@@ -229,6 +253,10 @@ const adminStats = ref<AdminStats | null>(null)
 const reviewingIds = ref<number[]>([])
 const showRejectForm = ref(false)
 const rejecting = ref(false)
+
+// 举报处理
+const loadingReports = ref(false)
+const pendingReports = ref<Report[]>([])
 
 // 驳回表单
 const rejectForm = ref({
@@ -254,6 +282,18 @@ const fetchAdminStats = async () => {
     adminStats.value = await adminApi.getAdminStats()
   } catch (error) {
     ElMessage.error('获取统计数据失败')
+  }
+}
+
+const fetchPendingReports = async () => {
+  loadingReports.value = true
+  try {
+    const res = await adminApi.getPendingReports()
+    pendingReports.value = res.items
+  } catch (error) {
+    ElMessage.error('获取待处理举报失败')
+  } finally {
+    loadingReports.value = false
   }
 }
 
@@ -325,7 +365,23 @@ const getAvatarUrl = (id: number) => {
 onMounted(() => {
   fetchPendingPosts()
   fetchAdminStats()
+  fetchPendingReports()
 })
+
+const handleResolveReport = async (report: Report, result: 'VALID' | 'INVALID') => {
+  try {
+    await adminApi.handleReport(report.id, {
+      status: 'RESOLVED',
+      result,
+      handleResult: result === 'VALID' ? '举报成立，已记录处理结果' : '举报不成立'
+    })
+    pendingReports.value = pendingReports.value.filter(r => r.id !== report.id)
+    ElMessage.success('举报已处理')
+    fetchAdminStats()
+  } catch (error) {
+    ElMessage.error('处理举报失败')
+  }
+}
 </script>
 
 <style lang="scss" scoped>

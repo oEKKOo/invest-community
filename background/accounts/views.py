@@ -370,6 +370,54 @@ def following_portfolios_feed(request):
     })
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def following_recommendations(request):
+    """
+    关注推荐：你可能感兴趣的用户 / 组合
+
+    - 当前用户尚未关注的活跃用户（按 followers_count 排序）
+    - 热门公开组合（按 returns_ytd、likes 排序）
+    """
+    user = request.user
+
+    # 安全解析 limit 参数，范围限制在 1~20 之间
+    try:
+        limit = int(request.query_params.get('limit', 5))
+    except (TypeError, ValueError):
+        limit = 5
+    limit = max(1, min(limit, 20))
+
+    # 已关注用户 ID，用于排除
+    followed_ids = list(
+        UserFollow.objects.filter(follower=user).values_list('followee_id', flat=True)
+    )
+
+    # 推荐用户：排除自己和已关注用户，按粉丝数倒序
+    user_qs = User.objects.exclude(
+        id__in=followed_ids + [user.id]
+    ).order_by('-followers_count')[:limit]
+    user_serializer = UserPublicSerializer(user_qs, many=True)
+
+    # 推荐组合：公开组合，按收益率/点赞数倒序
+    portfolio_qs = Portfolio.objects.filter(
+        is_public=True,
+    ).select_related('owner').prefetch_related('assets', 'assets__asset').order_by(
+        '-returns_ytd', '-likes', '-created_at'
+    )[:limit]
+    portfolio_serializer = PortfolioListSerializer(
+        portfolio_qs, many=True, context={'request': request}
+    )
+
+    return Response({
+        'code': 0,
+        'data': {
+            'users': user_serializer.data,
+            'portfolios': portfolio_serializer.data,
+        }
+    })
+
+
 class UserFavoritesView(generics.ListAPIView):
     """用户收藏列表"""
     permission_classes = [IsAuthenticated]

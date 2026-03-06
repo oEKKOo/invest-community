@@ -17,14 +17,16 @@ export const reviewPost = (postId: number, params: ReviewPostParams): Promise<vo
 }
 
 // 获取待处理举报
-export const getPendingReports = (params?: { page?: number; pageSize?: number }): Promise<PaginatedResponse<Report>> => {
+export const getPendingReports = (
+  params?: { page?: number; pageSize?: number }
+): Promise<PaginatedResponse<Report>> => {
   return get('/admin/reports/', { params: { ...params, status: 'PENDING' } })
 }
 
 // 处理举报
 export interface HandleReportParams {
   status: 'RESOLVED'
-  result: 'VALID' | 'INVALID'
+  result?: 'VALID' | 'INVALID'
   handleResult: string
 }
 

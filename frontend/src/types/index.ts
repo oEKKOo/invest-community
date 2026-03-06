@@ -44,9 +44,9 @@ export interface Comment {
   authorId: number
   authorName: string
   authorAvatar?: string
-  parentId?: number
-  replyToUserId?: number
-  replyToUsername?: string
+  parentId?: number | null
+  replyToUserId?: number | null
+  replyToUsername?: string | null
   body: string
   likeCount: number
   createdAt: string
@@ -148,11 +148,17 @@ export interface LoginResponse {
 export interface Report {
   id: number
   reporterName?: string
-  targetType: 'POST' | 'COMMENT' | 'USER'
+  targetType: 'POST' | 'COMMENT' | 'USER' | 'PORTFOLIO'
   targetId: number
   reason: string
   status: 'PENDING' | 'RESOLVED'
   createdAt: string
+  reportTypeDetail?: string
+  priority?: number
+  handledByName?: string
+  handleResult?: string
+  result?: string
+  handleTime?: string
 }
 
 // Dashboard 数据类型

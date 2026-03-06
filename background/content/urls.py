@@ -10,7 +10,9 @@ urlpatterns = [
     # 评论相关 - 同时支持带斜杠和不带斜杠的版本
     path('posts/<int:pk>/comments/', views.post_comments, name='post_comments'),
     path('posts/<int:pk>/comments', views.post_comments, name='post_comments_no_slash'),
-    path('comments/<int:comment_id>/', views.delete_comment, name='delete_comment'),
+    path('comments/<int:comment_id>/', views.comment_detail, name='comment_detail'),
+    path('comments/<int:comment_id>/replies/', views.comment_replies, name='comment_replies'),
+    path('comments/<int:comment_id>/like/', views.comment_toggle_like, name='comment_toggle_like'),
     
     # 点赞相关
     path('likes/', views.toggle_like, name='toggle_like'),

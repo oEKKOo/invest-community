@@ -106,6 +106,16 @@
             <el-icon><Share /></el-icon>
             <span>分享</span>
           </el-button>
+
+          <el-button
+            v-if="authStore.isLoggedIn"
+            type="text"
+            @click="openReportDialog('POST', postsStore.currentPost.id, postsStore.currentPost.title)"
+            class="action-btn report-btn"
+          >
+            <el-icon><Warning /></el-icon>
+            <span>举报</span>
+          </el-button>
         </div>
       </article>
 
@@ -113,7 +123,7 @@
       <section class="comments-section">
         <h3 class="comments-title">评论 ({{ postsStore.currentPost.comments }})</h3>
         
-        <!-- 发表评论 -->
+        <!-- 发表评论（顶级评论） -->
         <div class="comment-form" v-if="authStore.isLoggedIn">
           <el-input
             v-model="newComment"
@@ -143,17 +153,238 @@
               :key="comment.id"
               class="comment-item"
             >
-              <div class="comment-header">
-                <span
-                  class="comment-author author-clickable"
-                  @click="$router.push({ name: 'UserProfile', params: { userId: comment.authorId } })"
-                >
-                  {{ comment.authorName }}
-                </span>
-                <span class="comment-time">{{ formatDate(comment.createdAt) }}</span>
+              <div class="comment-main">
+                <div class="comment-header">
+                  <div class="comment-user">
+                    <span
+                      class="comment-author author-clickable"
+                      @click="$router.push({ name: 'UserProfile', params: { userId: comment.authorId } })"
+                    >
+                      {{ comment.authorName }}
+                    </span>
+                    <span class="comment-time">{{ formatDate(comment.createdAt) }}</span>
+                  </div>
+                  <div class="comment-actions-inline">
+                    <el-button
+                      v-if="authStore.isLoggedIn"
+                      link
+                      size="small"
+                      @click="startReply(comment)"
+                    >
+                      回复
+                    </el-button>
+                    <el-button
+                      v-if="canEditOrDelete(comment)"
+                      link
+                      size="small"
+                      @click="startEdit(comment)"
+                    >
+                      编辑
+                    </el-button>
+                    <el-button
+                      v-if="canEditOrDelete(comment)"
+                      link
+                      size="small"
+                      type="danger"
+                      @click="handleDeleteComment(comment)"
+                    >
+                      删除
+                    </el-button>
+                    <el-button
+                      v-if="authStore.isLoggedIn"
+                      link
+                      size="small"
+                      type="danger"
+                      @click="openReportDialog('COMMENT', comment.id, comment.body)"
+                    >
+                      举报
+                    </el-button>
+                  </div>
+                </div>
+
+                <div class="comment-body">
+                  <template v-if="editingCommentId === comment.id">
+                    <el-input
+                      v-model="editText"
+                      type="textarea"
+                      :rows="2"
+                      class="comment-edit-input"
+                    />
+                    <div class="comment-edit-actions">
+                      <el-button
+                        size="small"
+                        @click="cancelEdit"
+                      >
+                        取消
+                      </el-button>
+                      <el-button
+                        size="small"
+                        type="primary"
+                        :loading="editing"
+                        @click="confirmEdit(comment)"
+                      >
+                        保存
+                      </el-button>
+                    </div>
+                  </template>
+                  <template v-else>
+                    {{ comment.body }}
+                  </template>
+                </div>
+
+                <div class="comment-footer">
+                  <el-button
+                    class="comment-like-btn"
+                    link
+                    size="small"
+                    :type="comment.isLiked ? 'danger' : 'default'"
+                    @click="toggleCommentLike(comment)"
+                  >
+                    赞 {{ comment.likeCount }}
+                  </el-button>
+                </div>
               </div>
-              <div class="comment-body">
-                {{ comment.body }}
+
+              <!-- 子回复列表 -->
+              <div class="comment-replies" v-if="comment.replies && comment.replies.length">
+                <div
+                  v-for="reply in comment.replies"
+                  :key="reply.id"
+                  class="comment-reply-item"
+                >
+                  <div class="comment-header">
+                    <div class="comment-user">
+                      <span
+                        class="comment-author author-clickable"
+                        @click="$router.push({ name: 'UserProfile', params: { userId: reply.authorId } })"
+                      >
+                        {{ reply.authorName }}
+                      </span>
+                      <span v-if="reply.replyToUsername" class="reply-to">
+                        回复 @{{ reply.replyToUsername }}
+                      </span>
+                      <span class="comment-time">{{ formatDate(reply.createdAt) }}</span>
+                    </div>
+                    <div class="comment-actions-inline">
+                      <el-button
+                        v-if="authStore.isLoggedIn"
+                        link
+                        size="small"
+                        @click="startReply(reply, comment)"
+                      >
+                        回复
+                      </el-button>
+                      <el-button
+                        v-if="canEditOrDelete(reply)"
+                        link
+                        size="small"
+                        @click="startEdit(reply)"
+                      >
+                        编辑
+                      </el-button>
+                      <el-button
+                        v-if="canEditOrDelete(reply)"
+                        link
+                        size="small"
+                        type="danger"
+                        @click="handleDeleteComment(reply)"
+                      >
+                        删除
+                      </el-button>
+                      <el-button
+                        v-if="authStore.isLoggedIn"
+                        link
+                        size="small"
+                        type="danger"
+                        @click="openReportDialog('COMMENT', reply.id, reply.body)"
+                      >
+                        举报
+                      </el-button>
+                    </div>
+                  </div>
+                  <div class="comment-body">
+                    <template v-if="editingCommentId === reply.id">
+                      <el-input
+                        v-model="editText"
+                        type="textarea"
+                        :rows="2"
+                        class="comment-edit-input"
+                      />
+                      <div class="comment-edit-actions">
+                        <el-button
+                          size="small"
+                          @click="cancelEdit"
+                        >
+                          取消
+                        </el-button>
+                        <el-button
+                          size="small"
+                          type="primary"
+                          :loading="editing"
+                          @click="confirmEdit(reply)"
+                        >
+                          保存
+                        </el-button>
+                      </div>
+                    </template>
+                    <template v-else>
+                      {{ reply.body }}
+                    </template>
+                  </div>
+                  <div class="comment-footer">
+                    <el-button
+                      class="comment-like-btn"
+                      link
+                      size="small"
+                      :type="reply.isLiked ? 'danger' : 'default'"
+                      @click="toggleCommentLike(reply)"
+                    >
+                      赞 {{ reply.likeCount }}
+                    </el-button>
+                  </div>
+                </div>
+
+                <!-- 展开更多回复 -->
+                <div class="comment-more-replies">
+                  <el-button
+                    v-if="hasMoreReplies(comment)"
+                    link
+                    size="small"
+                    :loading="loadingRepliesId === comment.id"
+                    @click="loadAllReplies(comment)"
+                  >
+                    展开更多回复
+                  </el-button>
+                </div>
+              </div>
+
+              <!-- 回复输入框（针对某条评论） -->
+              <div
+                v-if="replyingTo && replyingTo.id === comment.id"
+                class="comment-reply-form"
+              >
+                <el-input
+                  v-model="replyText"
+                  type="textarea"
+                  :rows="2"
+                  placeholder="回复内容..."
+                />
+                <div class="comment-edit-actions">
+                  <el-button
+                    size="small"
+                    @click="cancelReply"
+                  >
+                    取消
+                  </el-button>
+                  <el-button
+                    size="small"
+                    type="primary"
+                    :loading="replying"
+                    @click="confirmReply(comment)"
+                  >
+                    发送回复
+                  </el-button>
+                </div>
               </div>
             </div>
           </div>
@@ -176,6 +407,15 @@
         </el-input>
       </div>
     </el-dialog>
+
+    <!-- 举报对话框 -->
+    <ReportDialog
+      v-model="showReportDialog"
+      :target-type="reportTargetType || 'POST'"
+      :target-id="reportTargetId || 0"
+      :target-summary="reportTargetSummary"
+      @submitted="handleReportSubmitted"
+    />
   </div>
 </template>
 
@@ -190,8 +430,10 @@ import * as postsApi from '../api/posts'
 import { ElMessage } from 'element-plus'
 import {
   Star,
-  Share
+  Share,
+  Warning
 } from '@element-plus/icons-vue'
+import ReportDialog from '@/components/ReportDialog.vue'
 import dayjs from 'dayjs'
 
 const route = useRoute()
@@ -203,6 +445,21 @@ const commenting = ref(false)
 const comments = ref<Comment[]>([])
 const loadingComments = ref(false)
 const showShareDialog = ref(false)
+
+// 楼中楼 & 交互状态
+const replyingTo = ref<Comment | null>(null)
+const replyText = ref('')
+const replying = ref(false)
+const editingCommentId = ref<number | null>(null)
+const editText = ref('')
+const editing = ref(false)
+const loadingRepliesId = ref<number | null>(null)
+
+// 举报
+const showReportDialog = ref(false)
+const reportTargetType = ref<'POST' | 'COMMENT' | null>(null)
+const reportTargetId = ref<number | null>(null)
+const reportTargetSummary = ref('')
 
 const shareUrl = computed(() => {
   return `${window.location.origin}/posts/${route.params.id}`
@@ -313,6 +570,159 @@ const loadComments = async (postId: number) => {
   } finally {
     loadingComments.value = false
   }
+}
+
+const canEditOrDelete = (comment: Comment) => {
+  if (!authStore.isLoggedIn || !authStore.user) return false
+  // 前端仅开放“本人评论”的编辑/删除入口，管理员治理动作走后台页面
+  return authStore.user.id === comment.authorId
+}
+
+const startReply = (comment: Comment, topLevelParent?: Comment) => {
+  if (!authStore.isLoggedIn) {
+    ElMessage.warning('请先登录')
+    return
+  }
+  replyingTo.value = topLevelParent || comment
+  replyText.value = ''
+}
+
+const cancelReply = () => {
+  replyingTo.value = null
+  replyText.value = ''
+}
+
+const confirmReply = async (parentComment: Comment) => {
+  if (!replyText.value.trim() || !postsStore.currentPost) return
+  replying.value = true
+  try {
+    const payload: postsApi.CreateCommentParams = {
+      text: replyText.value.trim(),
+      parentId: parentComment.id,
+      replyToUserId: parentComment.authorId
+    }
+    const reply = await postsApi.createComment(postsStore.currentPost.id, payload) as Comment
+    // 将新回复追加到对应父评论的 replies 列表
+    const target = comments.value.find(c => c.id === parentComment.id)
+    if (target) {
+      if (!target.replies) target.replies = []
+      target.replies.push(reply)
+    }
+    postsStore.currentPost.comments += 1
+    ElMessage.success('回复已发送')
+    cancelReply()
+  } catch (error) {
+    ElMessage.error('发送回复失败')
+  } finally {
+    replying.value = false
+  }
+}
+
+const hasMoreReplies = (comment: Comment) => {
+  // 底层实现始终只返回前 5 条预览，认为 >=5 就可能还有更多
+  return comment.replies && comment.replies.length >= 5
+}
+
+const loadAllReplies = async (comment: Comment) => {
+  loadingRepliesId.value = comment.id
+  try {
+    const data = await postsApi.getCommentReplies(comment.id, { page: 1, pageSize: 50 })
+    comment.replies = data.items
+  } catch (error) {
+    ElMessage.error('加载更多回复失败')
+  } finally {
+    loadingRepliesId.value = null
+  }
+}
+
+const startEdit = (comment: Comment) => {
+  if (!canEditOrDelete(comment)) return
+  editingCommentId.value = comment.id
+  editText.value = comment.body
+}
+
+const cancelEdit = () => {
+  editingCommentId.value = null
+  editText.value = ''
+}
+
+const confirmEdit = async (comment: Comment) => {
+  if (!editText.value.trim()) {
+    ElMessage.warning('评论内容不能为空')
+    return
+  }
+  editing.value = true
+  try {
+    const updated = await postsApi.updateComment(comment.id, { text: editText.value.trim() }) as Comment
+    comment.body = updated.body
+    comment.createdAt = updated.createdAt
+    ElMessage.success('评论已更新')
+    cancelEdit()
+  } catch (error) {
+    ElMessage.error('更新评论失败')
+  } finally {
+    editing.value = false
+  }
+}
+
+const handleDeleteComment = async (comment: Comment) => {
+  try {
+    await postsApi.deleteComment(comment.id)
+    // 从顶级或子回复列表中移除
+    comments.value = comments.value
+      .map(c => {
+        if (c.id === comment.id) {
+          return null
+        }
+        if (c.replies && c.replies.length) {
+          c.replies = c.replies.filter(r => r.id !== comment.id)
+        }
+        return c
+      })
+      .filter((c): c is Comment => c !== null)
+
+    if (postsStore.currentPost) {
+      postsStore.currentPost.comments = Math.max(0, postsStore.currentPost.comments - 1)
+    }
+    ElMessage.success('评论已删除')
+  } catch (error) {
+    ElMessage.error('删除评论失败')
+  }
+}
+
+const toggleCommentLike = async (comment: Comment) => {
+  if (!authStore.isLoggedIn) {
+    ElMessage.warning('请先登录')
+    return
+  }
+  try {
+    if (comment.isLiked) {
+      await postsApi.unlikeComment(comment.id)
+      comment.isLiked = false
+      comment.likeCount = Math.max(0, comment.likeCount - 1)
+    } else {
+      await postsApi.likeComment(comment.id)
+      comment.isLiked = true
+      comment.likeCount += 1
+    }
+  } catch (error) {
+    ElMessage.error('操作失败')
+  }
+}
+
+const openReportDialog = (targetType: 'POST' | 'COMMENT', targetId: number, summary: string) => {
+  if (!authStore.isLoggedIn) {
+    ElMessage.warning('请先登录')
+    return
+  }
+  reportTargetType.value = targetType
+  reportTargetId.value = targetId
+  reportTargetSummary.value = summary || (targetType === 'POST' ? '帖子' : '评论')
+  showReportDialog.value = true
+}
+
+const handleReportSubmitted = () => {
+  // 举报提交成功后的回调，可以在这里做一些额外处理
 }
 
 onMounted(async () => {

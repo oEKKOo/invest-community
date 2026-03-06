@@ -83,6 +83,16 @@
             <el-icon><Share /></el-icon>
             分享组合
           </el-button>
+
+          <el-button
+            v-if="authStore.isLoggedIn && !isOwner"
+            type="danger"
+            plain
+            @click="openReportPortfolioDialog"
+          >
+            <el-icon><Warning /></el-icon>
+            举报组合
+          </el-button>
         </div>
       </div>
 
@@ -290,6 +300,15 @@
         </el-input>
       </div>
     </el-dialog>
+
+    <!-- 举报组合对话框 -->
+    <ReportDialog
+      v-model="showReportDialog"
+      target-type="PORTFOLIO"
+      :target-id="reportTargetPortfolioId || 0"
+      :target-summary="reportTargetPortfolioSummary"
+      @submitted="handleReportSubmitted"
+    />
   </div>
 </template>
 
@@ -307,8 +326,10 @@ import { TooltipComponent, LegendComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import {
   Star,
-  Share
+  Share,
+  Warning
 } from '@element-plus/icons-vue'
+import ReportDialog from '@/components/ReportDialog.vue'
 import dayjs from 'dayjs'
 import { getHoldingPerformance } from '../api/holdings'
 import type { HoldingPerformanceItem } from '../types'
@@ -320,6 +341,9 @@ const portfoliosStore = usePortfoliosStore()
 const authStore = useAuthStore()
 
 const showShareDialog = ref(false)
+const showReportDialog = ref(false)
+const reportTargetPortfolioId = ref<number | null>(null)
+const reportTargetPortfolioSummary = ref('')
 
 // 图表颜色
 const CHART_COLORS = ['#3B82F6', '#34D399', '#60A5FA', '#F472B6', '#FBBF24', '#818CF8']
@@ -519,6 +543,21 @@ const formatDate = (dateStr: string) => {
 
 const getAvatarUrl = (id: number) => {
   return `https://picsum.photos/seed/${id}/40/40`
+}
+
+const openReportPortfolioDialog = () => {
+  if (!authStore.isLoggedIn) {
+    ElMessage.warning('请先登录')
+    return
+  }
+  if (!portfoliosStore.currentPortfolio) return
+  reportTargetPortfolioId.value = portfoliosStore.currentPortfolio.id
+  reportTargetPortfolioSummary.value = `${portfoliosStore.currentPortfolio.title} - ${portfoliosStore.currentPortfolio.description || '投资组合'}`
+  showReportDialog.value = true
+}
+
+const handleReportSubmitted = () => {
+  // 举报提交成功后的回调
 }
 
 onMounted(async () => {

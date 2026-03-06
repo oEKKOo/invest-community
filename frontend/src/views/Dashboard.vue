@@ -139,21 +139,67 @@
           <el-button type="primary" size="small" @click="$router.push('/login')">立即登录</el-button>
         </div>
 
-        <!-- 加载中-->
-        <div v-else-if="feedLoading" class="feed-loading">
-          <div v-for="n in 4" :key="n" class="post-skeleton">
-            <el-skeleton :rows="3" animated />
-          </div>
-        </div>
+    <!-- 加载中-->
+    <div v-else-if="feedLoading" class="feed-loading">
+      <div v-for="n in 4" :key="n" class="post-skeleton">
+        <el-skeleton :rows="3" animated />
+      </div>
+    </div>
 
-        <!-- 帖子列表 / 组合列表 -->
-        <div v-else-if="feedPosts.length" class="posts-feed">
-          <div
-            v-for="post in feedPosts"
-            :key="post.id"
-            class="post-card"
-            @click="$router.push(`/posts/${post.id}`)"
-          >
+    <!-- 关注组合流：单独使用组合卡片 UI -->
+    <div v-else-if="activeFeedTab === 'followPortfolios'">
+      <div v-if="followPortfoliosFeed.length" class="portfolio-feed">
+        <div
+          v-for="pf in followPortfoliosFeed"
+          :key="pf.id"
+          class="portfolio-card-main"
+          @click="$router.push(`/portfolios/${pf.id}`)"
+        >
+          <div class="portfolio-card-header">
+            <div class="portfolio-title">{{ pf.title }}</div>
+            <span
+              class="portfolio-return"
+              :class="(pf.returnsYTD || 0) >= 0 ? 'up' : 'down'"
+            >
+              {{ (pf.returnsYTD || 0) >= 0 ? '+' : '' }}{{ ((pf.returnsYTD || 0) * 100).toFixed(2) }}%
+            </span>
+          </div>
+          <div class="portfolio-meta">
+            <el-avatar
+              :size="28"
+              class="post-avatar author-clickable"
+              @click.stop="$router.push({ name: 'UserProfile', params: { userId: pf.userId } })"
+            >
+              {{ (pf.userName || 'U')[0].toUpperCase() }}
+            </el-avatar>
+            <span
+              class="portfolio-owner author-clickable"
+              @click.stop="$router.push({ name: 'UserProfile', params: { userId: pf.userId } })"
+            >
+              {{ pf.userName }}
+            </span>
+            <span class="portfolio-risk-tag">
+              {{ RISK_LABELS[pf.riskLevel] || pf.riskLevel }}
+            </span>
+          </div>
+          <p v-if="pf.description" class="portfolio-desc">
+            {{ pf.description }}
+          </p>
+        </div>
+      </div>
+      <div v-else class="feed-empty">
+        <el-empty description="暂无关注组合动态，去关注一些优秀投资者吧" />
+      </div>
+    </div>
+
+    <!-- 帖子流 -->
+    <div v-else-if="feedPosts.length" class="posts-feed">
+      <div
+        v-for="post in feedPosts"
+        :key="post.id"
+        class="post-card"
+        @click="$router.push(`/posts/${post.id}`)"
+      >
             <!-- 帖子头部：作者信息-->
             <div class="post-card-header">
               <el-avatar
@@ -587,6 +633,7 @@ const chartOption = computed(() => {
 // ============================================================
 const activeFeedTab = ref('new')
 const feedPosts = ref<Post[]>([])
+const followPortfoliosFeed = ref<Portfolio[]>([])
 const feedLoading = ref(false)
 
 const fetchFeed = async (tab: string = activeFeedTab.value) => {
@@ -612,27 +659,12 @@ const fetchFeed = async (tab: string = activeFeedTab.value) => {
 
     if (tab === 'followPortfolios') {
       if (!authStore.isLoggedIn) {
-        feedPosts.value = []
+        followPortfoliosFeed.value = []
         return
       }
       const { getFollowingPortfoliosFeed } = await import('@/api/users')
       const res = await getFollowingPortfoliosFeed({ page: 1, pageSize: 8 })
-      // 将组合列表适配到 Post 卡片结构的 minimal 版本
-      feedPosts.value = res.items.map((pf: any) => ({
-        id: pf.id,
-        authorId: pf.userId,
-        authorName: pf.userName,
-        title: pf.title,
-        content: pf.description || '',
-        status: 'PUBLISHED',
-        tags: [],
-        likes: pf.likes ?? 0,
-        comments: 0,
-        createdAt: pf.createdAt,
-        assets: pf.assets,
-        isLiked: pf.isLiked,
-        isFavorited: false
-      })) as unknown as Post[]
+      followPortfoliosFeed.value = res.items
       return
     }
 
@@ -1237,6 +1269,84 @@ onMounted(() => {
   border: 1px solid $border-subtle;
   border-radius: $border-radius;
   padding: 1.25rem;
+}
+
+.portfolio-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.portfolio-card-main {
+  border-radius: $border-radius;
+  border: 1px solid $border-subtle;
+  padding: 1rem 1.1rem;
+  background: #ffffff;
+  cursor: pointer;
+  transition: $transition-all;
+  box-shadow: $shadow-sm;
+
+  &:hover {
+    border-color: rgba(29, 78, 216, 0.25);
+    background: linear-gradient(145deg, rgba(29, 78, 216, 0.03) 0%, #ffffff 100%);
+    box-shadow: $shadow;
+    transform: translateY(-1px);
+  }
+}
+
+.portfolio-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.35rem;
+
+  .portfolio-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: $text-primary;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .portfolio-return {
+    font-size: 0.9rem;
+    font-weight: 600;
+
+    &.up { color: #f56c6c; }
+    &.down { color: #67c23a; }
+  }
+}
+
+.portfolio-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.25rem;
+
+  .portfolio-owner {
+    font-size: 0.8rem;
+    color: $text-secondary;
+  }
+
+  .portfolio-risk-tag {
+    padding: 0 0.45rem;
+    font-size: 0.75rem;
+    border-radius: 999px;
+    background: #f3f4ff;
+    color: #4f46e5;
+  }
+}
+
+.portfolio-desc {
+  font-size: 0.8rem;
+  color: $text-secondary;
+  margin: 0.1rem 0 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .posts-feed {
