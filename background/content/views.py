@@ -99,6 +99,12 @@ class ContentListView(generics.ListCreateAPIView):
         重写 create 方法以返回自定义响应格式
         支持 assetIds（ID数组）和 assetCodes（代码数组）两种关联方式
         """
+        # 禁言/封禁用户不允许发帖
+        if not request.user.is_authenticated:
+            return Response({'code': 4010, 'message': '需要登录'}, status=status.HTTP_401_UNAUTHORIZED)
+        if getattr(request.user, 'status', 'NORMAL') in ['MUTED', 'BANNED']:
+            return Response({'code': 4030, 'message': '当前账户已被限制发帖或封禁'}, status=status.HTTP_403_FORBIDDEN)
+
         serializer = ContentCreateSerializer(data=request.data)
         if serializer.is_valid():
             content = serializer.save(author=request.user)
@@ -268,6 +274,11 @@ def post_comments(request, pk):
         if not request.user.is_authenticated:
             return Response({'code': 4010, 'message': '需要登录'}, 
                           status=status.HTTP_401_UNAUTHORIZED)
+
+        # 禁言/封禁用户不允许发表评论
+        if getattr(request.user, 'status', 'NORMAL') in ['MUTED', 'BANNED']:
+            return Response({'code': 4030, 'message': '当前账户已被限制评论或封禁'},
+                            status=status.HTTP_403_FORBIDDEN)
         
         serializer = CommentCreateSerializer(
             data=request.data,

@@ -6,7 +6,14 @@
         <h2 class="page-title">行情列表</h2>
         <router-link :to="{ name: 'MarketRankings' }" class="rankings-link">
           <el-button size="small" type="primary" plain>
-            🏆 涨跌幅榜
+            <el-icon style="margin-right:4px;">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M8 4h8v3a4 4 0 0 1-4 4 4 4 0 0 1-4-4V4Z" />
+                <path d="M8 4H5a2 2 0 0 0-2 2v1a4 4 0 0 0 4 4" />
+                <path d="M16 4h3a2 2 0 0 1 2 2v1a4 4 0 0 1-4 4" />
+              </svg>
+            </el-icon>
+            涨跌幅榜
           </el-button>
         </router-link>
       </div>

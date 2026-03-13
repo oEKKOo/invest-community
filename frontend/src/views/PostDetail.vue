@@ -71,7 +71,13 @@
               :type="getAssetMarketType(asset.market)"
               class="asset-chip-tag"
             >
-              📈 {{ asset.code }} · {{ asset.name }}
+              <el-icon style="margin-right:4px;">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6">
+                  <path d="M4 17 10 11 14 15 20 7" />
+                  <path d="M14 7h6v6" />
+                </svg>
+              </el-icon>
+              {{ asset.code }} · {{ asset.name }}
               <span v-if="asset.market" class="market-suffix">({{ asset.market }})</span>
             </el-tag>
           </router-link>
@@ -105,16 +111,6 @@
           >
             <el-icon><Share /></el-icon>
             <span>分享</span>
-          </el-button>
-
-          <el-button
-            v-if="authStore.isLoggedIn"
-            type="text"
-            @click="openReportDialog('POST', postsStore.currentPost.id, postsStore.currentPost.title)"
-            class="action-btn report-btn"
-          >
-            <el-icon><Warning /></el-icon>
-            <span>举报</span>
           </el-button>
         </div>
       </article>
@@ -409,13 +405,44 @@
     </el-dialog>
 
     <!-- 举报对话框 -->
-    <ReportDialog
+    <el-dialog
       v-model="showReportDialog"
-      :target-type="reportTargetType || 'POST'"
-      :target-id="reportTargetId || 0"
-      :target-summary="reportTargetSummary"
-      @submitted="handleReportSubmitted"
-    />
+      title="举报内容"
+      width="480px"
+    >
+      <el-form :model="reportForm" label-width="90px">
+        <el-form-item label="举报类型">
+          <el-select v-model="reportForm.reportType" placeholder="选择举报类型">
+            <el-option label="广告/垃圾信息" value="AD" />
+            <el-option label="辱骂/人身攻击" value="ABUSE" />
+            <el-option label="虚假收益/诱导荐股" value="FAKE_RETURN" />
+            <el-option label="违法违规内容" value="ILLEGAL" />
+            <el-option label="其他" value="OTHER" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="详细说明">
+          <el-input
+            v-model="reportForm.reason"
+            type="textarea"
+            :rows="3"
+            placeholder="请补充举报原因，便于管理员处理"
+          />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="showReportDialog = false">取消</el-button>
+          <el-button
+            type="danger"
+            :loading="reporting"
+            @click="submitReport"
+          >
+            提交举报
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -427,13 +454,12 @@ import { useAuthStore } from '../stores/auth'
 import type { Comment } from '../types'
 import { PostStatus } from '../types'
 import * as postsApi from '../api/posts'
+import * as reportsApi from '../api/reports'
 import { ElMessage } from 'element-plus'
 import {
   Star,
-  Share,
-  Warning
+  Share
 } from '@element-plus/icons-vue'
-import ReportDialog from '@/components/ReportDialog.vue'
 import dayjs from 'dayjs'
 
 const route = useRoute()
@@ -457,9 +483,13 @@ const loadingRepliesId = ref<number | null>(null)
 
 // 举报
 const showReportDialog = ref(false)
+const reporting = ref(false)
 const reportTargetType = ref<'POST' | 'COMMENT' | null>(null)
 const reportTargetId = ref<number | null>(null)
-const reportTargetSummary = ref('')
+const reportForm = ref({
+  reportType: '',
+  reason: ''
+})
 
 const shareUrl = computed(() => {
   return `${window.location.origin}/posts/${route.params.id}`
@@ -717,12 +747,34 @@ const openReportDialog = (targetType: 'POST' | 'COMMENT', targetId: number, summ
   }
   reportTargetType.value = targetType
   reportTargetId.value = targetId
-  reportTargetSummary.value = summary || (targetType === 'POST' ? '帖子' : '评论')
+  reportForm.value = {
+    reportType: '',
+    reason: ''
+  }
   showReportDialog.value = true
 }
 
-const handleReportSubmitted = () => {
-  // 举报提交成功后的回调，可以在这里做一些额外处理
+const submitReport = async () => {
+  if (!reportTargetType.value || !reportTargetId.value) return
+  if (!reportForm.value.reportType || !reportForm.value.reason.trim()) {
+    ElMessage.warning('请完整填写举报类型和原因')
+    return
+  }
+  reporting.value = true
+  try {
+    await reportsApi.createReport({
+      targetType: reportTargetType.value,
+      targetId: reportTargetId.value,
+      reason: reportForm.value.reason.trim(),
+      reportTypeDetail: reportForm.value.reportType
+    })
+    ElMessage.success('举报已提交，感谢你的反馈')
+    showReportDialog.value = false
+  } catch (error) {
+    ElMessage.error('举报提交失败')
+  } finally {
+    reporting.value = false
+  }
 }
 
 onMounted(async () => {

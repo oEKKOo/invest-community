@@ -283,6 +283,57 @@
           </div>
         </div>
       </div>
+
+      <!-- 组合评论区 -->
+      <div class="comments-card">
+        <h2 class="section-title">组合讨论</h2>
+        <el-empty v-if="!comments.length" description="还没有人发表评论，抢沙发～" />
+        <div v-else class="comment-list">
+          <div v-for="c in comments" :key="c.id" class="comment-item">
+            <div class="comment-main">
+              <div class="comment-meta">
+                <span class="author">{{ c.authorName }}</span>
+                <span class="time">{{ formatTime(c.createdAt) }}</span>
+              </div>
+              <div class="comment-body">
+                <template v-if="c.replyToUsername">
+                  <span class="reply-to">@{{ c.replyToUsername }}：</span>
+                </template>
+                {{ c.body }}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-if="authStore.isLoggedIn" class="comment-editor">
+          <el-input
+            v-model="newComment"
+            type="textarea"
+            :rows="3"
+            resize="none"
+            placeholder="发表你对该组合的看法..."
+          />
+          <el-button type="primary" size="small" class="comment-submit" @click="handleSubmitComment">
+            发布评论
+          </el-button>
+        </div>
+      </div>
+
+      <!-- 更新日志 -->
+      <div class="updates-card">
+        <h2 class="section-title">组合更新日志</h2>
+        <el-empty v-if="!updateLogs.length" description="作者还没有发布任何更新日志" />
+        <ul v-else class="update-list">
+          <li v-for="u in updateLogs" :key="u.id" class="update-item">
+            <div class="update-header">
+              <span class="update-title">{{ u.title }}</span>
+              <span class="update-time">{{ formatDate(u.createdAt) }}</span>
+            </div>
+            <div class="update-content">
+              {{ u.content }}
+            </div>
+          </li>
+        </ul>
+      </div>
     </div>
 
     <!-- 分享对话框-->
@@ -344,6 +395,9 @@ const showShareDialog = ref(false)
 const showReportDialog = ref(false)
 const reportTargetPortfolioId = ref<number | null>(null)
 const reportTargetPortfolioSummary = ref('')
+const comments = ref<any[]>([])
+const newComment = ref('')
+const updateLogs = ref<any[]>([])
 
 // 图表颜色
 const CHART_COLORS = ['#3B82F6', '#34D399', '#60A5FA', '#F472B6', '#FBBF24', '#818CF8']
@@ -541,6 +595,10 @@ const formatDate = (dateStr: string) => {
   return dayjs(dateStr).format('YYYY年MM月DD日')
 }
 
+const formatTime = (dateStr: string) => {
+  return dayjs(dateStr).format('MM-DD HH:mm')
+}
+
 const getAvatarUrl = (id: number) => {
   return `https://picsum.photos/seed/${id}/40/40`
 }
@@ -567,11 +625,33 @@ onMounted(async () => {
       await portfoliosStore.fetchPortfolio(portfolioId)
       // 如果是本人的组合，同步拉持仓收益（非阻塞）
       fetchHoldingPerf()
+      // 组合评论与更新日志
+      const [commentRes, updateRes] = await Promise.all([
+        getPortfolioComments(portfolioId),
+        getPortfolioUpdates(portfolioId)
+      ])
+      comments.value = commentRes.items
+      updateLogs.value = updateRes.items
     } catch (error) {
       ElMessage.error('获取投资组合详情失败')
     }
   }
 })
+
+const handleSubmitComment = async () => {
+  const body = newComment.value.trim()
+  if (!body) return
+  const portfolioId = Number(route.params.id)
+  if (!portfolioId) return
+  try {
+    const created = await createPortfolioComment(portfolioId, { body })
+    comments.value.push(created)
+    newComment.value = ''
+    ElMessage.success('评论已发布')
+  } catch {
+    ElMessage.error('发表评论失败')
+  }
+}
 </script>
 
 <style lang="scss" scoped>
@@ -941,6 +1021,93 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+}
+
+.comments-card,
+.updates-card {
+  margin-top: 1rem;
+  background: #ffffff;
+  border: 1px solid $border-default;
+  border-radius: $border-radius;
+  padding: 1.5rem;
+}
+
+.comment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.comment-item {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid $border-subtle;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.comment-meta {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: $text-muted;
+  margin-bottom: 0.15rem;
+}
+
+.comment-body {
+  font-size: 0.85rem;
+  color: $text-primary;
+}
+
+.comment-editor {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.comment-submit {
+  align-self: flex-end;
+}
+
+.update-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.update-item {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid $border-subtle;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.update-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  margin-bottom: 0.25rem;
+}
+
+.update-title {
+  font-weight: 600;
+}
+
+.update-time {
+  color: $text-muted;
+}
+
+.update-content {
+  font-size: 0.85rem;
+  color: $text-secondary;
 }
 
 .stats-card {

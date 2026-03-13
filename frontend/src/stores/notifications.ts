@@ -3,6 +3,11 @@ import { ref, computed } from 'vue'
 import type { Notification, PaginatedResponse } from '@/types'
 import * as notificationsApi from '@/api/notifications'
 
+interface NotificationStreamPayload {
+  unreadCount: number
+  items: Notification[]
+}
+
 export const useNotificationsStore = defineStore('notifications', () => {
   const items = ref<Notification[]>([])
   const loading = ref(false)
@@ -67,6 +72,12 @@ export const useNotificationsStore = defineStore('notifications', () => {
     }))
   }
 
+  const applyStreamSnapshot = (payload: NotificationStreamPayload) => {
+    // 后端返回的是最新 10 条，直接替换本地列表
+    items.value = payload.items
+    // 这里的 total 保持分页意义；未读数量单独由 unreadCount 计算或前端使用 payload.unreadCount
+  }
+
   return {
     items,
     loading,
@@ -78,7 +89,8 @@ export const useNotificationsStore = defineStore('notifications', () => {
     fetchNotifications,
     refreshUnread,
     markRead,
-    markAllRead
+    markAllRead,
+    applyStreamSnapshot
   }
 })
 

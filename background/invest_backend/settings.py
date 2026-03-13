@@ -76,6 +76,7 @@ INSTALLED_APPS = [
     'notifications',
     'reports',
     'market_data',  # 行情数据模块（Finnhub 接入）
+    'messages',     # 私信与会话模块
 ]
 
 MIDDLEWARE = [

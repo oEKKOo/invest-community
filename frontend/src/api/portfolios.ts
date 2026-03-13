@@ -46,3 +46,27 @@ export const updatePortfolio = (id: number, params: Partial<CreatePortfolioParam
 export const deletePortfolio = (id: number): Promise<void> => {
   return del(`/portfolios/${id}/`)
 }
+
+// 组合评论
+export const getPortfolioComments = (
+  id: number
+): Promise<{ items: any[] }> => {
+  return get(`/portfolios/${id}/comments/`)
+}
+
+export const createPortfolioComment = (
+  id: number,
+  payload: { body: string; parentId?: number | null; replyToUserId?: number | null }
+): Promise<any> => {
+  return post(`/portfolios/${id}/comments/`, payload)
+}
+
+// 组合订阅（开关）
+export const togglePortfolioSubscribe = (id: number): Promise<{ message: string }> => {
+  return post(`/portfolios/${id}/subscribe/`)
+}
+
+// 组合更新日志
+export const getPortfolioUpdates = (id: number): Promise<{ items: any[] }> => {
+  return get(`/portfolios/${id}/updates/`)
+}

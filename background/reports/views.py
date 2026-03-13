@@ -147,4 +147,46 @@ class AdminAlertsView(generics.ListAPIView):
         if status_param:
             queryset = queryset.filter(status=status_param)
         
+        alert_type = self.request.query_params.get('alertType')
+        if alert_type:
+            queryset = queryset.filter(alert_type=alert_type)
+        
         return queryset.order_by('-created_at')
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def admin_handle_alert(request, pk):
+    """
+    管理员处理告警：
+    PATCH /api/admin/alerts/{id}/
+    body: { "status": "RESOLVED" | "IGNORED", "handleResult": "备注说明" }
+    """
+    user = request.user
+    if user.role not in ['MODERATOR', 'ADMIN']:
+        return Response({
+            'code': 4030,
+            'message': '无权限'
+        }, status=status.HTTP_403_FORBIDDEN)
+
+    alert = get_object_or_404(Alert, pk=pk)
+
+    status_value = request.data.get('status')
+    handle_result = request.data.get('handleResult', '')
+
+    if status_value not in ['OPEN', 'RESOLVED', 'IGNORED']:
+        return Response({
+            'code': 4001,
+            'message': '无效的状态'
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    alert.status = status_value
+    alert.handle_result = handle_result
+    alert.handled_by = user
+    alert.handle_time = timezone.now()
+    alert.save()
+
+    return Response({
+        'code': 0,
+        'message': '告警已更新'
+    })

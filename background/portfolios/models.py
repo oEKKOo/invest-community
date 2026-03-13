@@ -173,3 +173,98 @@ class HoldingDailySnapshot(models.Model):
 
     def __str__(self):
         return f"{self.holding.asset.code} @ {self.close_price} ({self.date})"
+
+
+class PortfolioComment(models.Model):
+    """组合评论表（结构复用帖子评论模型的关键字段）"""
+    portfolio = models.ForeignKey(
+        Portfolio,
+        on_delete=models.CASCADE,
+        related_name='comments',
+        verbose_name='所属组合',
+    )
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='portfolio_comments',
+        verbose_name='评论作者',
+    )
+    parent = models.ForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='replies',
+        verbose_name='父评论',
+    )
+    reply_to_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='portfolio_comment_replies',
+        verbose_name='被回复用户',
+    )
+    body = models.TextField('评论内容')
+    is_deleted = models.BooleanField('是否已删除', default=False)
+    created_at = models.DateTimeField('创建时间', default=timezone.now)
+    updated_at = models.DateTimeField('更新时间', auto_now=True)
+
+    class Meta:
+        db_table = 'portfolio_comment'
+        verbose_name = '组合评论'
+        verbose_name_plural = '组合评论'
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.author.username}: {self.body[:20]}"
+
+
+class PortfolioSubscription(models.Model):
+    """组合订阅 / 收藏"""
+    portfolio = models.ForeignKey(
+        Portfolio,
+        on_delete=models.CASCADE,
+        related_name='subscriptions',
+        verbose_name='组合',
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='portfolio_subscriptions',
+        verbose_name='用户',
+    )
+    created_at = models.DateTimeField('订阅时间', default=timezone.now)
+
+    class Meta:
+        db_table = 'portfolio_subscription'
+        verbose_name = '组合订阅'
+        verbose_name_plural = '组合订阅'
+        unique_together = ['portfolio', 'user']
+
+    def __str__(self):
+        return f"{self.user.username} -> {self.portfolio.title}"
+
+
+class PortfolioUpdateLog(models.Model):
+    """
+    组合更新日志：记录调仓说明、收益复盘、策略变更等
+    """
+    portfolio = models.ForeignKey(
+        Portfolio,
+        on_delete=models.CASCADE,
+        related_name='update_logs',
+        verbose_name='组合',
+    )
+    title = models.CharField('更新标题', max_length=200)
+    content = models.TextField('更新内容')
+    created_at = models.DateTimeField('创建时间', default=timezone.now)
+
+    class Meta:
+        db_table = 'portfolio_update_log'
+        verbose_name = '组合更新日志'
+        verbose_name_plural = '组合更新日志'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.portfolio.title} - {self.title}"

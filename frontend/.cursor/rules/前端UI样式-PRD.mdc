@@ -1,0 +1,246 @@
+---
+alwaysApply: false
+description: 前端整体 UI / CSS 设计 PRD（布局、主题、组件风格与交互规范）
+globs: src/**/*.vue,src/styles/**/*.scss
+---
+
+## 🎨 一、前端整体视觉与布局设计目标
+
+- **产品定位**：投资研究社区（InvestHub），风格为「专业金融 + 轻量社交」，重点突出行情信息的可靠感、阅读舒适性与交互的克制感。
+- **设计关键词**：专业可信、清爽克制、数据可读、层级清晰。
+- **布局基础**：
+  - 顶层采用 `MainLayout` 双栏布局：左侧固定导航 Sidebar，右侧为 Header + Page Content。
+  - 主页面内容宽度建议控制在 **1000–1280px**，居中显示（如 `Dashboard.vue`、`Community.vue`、`PostDetail.vue`、`AssetDetail.vue` 已采用类似约束）。
+
+---
+
+## 🌈 二、主题与配色系统（Design Tokens）
+
+### 2.1 基础色板（对齐 `src/styles/variables.scss`）
+
+- **品牌主色（金融蓝系）**
+  - `primary-color`: `#1D4ED8`（主按钮、主态文字、链接高亮）
+  - `primary-light`: `#3B82F6`（hover、渐变过渡色）
+  - `primary-dark`: `#1E3A8A`（深色文本或强调边框）
+  - `primary-glow`: `rgba(29, 78, 216, 0.15)`（发光、选中态背景）
+- **辅助与强调色**
+  - `secondary-color`: `#0EA5E9`（次级强调、轻量信息标签）
+  - `accent-color`: `#16A34A`（正向操作 / 状态，如「收益为正」「通知未读」）
+  - `accent-gold`: `#D97706`（榜单、风险提示、奖牌色）
+- **语义色**
+  - `success-color`: `#16A34A`
+  - `warning-color`: `#D97706`
+  - `error-color`: `#DC2626`
+  - `info-color`: `#0EA5E9`
+
+### 2.2 背景与文字
+
+- **背景层级**
+  - 页面背景：`$bg-dark` = `#F8FAFC`（浅蓝灰，偏向仪表盘感）
+  - 卡片背景：`$bg-card` = `#FFFFFF`
+  - 浮层/高亮区域：`$bg-surface` = `#F1F5F9`
+- **文字颜色**
+  - 主文案：`$text-primary` = `#0F172A`
+  - 辅助信息：`$text-secondary` = `#475569`
+  - 弱提示/说明：`$text-muted` = `#94A3B8`
+
+### 2.3 阴影与圆角
+
+- **圆角统一**
+  - 小卡片/按钮：`$border-radius` = `12px`
+  - 主卡片/弹窗：`$border-radius-lg` = `16px`
+  - 重要卡片/对话框：`$border-radius-xl` = `20px`
+- **阴影层级**
+  - 列表卡片 / 页面卡片：`$shadow-sm` 或 `$shadow`
+  - 浮层/弹窗：`$shadow-md` / `$shadow-lg`
+  - 高亮按钮（Primary）：`$shadow-blue`
+
+---
+
+## 🧱 三、布局体系（Layout）
+
+### 3.1 主布局 `MainLayout.vue`
+
+- **结构**：
+  - 左侧 Sidebar：宽度 `260px`，移动端（≤768px）收窄至 `64px`，隐藏文字，仅保留图标。
+  - 右侧 Main：包含固定顶部导航 `main-header` + 滚动内容区 `page-content`。
+- **Sidebar 要求**：
+  - 顶部 Logo 使用渐变蓝色方块 + 白色折线图标，当前实现已符合设计。
+  - 菜单项 (`.nav-item`)：
+    - hover：浅色背景 + icon 背景色 `rgba(29, 78, 216, 0.08)`。
+    - active：背景 `rgba(29, 78, 216, 0.08)`，边框 `rgba(29,78,216,0.15)`，右侧亮条 `nav-indicator` 使用品牌渐变。
+  - 底部用户信息卡 (`.user-info`)：
+    - 背景使用 `$bg-surface`，hover 时加深为 `$bg-dark`，同时边框从 `border-subtle` 提升到 `border-default`。
+    - 头像边框与 Element Plus 头像全局规范一致（2px 灰边 + hover 高亮）。
+  - 统一放置「数据来源 / 免责声明」文案在侧栏底部 `.sidebar-disclaimer`，移动端隐藏。
+
+### 3.2 Header 与搜索
+
+- 顶部 Header 粘性固定，背景采用半透明白 + `backdrop-filter: blur(12px)`。
+- 全局搜索框 (`.search-inner`)：
+  - 正常态：`bg = $bg-surface`，边框为 `$border-default`，轻微阴影 `$shadow-sm`。
+  - focus 态：背景 `#FFFFFF`，边框 `primary-color`，外圈 `0 0 0 3px rgba(29,78,216,0.12)`。
+  - 下拉建议 (`.search-dropdown`) 为白底 + 强阴影，内部分区标题 `.section-title`、热门词 `.hot-item` 等已有样式，视为统一交互规范。
+
+---
+
+## 📄 四、页面级 UI 规范
+
+### 4.1 首页 / 仪表盘 `Dashboard.vue`
+
+- **结构分层**：
+  1. **顶部免责声明条**：`disclaimer-bar` 黄色弱提示，Icon + 文本；全站所有含实时/延迟行情的页面应复用同一设计语言。
+  2. **第一层（市场总览）**：
+     - 左：6 宫格榜单卡片（涨幅榜 / 跌幅榜 / 活跃等，根据 `rankTypes` 切换）。
+       - 卡片 hover 使用轻微起浮 + 渐变背景。
+       - 涨跌颜色遵循「红涨绿跌灰平」规范：`up = #f56c6c`，`down = #67c23a`，`flat = text-muted`。
+     - 右：折线 /面积图，使用 ECharts，自带 legend/tooltip 样式需与全局色调相协调（蓝色曲线、浅蓝面积）。
+  3. **第二层（信息流 + 右侧边栏）**：
+     - 左：信息流卡片（帖子 or 组合），统一卡片样式：
+       - 白底 + `border-subtle` + `shadow-sm`。
+       - hover：边框改为品牌色，背景叠加轻渐变，微小位移。
+       - 标题 `post-title` / `portfolio-title` 均使用 `0.9375–1.0625rem`、`font-weight:700`。
+     - 右：多块侧边卡片：
+       - **收益排行**：前三名用表情 + medal 颜色（`gold/silver/bronze` 类）。
+       - **热门标的**：`hot-assets-list`，代码使用等宽字体、涨跌用红/绿字。
+       - **社区活跃度**：统计数字用等宽字体 + `admin-value` 标示危险值。
+       - **推荐入口**：每项 `.recommend-item` 左侧 emoji + 标题/副标题 + 右箭头。
+
+### 4.2 社区列表 `Community.vue`
+
+- **页面宽度**：`max-width: 1000px` 居中。
+- **主要元素**：
+  - 顶部标题 + 主按钮「发表讨论」，按钮为主色渐变 + 强阴影（已对齐）。
+  - 状态筛选 Tab 使用 Element Plus 按钮 + 自定义 Token，激活态为淡蓝底、深蓝字。
+  - 帖子卡片：
+    - 左侧彩色竖条（`::before`），hover 时显现，用于增强信息流的「卡片可点击」暗示。
+    - 行为区 `post-actions`：点赞、评论、收藏、举报四个按钮，采用 icon + 数字/文本的横向排列；active 态走语义色（error/warning）。
+  - 关联标的标签：`asset-link-tag .asset-tag` 内部 code 使用品牌色，name 使用 muted 色，点击跳转 `AssetDetail`。
+
+### 4.3 帖子详情 `PostDetail.vue`
+
+- **整体结构**：
+  - 主内容卡片 + 评论卡片，两者均为白底 + 较强边框、阴影，间距 1.5rem。
+  - 标题、作者信息、状态 Tag 与 `Community.vue` 对齐，只是在字号、间距上加大。
+- **评论区 UI 要求**：
+  - 顶级评论与子回复之间明确缩进与边框差异（顶级 `comment-item` + 子项 `comment-reply-item`）。
+  - 支持：
+    - 点赞（数量红色/灰色切换），
+    - 回复（楼中楼显示 `replyToUsername`），
+    - 编辑、删除（仅作者可见），
+    - 举报（打开举报弹窗）。
+  - 编辑 / 回复输入框使用与发布评论同一输入样式（淡灰背景 + 蓝色 focus 边）。
+  - 「展开更多回复」按钮居左对齐，视觉弱于主要操作。
+
+### 4.4 资产详情 `AssetDetail.vue`
+
+- **区块划分**（需在论文/说明中明确）：
+  1. **头部行情卡 `quote-header-card`**（必做，已实现）：
+     - 一级信息：代码（大号等宽）、名称、市场 Tag、资产类型 Tag。
+     - 行情主显示：现价（2 位小数，字号最大）、涨跌额+涨跌幅（红涨绿跌）。
+     - 次级指标：开/高/低/昨收/成交量均匀排布；高价、低价再次采用红/绿强调。
+     - 底部数据来源 & 更新时间一行，斜体，强调「仅供参考」。
+     - 若 `isStale`，显示黄色 `el-alert` 警告条。
+  2. **K线/分时图卡 `chart-card`**：
+     - 顶部 Tab 切换 「K线图 / 分时图」，按钮样式统一使用 `chart-type-btn` 规范。
+     - 内部使用 `KlineChart` / `IntradayChart` 组件，支持响应式自适应。
+  3. **公司信息卡 `info-card`**：行业 / 交易所 / 币种 + 折叠的「公司简介」。
+  4. **相关内容卡 `contents-card`**：
+     - 「最新 / 热门」排序按钮（圆角小按钮）。
+     - 列表项 hover 高亮，作者名可点击跳转 User Profile。
+     - 右上或下方提供分页 `el-pagination`。
+  5. **快速发帖卡 `quick-post-card`**（登录用户显示）：
+     - 标题+内容输入，与 `Community.vue` 表单视觉统一。
+     - 固定文案 Tag「已关联：CODE NAME」。
+  6. **底部免责声明**：沿用 Dashboard 风格的 Info 条。
+
+### 4.5 行情列表与榜单 `MarketList.vue` / `MarketRankings.vue`
+
+- **行情列表**：
+  - 头部包含搜索框 + 市场筛选下拉 + 资产类型下拉。
+  - 表头及每行采用 `grid` 布局，列名称与 Dashboard 榜单用词保持统一。
+  - 涨跌值颜色与 Badge 背景遵守统一红/绿/灰规范。
+  - 每行整体可点击，hover 使用浅灰背景、轻微强调。
+- **涨跌幅榜**：
+  - 三列卡片（涨幅/跌幅/活跃），每列 Title 彩色头部区 + 标签显示条数。
+  - rank 徽章：1/2/3 名分别使用金/银/铜三种颜色，其余为中性灰。
+  - 元素间距、字体大小与 Dashboard 右侧热门榜保持一致。
+
+---
+
+## 🧩 五、组件级 UI 规范
+
+### 5.1 通用卡片规范
+
+- 所有页面级卡片（行情卡、组合卡、帖子卡、侧边栏卡）应：
+  - 使用 `$bg-card` 白底 + `$border-subtle` 边框 + `$shadow-sm` 阴影。
+  - 设置统一的 padding（推荐 `1.25–1.5rem`）。
+  - hover 逻辑（当且仅当为可点击卡片）：
+    - 边框颜色向主色靠拢：`rgba(29,78,216,0.18–0.25)`。
+    - 背景叠加轻量线性渐变（由蓝或紫到透明）。
+    - Transform 轻微向上：`translateY(-1~2px)`。
+
+### 5.2 行情相关小组件（计划项）
+
+> 若后续拆分单独 `QuoteTag.vue` / `QuoteMini.vue` / `AssetChip.vue`，需遵守以下 PRD：
+
+- **`QuoteTag`（小徽章）**
+  - 显示：`价格 + 涨跌幅`，涨跌幅为主视觉。
+  - 颜色：红/绿/灰，背景为对应色 8% 透明度。
+  - 适用场景：资产标签右侧、热门榜单内联。
+- **`QuoteMini`（横向迷你卡）**
+  - 带有标题（代码+名称）+ 当前价 + 涨跌幅 + 更新时间。
+  - 支持放入帖子卡、推荐区域等。
+- **`AssetChip`（资产标签）**
+  - 当前已经在 `Dashboard.vue` 和 `Community.vue` 中以 CSS 方式实现，组件化后规范为：圆角矩形、等宽 code、name 灰色、副文本可截断。
+
+---
+
+## 🧮 六、数字与时间格式规范
+
+- **价格**：保留 2 位小数（`12.34`）。
+- **涨跌幅**：保留 2 位小数 + `%`，正数前加 `+`，如 `+1.23%`。
+- **量级**：
+  - 成交量、人数/帖子数：≥1e8 用「亿」，≥1e4 用「万」或 `w`，以页面语境决定（Dashboard 用 `w`，资产/行情列表用「万/亿」）。
+- **时间**：
+  - 行情时间：`MM-DD HH:mm`。
+  - 帖子列表：`MM-DD HH:mm` 或 `YYYY-MM-DD HH:mm`，需在同一页面统一。
+  - 帖子详情：可以用更正式格式 `YYYY年MM月DD日 HH:mm` 强调发布时间。
+
+---
+
+## ⚙️ 七、Element Plus 全局主题约束
+
+- 项目通过 `:root` 变量与 `index.scss` 中的 `.el-` 类进行整体覆盖，PRD 要求：
+  - 主按钮 `.el-button--primary` 必须使用品牌渐变背景 + 发光阴影，hover 时加深色值且带轻微上浮。
+  - 输入框/选择器背景为白色，边框为细灰，focus 加蓝色外发光。
+  - Card / Dialog / Pagination / Table / Tooltip / Message 等已统一覆盖，不再在单页内重复写过多自定义样式，避免风格漂移。
+
+---
+
+## 🔐 八、合规与文案规范
+
+- 所有含「实时 / 延迟行情」的页面（Dashboard、MarketList、MarketRankings、AssetDetail）必须包含：
+  - 顶部或底部的免责声明条：`数据仅供学习参考，不构成投资建议`。
+  - 行情卡或图表附近的「数据来源：Finnhub」小文案。
+- 举报、风险提示相关文案应统一使用：
+  - 举报类型：广告/垃圾信息、辱骂/人身攻击、虚假收益/诱导荐股、违法违规内容、其他。
+  - 成功提示：`举报已提交，感谢你的反馈`。
+
+---
+
+## ✅ 九、自测清单（UI & 视觉）
+
+- **主题一致性**
+  - [ ] 所有主按钮颜色、阴影、圆角一致。
+  - [ ] 所有卡片边角和阴影层级统一，无突兀差异。
+- **行情组件**
+  - [ ] 所有展示涨跌的数据颜色遵循红涨绿跌灰平规则。
+  - [ ] 行情列表 / 榜单 / 详情页的价格/涨跌/时间格式保持一致。
+- **排版与层级**
+  - [ ] 所有页面主体在宽屏下居中且宽度不超过 1280px。
+  - [ ] 标题层级清晰，`h1/h2/h3` 大小梯度合理，无过多样式变体。
+- **可用性**
+  - [ ] 所有可点击区域在 hover 时都有明确视觉反馈（颜色、阴影或位移）。
+  - [ ] 移动端（窄屏）布局在 Sidebar 收窄后依然可用，关键控件不溢出。
+

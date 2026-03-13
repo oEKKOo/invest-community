@@ -7,13 +7,14 @@ from django.shortcuts import get_object_or_404
 from django.db import transaction
 from django.contrib.auth import get_user_model
 from django.db.models import Q
+from django.utils import timezone
 
 from content.models import Content
 from content.serializers import ContentListSerializer
 from portfolios.models import Portfolio
 from portfolios.serializers import PortfolioListSerializer
 
-from .models import User, UserInvestProfile, UserFollow
+from .models import User, UserInvestProfile, UserFollow, UserModerationLog
 from .serializers import (
     UserRegistrationSerializer,
     UserLoginSerializer,
@@ -68,6 +69,13 @@ def login(request):
     serializer = UserLoginSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.validated_data['user']
+
+        # 封禁用户禁止登录
+        if user.status == 'BANNED' or not user.is_active:
+            return Response({
+                'code': 4030,
+                'message': '账户已被封禁，无法登录'
+            }, status=status.HTTP_403_FORBIDDEN)
         tokens = get_tokens_for_user(user)
         return Response({
             'code': 0,
@@ -414,6 +422,202 @@ def following_recommendations(request):
         'data': {
             'users': user_serializer.data,
             'portfolios': portfolio_serializer.data,
+        }
+    })
+
+
+# ===========================
+# 用户治理后台相关接口（Admin）
+# ===========================
+
+
+def _ensure_moderator(request):
+    if not request.user.is_authenticated:
+        return Response({'code': 4010, 'message': '需要登录'}, status=status.HTTP_401_UNAUTHORIZED)
+    if request.user.role not in ['MODERATOR', 'ADMIN']:
+        return Response({'code': 4030, 'message': '无权限'}, status=status.HTTP_403_FORBIDDEN)
+    return None
+
+
+def _create_moderation_log(user, operator, action, reason='', expire_at=None):
+    return UserModerationLog.objects.create(
+        user=user,
+        operator=operator,
+        action=action,
+        reason=reason or '',
+        expire_at=expire_at,
+    )
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def admin_update_user_status(request, user_id):
+    """
+    PATCH /api/admin/users/{id}/status/
+    直接修改用户状态字段（NORMAL/MUTED/BANNED），并记录治理日志
+    """
+    perm_error = _ensure_moderator(request)
+    if perm_error:
+        return perm_error
+
+    user = get_object_or_404(User, id=user_id)
+
+    new_status = request.data.get('status')
+    reason = request.data.get('reason', '')
+
+    if new_status not in ['NORMAL', 'MUTED', 'BANNED']:
+        return Response({'code': 4001, 'message': '无效的状态值'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # 更新状态及激活标记
+    user.status = new_status
+    if new_status == 'BANNED':
+        user.is_active = False
+    elif new_status == 'NORMAL':
+        user.is_active = True
+        user.mute_until = None
+    user.save(update_fields=['status', 'is_active', 'mute_until'])
+
+    _create_moderation_log(user, request.user, 'STATUS_CHANGE', reason=reason)
+
+    return Response({'code': 0, 'message': '用户状态已更新'})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def admin_mute_user(request, user_id):
+    """
+    POST /api/admin/users/{id}/mute/
+    body: { "days": 7, "reason": "刷屏广告" }
+    将用户设为 MUTED，并设置 mute_until
+    """
+    perm_error = _ensure_moderator(request)
+    if perm_error:
+        return perm_error
+
+    user = get_object_or_404(User, id=user_id)
+
+    days = int(request.data.get('days', 7))
+    if days <= 0:
+        days = 1
+    reason = request.data.get('reason', '')
+
+    expire_at = timezone.now() + timezone.timedelta(days=days)
+
+    user.status = 'MUTED'
+    user.mute_until = expire_at
+    user.is_active = True  # 禁言不影响登录
+    user.save(update_fields=['status', 'mute_until', 'is_active'])
+
+    _create_moderation_log(user, request.user, 'MUTE', reason=reason, expire_at=expire_at)
+
+    return Response({'code': 0, 'message': f'用户已被禁言 {days} 天'})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def admin_ban_user(request, user_id):
+    """
+    POST /api/admin/users/{id}/ban/
+    body: { "reason": "严重违规" }
+    将用户设为 BANNED，并禁止登录/访问
+    """
+    perm_error = _ensure_moderator(request)
+    if perm_error:
+        return perm_error
+
+    user = get_object_or_404(User, id=user_id)
+    reason = request.data.get('reason', '')
+
+    user.status = 'BANNED'
+    user.is_active = False
+    user.save(update_fields=['status', 'is_active'])
+
+    _create_moderation_log(user, request.user, 'BAN', reason=reason)
+
+    return Response({'code': 0, 'message': '用户已被封禁'})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def admin_unmute_user(request, user_id):
+    """
+    POST /api/admin/users/{id}/unmute/
+    解除禁言
+    """
+    perm_error = _ensure_moderator(request)
+    if perm_error:
+        return perm_error
+
+    user = get_object_or_404(User, id=user_id)
+    reason = request.data.get('reason', '')
+
+    user.mute_until = None
+    # 若之前是 MUTED，则恢复为 NORMAL；若是 BANNED 则不自动解封
+    if user.status == 'MUTED':
+        user.status = 'NORMAL'
+    user.save(update_fields=['status', 'mute_until'])
+
+    _create_moderation_log(user, request.user, 'UNMUTE', reason=reason)
+
+    return Response({'code': 0, 'message': '已解除禁言'})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def admin_unban_user(request, user_id):
+    """
+    POST /api/admin/users/{id}/unban/
+    解除封禁，恢复可登录
+    """
+    perm_error = _ensure_moderator(request)
+    if perm_error:
+        return perm_error
+
+    user = get_object_or_404(User, id=user_id)
+    reason = request.data.get('reason', '')
+
+    user.status = 'NORMAL'
+    user.is_active = True
+    user.save(update_fields=['status', 'is_active'])
+
+    _create_moderation_log(user, request.user, 'UNBAN', reason=reason)
+
+    return Response({'code': 0, 'message': '已解除封禁'})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def admin_moderated_users(request):
+    """
+    GET /api/admin/users/moderation/
+    返回当前处于 MUTED/BANNED 状态的用户及最近一次治理记录
+    """
+    perm_error = _ensure_moderator(request)
+    if perm_error:
+        return perm_error
+
+    users = User.objects.filter(status__in=['MUTED', 'BANNED']).order_by('-created_at')
+
+    items = []
+    for u in users:
+        last_log = u.moderation_logs.first()
+        items.append({
+            'id': u.id,
+            'username': u.username,
+            'displayName': u.display_name,
+            'status': u.status,
+            'muteUntil': u.mute_until,
+            'lastAction': last_log.action if last_log else None,
+            'lastReason': last_log.reason if last_log else '',
+            'lastOperator': last_log.operator.display_name if last_log and last_log.operator else None,
+            'lastCreatedAt': last_log.created_at if last_log else None,
+        })
+
+    return Response({
+        'code': 0,
+        'data': {
+            'items': items,
+            'total': len(items),
         }
     })
 

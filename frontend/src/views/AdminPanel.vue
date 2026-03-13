@@ -151,12 +151,39 @@
       width="400px"
     >
       <el-form :model="rejectForm" label-width="0">
-        <el-form-item>
+        <el-form-item label="审核标签">
+          <div class="review-tags">
+            <el-tag
+              v-for="tag in REVIEW_TAG_OPTIONS"
+              :key="tag"
+              size="small"
+              :type="rejectForm.tag === tag ? 'danger' : 'info'"
+              class="tag-item clickable"
+              @click="selectReviewTag(tag)"
+            >
+              {{ tag }}
+            </el-tag>
+          </div>
+        </el-form-item>
+        <el-form-item label="原因模板">
+          <div class="reason-templates">
+            <el-tag
+              v-for="tpl in REJECT_REASON_TEMPLATES"
+              :key="tpl"
+              size="small"
+              class="tag-item clickable"
+              @click="applyReasonTemplate(tpl)"
+            >
+              {{ tpl }}
+            </el-tag>
+          </div>
+        </el-form-item>
+        <el-form-item label="补充说明">
           <el-input
             v-model="rejectForm.reason"
             type="textarea"
             :rows="4"
-              placeholder="请说明驳回原因..."
+            placeholder="可补充具体问题说明，例如“请删除收益截图中的账号信息”等"
           />
         </el-form-item>
       </el-form>
@@ -171,6 +198,50 @@
           >
             确认驳回
           </el-button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <!-- 用户治理操作对话框 -->
+    <el-dialog
+      v-model="moderationDialogVisible"
+      :title="
+        moderationAction === 'MUTE'
+          ? '禁言用户'
+          : moderationAction === 'BAN'
+          ? '封禁用户'
+          : moderationAction === 'UNMUTE'
+          ? '解除禁言'
+          : '解除封禁'
+      "
+      width="420px"
+    >
+      <p v-if="moderationTargetUser" class="moderation-dialog-text">
+        对 <strong>{{ moderationTargetUser.displayName || moderationTargetUser.username }}</strong>
+        执行
+        <strong>
+          {{
+            moderationAction === 'MUTE'
+              ? '禁言 7 天'
+              : moderationAction === 'BAN'
+              ? '封禁'
+              : moderationAction === 'UNMUTE'
+              ? '解除禁言'
+              : '解除封禁'
+          }}
+        </strong>
+        操作。
+      </p>
+      <el-input
+        v-model="moderationReason"
+        type="textarea"
+        :rows="3"
+        placeholder="可填写该操作的原因说明，方便后续追溯（选填）"
+      />
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="moderationDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="confirmModeration">确认</el-button>
         </div>
       </template>
     </el-dialog>
@@ -225,6 +296,140 @@
         </el-table>
       </div>
     </div>
+
+    <!-- 用户治理中心 -->
+    <div class="moderation-section">
+      <div class="section-header">
+        <h3 class="section-title">用户治理中心</h3>
+        <p class="section-subtitle">查看并管理被禁言/封禁的用户</p>
+      </div>
+      <div class="moderation-container">
+        <el-skeleton v-if="loadingModeration" :rows="4" animated class="reports-skeleton" />
+        <el-empty v-else-if="!moderatedUsers.length" description="当前暂无被禁言或封禁的用户" />
+        <el-table
+          v-else
+          :data="moderatedUsers"
+          border
+          size="small"
+          class="reports-table"
+        >
+          <el-table-column prop="id" label="用户ID" width="80" />
+          <el-table-column prop="username" label="用户名" width="150" />
+          <el-table-column prop="displayName" label="昵称" width="150" />
+          <el-table-column prop="status" label="状态" width="100" />
+          <el-table-column prop="muteUntil" label="禁言截止" width="180">
+            <template #default="{ row }">
+              {{ row.muteUntil ? formatDate(row.muteUntil) : '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column label="最近操作" min-width="220">
+            <template #default="{ row }">
+              <div class="moderation-last">
+                <div v-if="row.lastAction">
+                  {{ row.lastAction }} · {{ row.lastOperator || '系统' }}
+                </div>
+                <div class="moderation-reason" v-if="row.lastReason">
+                  {{ row.lastReason }}
+                </div>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="260" fixed="right">
+            <template #default="{ row }">
+              <el-button
+                v-if="row.status === 'MUTED'"
+                size="small"
+                type="primary"
+                @click="openModerationAction(row, 'UNMUTE')"
+              >
+                解除禁言
+              </el-button>
+              <el-button
+                v-if="row.status === 'BANNED'"
+                size="small"
+                type="primary"
+                @click="openModerationAction(row, 'UNBAN')"
+              >
+                解除封禁
+              </el-button>
+              <el-button
+                size="small"
+                type="danger"
+                plain
+                @click="openModerationAction(row, 'BAN')"
+              >
+                封禁
+              </el-button>
+              <el-button
+                size="small"
+                type="warning"
+                plain
+                @click="openModerationAction(row, 'MUTE')"
+              >
+                禁言7天
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+    </div>
+
+    <!-- 告警中心（从静态改为真实数据） -->
+    <div class="alerts-section">
+      <div class="section-header">
+        <h3 class="section-title">告警中心</h3>
+        <p class="section-subtitle">高风险内容与异常行为告警</p>
+      </div>
+      <div class="alerts-list">
+        <el-skeleton v-if="loadingAlerts" :rows="3" animated />
+        <el-empty v-else-if="!alerts.length" description="暂无告警" />
+        <div
+          v-else
+          v-for="alert in alerts"
+          :key="alert.id"
+          class="alert-card"
+        >
+          <div class="alert-icon">
+            <el-icon><InfoFilled /></el-icon>
+          </div>
+          <div class="alert-content">
+            <h4 class="alert-title">
+              [{{ alert.severity }}] {{ alert.title }}
+            </h4>
+            <p class="alert-description">
+              {{ alert.description }}
+            </p>
+            <p class="alert-description">
+              状态：{{ alert.status }} · 创建于 {{ formatDate(alert.created_at) }}
+              <span v-if="alert.handled_by_name">
+                · 处理人：{{ alert.handled_by_name }}
+              </span>
+            </p>
+            <p v-if="alert.handle_result" class="alert-description">
+              处理备注：{{ alert.handle_result }}
+            </p>
+            <div class="alert-actions">
+              <el-button
+                size="small"
+                type="success"
+                @click="handleAlertAction(alert, 'RESOLVED')"
+                v-if="alert.status === 'OPEN'"
+              >
+                标记已处理
+              </el-button>
+              <el-button
+                size="small"
+                type="info"
+                @click="handleAlertAction(alert, 'IGNORED')"
+                v-if="alert.status === 'OPEN'"
+              >
+                忽略
+              </el-button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -233,7 +438,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import * as adminApi from '../api/admin'
-import type { Post, AdminStats, Report } from '../types'
+import type { Post, AdminStats, Report, Alert, ModeratedUser } from '../types'
 import {
   Setting,
   Clock,
@@ -258,11 +463,33 @@ const rejecting = ref(false)
 const loadingReports = ref(false)
 const pendingReports = ref<Report[]>([])
 
-// 驳回表单
+// 告警中心
+const loadingAlerts = ref(false)
+const alerts = ref<Alert[]>([])
+
+// 驳回表单 & 审核标签
+const REVIEW_TAG_OPTIONS = ['涉嫌广告', '高风险荐股', '收益截图存疑', '违规引流', '其他']
+const REJECT_REASON_TEMPLATES = [
+  '内容涉嫌广告推广，与社区主题不符',
+  '内容存在高风险荐股/保证收益等表述',
+  '收益截图或业绩展示缺乏真实性依据',
+  '存在违规引流或导流至外部平台',
+  '内容与社区规范不符，请根据规范修改后再次提交'
+]
+
 const rejectForm = ref({
   postId: 0,
+  tag: '',
   reason: ''
 })
+
+// 用户治理
+const loadingModeration = ref(false)
+const moderatedUsers = ref<ModeratedUser[]>([])
+const moderationDialogVisible = ref(false)
+const moderationTargetUser = ref<ModeratedUser | null>(null)
+const moderationAction = ref<'MUTE' | 'BAN' | 'UNMUTE' | 'UNBAN' | null>(null)
+const moderationReason = ref('')
 
 // 方法
 const fetchPendingPosts = async () => {
@@ -297,6 +524,39 @@ const fetchPendingReports = async () => {
   }
 }
 
+const fetchModeratedUsers = async () => {
+  loadingModeration.value = true
+  try {
+    const res = await adminApi.getModeratedUsers()
+    moderatedUsers.value = res.items || []
+  } catch (error) {
+    ElMessage.error('获取用户治理数据失败')
+  } finally {
+    loadingModeration.value = false
+  }
+}
+
+const fetchAlerts = async () => {
+  loadingAlerts.value = true
+  try {
+    // 后端当前返回 { code, data: { items, ... } } 或简单数组，这里兼容处理
+    const res: any = await adminApi.getAlerts({ status: 'OPEN' })
+    if (Array.isArray(res)) {
+      alerts.value = res
+    } else if (Array.isArray(res.items)) {
+      alerts.value = res.items
+    } else if (Array.isArray(res.data?.items)) {
+      alerts.value = res.data.items
+    } else {
+      alerts.value = []
+    }
+  } catch (error) {
+    ElMessage.error('获取告警数据失败')
+  } finally {
+    loadingAlerts.value = false
+  }
+}
+
 const handleReview = async (postId: number, status: string) => {
   reviewingIds.value.push(postId)
   
@@ -320,23 +580,28 @@ const handleReview = async (postId: number, status: string) => {
 const showRejectDialog = (post: Post) => {
   rejectForm.value = {
     postId: post.id,
+    tag: '',
     reason: ''
   }
   showRejectForm.value = true
 }
 
 const confirmReject = async () => {
-  if (!rejectForm.value.reason.trim()) {
-    ElMessage.warning('请填写驳回原因')
+  if (!rejectForm.value.tag && !rejectForm.value.reason.trim()) {
+    ElMessage.warning('请先选择一个审核标签或填写驳回原因')
     return
   }
+
+  const mergedReason = rejectForm.value.tag
+    ? `[${rejectForm.value.tag}] ${rejectForm.value.reason}`
+    : rejectForm.value.reason
 
   rejecting.value = true
   
   try {
     await adminApi.reviewPost(rejectForm.value.postId, {
       status: 'REJECTED' as any,
-      rejectReason: rejectForm.value.reason
+      rejectReason: mergedReason
     })
 
     // 从列表中移除
@@ -366,6 +631,8 @@ onMounted(() => {
   fetchPendingPosts()
   fetchAdminStats()
   fetchPendingReports()
+  fetchModeratedUsers()
+  fetchAlerts()
 })
 
 const handleResolveReport = async (report: Report, result: 'VALID' | 'INVALID') => {
@@ -380,6 +647,65 @@ const handleResolveReport = async (report: Report, result: 'VALID' | 'INVALID') 
     fetchAdminStats()
   } catch (error) {
     ElMessage.error('处理举报失败')
+  }
+}
+
+const handleAlertAction = async (alert: Alert, status: 'RESOLVED' | 'IGNORED') => {
+  try {
+    await adminApi.handleAlert(alert.id, {
+      status,
+      handleResult: status === 'RESOLVED' ? '已确认并完成处理' : '已忽略本次告警'
+    })
+    alerts.value = alerts.value.filter(a => a.id !== alert.id)
+    ElMessage.success('告警状态已更新')
+  } catch (error) {
+    ElMessage.error('更新告警状态失败')
+  }
+}
+
+const selectReviewTag = (tag: string) => {
+  rejectForm.value.tag = tag
+}
+
+const applyReasonTemplate = (tpl: string) => {
+  rejectForm.value.reason = tpl
+}
+
+const openModerationAction = (user: ModeratedUser, action: 'MUTE' | 'BAN' | 'UNMUTE' | 'UNBAN') => {
+  moderationTargetUser.value = user
+  moderationAction.value = action
+  moderationReason.value = ''
+  moderationDialogVisible.value = true
+}
+
+const confirmModeration = async () => {
+  if (!moderationTargetUser.value || !moderationAction.value) {
+    moderationDialogVisible.value = false
+    return
+  }
+
+  const userId = moderationTargetUser.value.id
+  const reason = moderationReason.value
+
+  try {
+    if (moderationAction.value === 'MUTE') {
+      await adminApi.muteUser(userId, { days: 7, reason })
+      ElMessage.success('已禁言用户 7 天')
+    } else if (moderationAction.value === 'BAN') {
+      await adminApi.banUser(userId, { reason })
+      ElMessage.success('已封禁用户')
+    } else if (moderationAction.value === 'UNMUTE') {
+      await adminApi.unmuteUser(userId, { reason })
+      ElMessage.success('已解除禁言')
+    } else if (moderationAction.value === 'UNBAN') {
+      await adminApi.unbanUser(userId, { reason })
+      ElMessage.success('已解除封禁')
+    }
+
+    moderationDialogVisible.value = false
+    await fetchModeratedUsers()
+  } catch (error) {
+    ElMessage.error('用户治理操作失败')
   }
 }
 </script>
@@ -733,6 +1059,29 @@ const handleResolveReport = async (report: Report, result: 'VALID' | 'INVALID') 
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
+.moderation-section {
+  background: white;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  border: 1px solid #f3f4f6;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin: 2rem 0;
+}
+
+.moderation-container {
+  margin-top: 1rem;
+}
+
+.moderation-last {
+  font-size: 0.75rem;
+  color: #4b5563;
+
+  .moderation-reason {
+    margin-top: 2px;
+    color: #6b7280;
+  }
+}
+
 .alerts-list {
   display: flex;
   flex-direction: column;
@@ -782,6 +1131,23 @@ const handleResolveReport = async (report: Report, result: 'VALID' | 'INVALID') 
 .alert-actions {
   display: flex;
   gap: 1rem;
+}
+
+.review-tags,
+.reason-templates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tag-item.clickable {
+  cursor: pointer;
+}
+
+.moderation-dialog-text {
+  font-size: 0.875rem;
+  color: #4b5563;
+  margin-bottom: 0.75rem;
 }
 
 @keyframes fadeIn {

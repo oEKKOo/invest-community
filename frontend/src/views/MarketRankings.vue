@@ -34,7 +34,14 @@
       <!-- 涨幅榜单-->
       <div class="ranking-card card">
         <div class="ranking-header up">
-          <span class="ranking-icon">📈</span>
+          <span class="ranking-icon">
+            <el-icon>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M4 17 10 11 14 15 20 7" />
+                <path d="M14 7h6v6" />
+              </svg>
+            </el-icon>
+          </span>
           <h3 class="ranking-title">涨幅榜单</h3>
           <el-tag size="small" type="danger" class="count-tag">TOP {{ gainers.length }}</el-tag>
         </div>
@@ -68,7 +75,14 @@
       <!-- 跌幅榜单-->
       <div class="ranking-card card">
         <div class="ranking-header down">
-          <span class="ranking-icon">📉</span>
+          <span class="ranking-icon">
+            <el-icon>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M4 7 10 13 14 9 20 17" />
+                <path d="M14 17h6v-6" />
+              </svg>
+            </el-icon>
+          </span>
           <h3 class="ranking-title">跌幅榜单</h3>
           <el-tag size="small" type="success" class="count-tag">TOP {{ losers.length }}</el-tag>
         </div>
@@ -102,7 +116,14 @@
       <!-- 活跃榜单-->
       <div class="ranking-card card">
         <div class="ranking-header active">
-          <span class="ranking-icon">🔥</span>
+          <span class="ranking-icon">
+            <el-icon>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M12 3s2 2.5 2 5.5S12 14 12 14s-2-2-2-5.5S12 3 12 3Z" />
+                <path d="M8.5 8.5C7 10 6 11.5 6 14a6 6 0 0 0 12 0c0-2.5-1-4-2.5-5.5" />
+              </svg>
+            </el-icon>
+          </span>
           <h3 class="ranking-title">活跃榜单</h3>
           <el-tag size="small" type="warning" class="count-tag">TOP {{ actives.length }}</el-tag>
         </div>

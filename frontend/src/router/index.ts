@@ -18,6 +18,7 @@ const MarketList = () => import('../views/MarketList.vue')
 const MarketRankings = () => import('../views/MarketRankings.vue')
 const DataMonitor = () => import('../views/admin/DataMonitor.vue')
 const MyHoldings = () => import('../views/MyHoldings.vue')
+const Messages = () => import('../views/Messages.vue')
 
 const routes: RouteRecordRaw[] = [
   {
@@ -106,6 +107,12 @@ const routes: RouteRecordRaw[] = [
         name: 'MyHoldings',
         component: MyHoldings,
         meta: { title: '我的持仓', requiresAuth: true }
+      },
+      {
+        path: '/messages',
+        name: 'Messages',
+        component: Messages,
+        meta: { title: '私信会话', requiresAuth: true }
       },
       // 新增路由
       {

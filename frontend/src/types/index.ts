@@ -161,6 +161,35 @@ export interface Report {
   handleTime?: string
 }
 
+// 告警类型（Admin 告警中心）
+export interface Alert {
+  id: number
+  alert_type: 'CONTENT_RISK' | 'USER_BEHAVIOR' | 'SYSTEM' | string
+  title: string
+  description: string
+  related_object_type?: string
+  related_object_id?: number
+  severity: string
+  status: 'OPEN' | 'RESOLVED' | 'IGNORED'
+  handled_by_name?: string
+  handle_result?: string
+  created_at: string
+  handle_time?: string
+}
+
+// 用户治理列表条目（管理员查看被禁言/封禁用户）
+export interface ModeratedUser {
+  id: number
+  username: string
+  displayName: string
+  status: 'NORMAL' | 'MUTED' | 'BANNED'
+  muteUntil?: string | null
+  lastAction?: string | null
+  lastReason?: string
+  lastOperator?: string | null
+  lastCreatedAt?: string | null
+}
+
 // Dashboard 数据类型
 export interface DashboardData {
   marketSeries: Array<{ name: string; value: number }>

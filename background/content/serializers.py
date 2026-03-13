@@ -127,6 +127,16 @@ class ContentCreateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({
                     'assetCodes': f'以下资产代码不存在于系统中: {missing}。请先通过管理员同步资产数据。'
                 })
+
+        # 内容审核细化：命中风险关键词时，强制进入待审核状态
+        body = attrs.get('body', '')
+        status_value = attrs.get('status')
+        if body:
+            risk_keywords = ['保本收益', '稳赚不赔', '带单', '跟单', '内幕消息']
+            if any(kw in body for kw in risk_keywords):
+                # 不论前端传什么，只要命中风险词，一律改为待审核
+                attrs['status'] = 'PENDING_REVIEW'
+
         return attrs
 
     def create(self, validated_data):

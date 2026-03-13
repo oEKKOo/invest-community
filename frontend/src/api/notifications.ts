@@ -25,3 +25,5 @@ export const markAllNotificationsRead = (): Promise<void> => {
   return post('/notifications/read-all/')
 }
 
+// 通知 SSE 流地址
+export const getNotificationsStreamUrl = () => '/notifications/stream/'

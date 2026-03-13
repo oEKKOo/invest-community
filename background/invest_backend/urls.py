@@ -25,10 +25,15 @@ urlpatterns = [
     path('api/auth/', include('accounts.urls')),
     path('api/users/', include('accounts.user_urls')),
     path('api/feed/', include('accounts.feed_urls')),
+
+    # 管理员专用用户治理接口：/api/admin/...
+    path('api/admin/', include('accounts.admin_urls')),
+
     path('api/', include('content.urls')),
     path('api/', include('portfolios.urls')),
     path('api/', include('notifications.urls')),
     path('api/', include('reports.urls')),
+    path('api/', include('messages.urls')),
 
     # 行情数据模块（Finnhub 接入）
     # 路由优先级说明：

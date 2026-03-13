@@ -284,7 +284,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, reactive } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import { useNotificationsStore } from '../../stores/notifications'
@@ -299,6 +299,7 @@ import {
   Coin
 } from '@element-plus/icons-vue'
 import { globalSearch, type GlobalSearchResult } from '../../api/search'
+import { getNotificationsStreamUrl } from '../../api/notifications'
 
 const router = useRouter()
 const route = useRoute()
@@ -318,6 +319,7 @@ const searchResults = reactive<GlobalSearchResult>({
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 const notificationDrawerVisible = ref(false)
+let notificationEventSource: EventSource | null = null
 
 const menuItems = computed(() => [
   { name: 'Dashboard', path: '/', label: '市场总览', icon: House },
@@ -524,6 +526,42 @@ onMounted(async () => {
     } catch {
       // 忽略通知加载错误，不影响主功能
     }
+
+    // 建立通知 SSE 长连接
+    try {
+      // 尽量使用 window.__VITE_API_BASE_URL__ 全局变量作为后端接口基地址（在 main.ts 里注入或在 index.html/fallback 全局声明）
+      // 若未定义，则回退到 /api
+      // @ts-ignore
+      const base = (window.__VITE_API_BASE_URL__ as string | undefined) || '/api'
+      const url =
+        (base.startsWith('http') ? base : `${window.location.origin}${base}`) +
+        getNotificationsStreamUrl()
+
+      notificationEventSource = new EventSource(url)
+      notificationEventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data)
+          if (data && Array.isArray(data.items)) {
+            notificationsStore.applyStreamSnapshot(data)
+          }
+        } catch {
+          // 忽略解析错误
+        }
+      }
+      notificationEventSource.addEventListener('close', () => {
+        notificationEventSource?.close()
+        notificationEventSource = null
+      })
+    } catch {
+      // SSE 建立失败时静默降级为轮询模式
+    }
+  }
+})
+
+onBeforeUnmount(() => {
+  if (notificationEventSource) {
+    notificationEventSource.close()
+    notificationEventSource = null
   }
 })
 
@@ -532,8 +570,38 @@ watch(
   async (loggedIn) => {
     if (loggedIn) {
       await notificationsStore.fetchNotifications({ page: 1, pageSize: 10 })
+      // 登录后再尝试建立 SSE 连接
+      if (!notificationEventSource) {
+        // 尽量使用 window.__VITE_API_BASE_URL__ 全局变量作为后端接口基地址（在 main.ts 里注入或在 index.html/fallback 全局声明）
+        // 若未定义，则回退到 /api
+        // @ts-ignore
+        const base = (window.__VITE_API_BASE_URL__ as string | undefined) || '/api'
+        const url =
+          (base.startsWith('http') ? base : `${window.location.origin}${base}`) +
+          getNotificationsStreamUrl()
+
+          notificationEventSource = new EventSource(url)
+          notificationEventSource.onmessage = (event) => {
+            try {
+              const data = JSON.parse(event.data)
+              if (data && Array.isArray(data.items)) {
+                notificationsStore.applyStreamSnapshot(data)
+              }
+            } catch {
+              // 忽略解析错误
+            }
+          }
+          notificationEventSource.addEventListener('close', () => {
+            notificationEventSource?.close()
+            notificationEventSource = null
+          })
+      }
     } else {
       notificationsStore.items = []
+      if (notificationEventSource) {
+        notificationEventSource.close()
+        notificationEventSource = null
+      }
     }
   }
 )

@@ -1,6 +1,13 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Portfolio, PortfolioAsset, UserHolding
+from .models import (
+    Portfolio,
+    PortfolioAsset,
+    UserHolding,
+    PortfolioComment,
+    PortfolioSubscription,
+    PortfolioUpdateLog,
+)
 from content.models import Like, Asset
 
 User = get_user_model()
@@ -192,7 +199,105 @@ class PortfolioCreateSerializer(serializers.ModelSerializer):
 
 class PortfolioDetailSerializer(PortfolioListSerializer):
     """组合详情序列化器"""
-    pass
+    # 是否已订阅
+    isSubscribed = serializers.SerializerMethodField()
+
+    class Meta(PortfolioListSerializer.Meta):
+        fields = PortfolioListSerializer.Meta.fields + ['isSubscribed']
+
+    def get_isSubscribed(self, obj: Portfolio) -> bool:
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return PortfolioSubscription.objects.filter(
+                portfolio=obj, user=request.user
+            ).exists()
+        return False
+
+
+# ---------------------------------------------------------------------------
+# Portfolio 评论 / 订阅 / 更新日志 序列化器
+# ---------------------------------------------------------------------------
+
+
+class PortfolioCommentSerializer(serializers.ModelSerializer):
+    """组合评论读取序列化器（一级+简单楼中楼）"""
+    authorId = serializers.IntegerField(source='author_id', read_only=True)
+    authorName = serializers.CharField(source='author.display_name', read_only=True)
+    authorAvatar = serializers.CharField(source='author.avatar_url', read_only=True)
+    parentId = serializers.IntegerField(source='parent_id', read_only=True)
+    replyToUserId = serializers.IntegerField(source='reply_to_user_id', read_only=True)
+    replyToUsername = serializers.CharField(
+        source='reply_to_user.display_name', read_only=True
+    )
+    createdAt = serializers.DateTimeField(source='created_at', read_only=True)
+    replies = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PortfolioComment
+        fields = [
+            'id',
+            'authorId',
+            'authorName',
+            'authorAvatar',
+            'parentId',
+            'replyToUserId',
+            'replyToUsername',
+            'body',
+            'createdAt',
+            'replies',
+        ]
+
+    def get_replies(self, obj: PortfolioComment):
+        # 简单返回直接子回复列表（可按需加限制）
+        qs = obj.replies.filter(is_deleted=False).select_related(
+            'author', 'reply_to_user'
+        )
+        return PortfolioCommentSerializer(qs, many=True, context=self.context).data
+
+
+class PortfolioCommentCreateSerializer(serializers.Serializer):
+    """创建组合评论序列化器"""
+    body = serializers.CharField()
+    parentId = serializers.IntegerField(required=False, allow_null=True)
+    replyToUserId = serializers.IntegerField(required=False, allow_null=True)
+
+    def validate_body(self, value: str) -> str:
+        if not value or not value.strip():
+            raise serializers.ValidationError('评论内容不能为空')
+        return value
+
+    def create(self, validated_data):
+        request = self.context['request']
+        portfolio: Portfolio = self.context['portfolio']
+
+        parent = None
+        parent_id = validated_data.get('parentId')
+        if parent_id:
+            parent = PortfolioComment.objects.filter(
+                pk=parent_id, portfolio=portfolio
+            ).first()
+
+        reply_to_user = None
+        reply_to_user_id = validated_data.get('replyToUserId')
+        if reply_to_user_id:
+            reply_to_user = User.objects.filter(pk=reply_to_user_id).first()
+
+        return PortfolioComment.objects.create(
+            portfolio=portfolio,
+            author=request.user,
+            parent=parent,
+            reply_to_user=reply_to_user,
+            body=validated_data['body'].strip(),
+        )
+
+
+class PortfolioUpdateLogSerializer(serializers.ModelSerializer):
+    """组合更新日志序列化器"""
+    createdAt = serializers.DateTimeField(source='created_at', read_only=True)
+
+    class Meta:
+        model = PortfolioUpdateLog
+        fields = ['id', 'title', 'content', 'createdAt']
 
 
 # ---------------------------------------------------------------------------

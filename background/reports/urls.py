@@ -11,4 +11,5 @@ urlpatterns = [
     path('admin/reports/<int:pk>/', views.handle_report, name='handle_report'),
     path('admin/stats/', views.admin_stats, name='admin_stats'),
     path('admin/alerts/', views.AdminAlertsView.as_view(), name='admin_alerts'),
+    path('admin/alerts/<int:pk>/', views.admin_handle_alert, name='admin_handle_alert'),
 ]

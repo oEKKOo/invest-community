@@ -57,7 +57,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     
     followers_count = models.PositiveIntegerField('粉丝数', default=0)
     following_count = models.PositiveIntegerField('关注数', default=0)
-    
+
+    # 治理相关字段：禁言截止时间（仅限制发帖/评论），封禁走 status=BANNED + is_active=False
+    mute_until = models.DateTimeField('禁言截止时间', null=True, blank=True)
+
     is_active = models.BooleanField('激活状态', default=True)
     is_staff = models.BooleanField('员工状态', default=False)
     
@@ -125,3 +128,40 @@ class UserFollow(models.Model):
 
     def __str__(self):
         return f"{self.follower.username} 关注 {self.followee.username}"
+
+
+class UserModerationLog(models.Model):
+    """
+    用户治理操作日志
+    记录禁言/解禁/封禁/解封等关键动作，用于“社区治理留痕”
+    """
+    ACTION_CHOICES = [
+        ('MUTE', '禁言'),
+        ('UNMUTE', '解除禁言'),
+        ('BAN', '封禁'),
+        ('UNBAN', '解除封禁'),
+        ('STATUS_CHANGE', '状态变更'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='moderation_logs', verbose_name='被处理用户')
+    operator = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='moderation_actions',
+        verbose_name='操作人',
+    )
+    action = models.CharField('动作类型', max_length=32, choices=ACTION_CHOICES)
+    reason = models.TextField('原因说明', blank=True)
+    expire_at = models.DateTimeField('到期时间', null=True, blank=True)
+    created_at = models.DateTimeField('创建时间', default=timezone.now)
+
+    class Meta:
+        db_table = 'user_moderation_log'
+        verbose_name = '用户治理日志'
+        verbose_name_plural = '用户治理日志'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.action} @ {self.created_at}"

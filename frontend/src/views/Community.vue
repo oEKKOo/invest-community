@@ -698,9 +698,9 @@ onMounted(() => {
   }
 
   &:hover {
-    border-color: rgba(29, 78, 216, 0.16);
-    background: linear-gradient(145deg, rgba(124, 58, 237, 0.06) 0%, rgba(255,255,255,0.02) 100%);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+    border-color: rgba(29, 78, 216, 0.2);
+    background: linear-gradient(145deg, rgba(29, 78, 216, 0.03) 0%, rgba(255,255,255,0.02) 100%);
+    box-shadow: $shadow;
     transform: translateY(-2px);
 
     &::before {

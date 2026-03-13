@@ -8,13 +8,24 @@ from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
 
-from .models import Portfolio, PortfolioAsset, UserHolding, HoldingDailySnapshot
+from .models import (
+    Portfolio,
+    PortfolioAsset,
+    UserHolding,
+    HoldingDailySnapshot,
+    PortfolioComment,
+    PortfolioSubscription,
+    PortfolioUpdateLog,
+)
 from .serializers import (
     PortfolioListSerializer,
     PortfolioCreateSerializer,
     PortfolioDetailSerializer,
     UserHoldingSerializer,
     UserHoldingCreateSerializer,
+    PortfolioCommentSerializer,
+    PortfolioCommentCreateSerializer,
+    PortfolioUpdateLogSerializer,
 )
 
 
@@ -172,6 +183,79 @@ def portfolio_detail(request, pk):
 
         portfolio.delete()
         return Response({'code': 0, 'message': '删除成功'})
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
+def portfolio_comments(request, pk):
+    """
+    GET /api/portfolios/{id}/comments/
+    POST /api/portfolios/{id}/comments/
+    """
+    portfolio = get_object_or_404(Portfolio, pk=pk)
+
+    if request.method == 'GET':
+        # 仅返回未删除的顶级评论，子回复在序列化器中带出
+        comments = (
+            PortfolioComment.objects.filter(portfolio=portfolio, is_deleted=False, parent__isnull=True)
+            .select_related('author', 'reply_to_user')
+            .prefetch_related('replies__author', 'replies__reply_to_user')
+            .order_by('created_at')
+        )
+        serializer = PortfolioCommentSerializer(comments, many=True, context={'request': request})
+        return Response({'code': 0, 'data': {'items': serializer.data}})
+
+    # POST 创建评论需要登录
+    if not request.user.is_authenticated:
+        return Response(
+            {'code': 4010, 'message': '需要登录'},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+
+    serializer = PortfolioCommentCreateSerializer(
+        data=request.data, context={'request': request, 'portfolio': portfolio}
+    )
+    if serializer.is_valid():
+        comment = serializer.save()
+        data = PortfolioCommentSerializer(comment, context={'request': request}).data
+        return Response({'code': 0, 'data': data}, status=status.HTTP_201_CREATED)
+
+    return Response(
+        {'code': 4001, 'message': '发表评论失败', 'errors': serializer.errors},
+        status=status.HTTP_400_BAD_REQUEST,
+    )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def portfolio_subscribe(request, pk):
+    """
+    POST /api/portfolios/{id}/subscribe/
+    订阅或取消订阅组合（幂等切换）
+    """
+    portfolio = get_object_or_404(Portfolio, pk=pk)
+
+    if request.method == 'POST':
+        # 简单切换订阅状态
+        sub_qs = PortfolioSubscription.objects.filter(portfolio=portfolio, user=request.user)
+        if sub_qs.exists():
+            sub_qs.delete()
+            return Response({'code': 0, 'message': '已取消订阅'})
+        PortfolioSubscription.objects.create(portfolio=portfolio, user=request.user)
+        return Response({'code': 0, 'message': '订阅成功'})
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def portfolio_updates(request, pk):
+    """
+    GET /api/portfolios/{id}/updates/
+    获取组合更新日志列表
+    """
+    portfolio = get_object_or_404(Portfolio, pk=pk)
+    logs = portfolio.update_logs.all()
+    serializer = PortfolioUpdateLogSerializer(logs, many=True)
+    return Response({'code': 0, 'data': {'items': serializer.data}})
 
 
 # ===========================================================================

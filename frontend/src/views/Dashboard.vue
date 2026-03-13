@@ -289,7 +289,17 @@
         <div class="sidebar-card">
           <div class="sidebar-card-header">
             <div class="sidebar-card-title">
-              <span class="title-emoji">🏆</span>
+              <span class="title-emoji">
+                <el-icon>
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6">
+                    <path d="M8 4h8v3a4 4 0 0 1-4 4 4 4 0 0 1-4-4V4Z" />
+                    <path d="M8 4H5a2 2 0 0 0-2 2v1a4 4 0 0 0 4 4" />
+                    <path d="M16 4h3a2 2 0 0 1 2 2v1a4 4 0 0 1-4 4" />
+                    <path d="M10 15h4" />
+                    <path d="M9 19h6" />
+                  </svg>
+                </el-icon>
+              </span>
               <h3>本周收益排行</h3>
             </div>
             <router-link to="/portfolios" class="sidebar-more-link">全部 组合</router-link>
@@ -364,7 +374,14 @@
         <div class="sidebar-card">
           <div class="sidebar-card-header">
             <div class="sidebar-card-title">
-              <span class="title-emoji">🔥</span>
+              <span class="title-emoji">
+                <el-icon>
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6">
+                    <path d="M12 3s2 2.5 2 5.5S12 14 12 14s-2-2-2-5.5S12 3 12 3Z" />
+                    <path d="M8.5 8.5C7 10 6 11.5 6 14a6 6 0 0 0 12 0c0-2.5-1-4-2.5-5.5" />
+                  </svg>
+                </el-icon>
+              </span>
               <h3>热门标的讨论</h3>
             </div>
             <router-link to="/market" class="sidebar-more-link">行情 列表</router-link>
@@ -403,33 +420,74 @@
         <!-- 第五层：社区活跃度统计-->
         <div class="sidebar-card community-stats-card">
           <div class="sidebar-card-title">
-            <span class="title-emoji">📊</span>
+            <span class="title-emoji">
+              <el-icon>
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6">
+                  <rect x="4" y="10" width="3" height="8" rx="1" />
+                  <rect x="10.5" y="6" width="3" height="12" rx="1" />
+                  <rect x="17" y="3" width="3" height="15" rx="1" />
+                </svg>
+              </el-icon>
+            </span>
             <h3>社区活跃度统计</h3>
           </div>
           <div class="community-stats-grid">
             <div class="cs-stat">
-              <span class="cs-icon">👥</span>
+              <span class="cs-icon">
+                <el-icon>
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6">
+                    <circle cx="9" cy="8" r="3" />
+                    <path d="M4 18a5 5 0 0 1 10 0" />
+                    <circle cx="17" cy="7" r="2.5" />
+                    <path d="M14.5 17a4 4 0 0 1 5.5-3.5" />
+                  </svg>
+                </el-icon>
+              </span>
               <div class="cs-content">
                 <span class="cs-value">{{ formatNumber(communityStats.activeInvestorsCount) }}</span>
                 <span class="cs-label">活跃投资者</span>
               </div>
             </div>
             <div class="cs-stat">
-              <span class="cs-icon">📝</span>
+              <span class="cs-icon">
+                <el-icon>
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6">
+                    <path d="M4 5a2 2 0 0 1 2-2h7.5L20 9.5V19a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" />
+                    <path d="M14 3v6h6" />
+                    <path d="M8 13h8" />
+                    <path d="M8 17h5" />
+                  </svg>
+                </el-icon>
+              </span>
               <div class="cs-content">
                 <span class="cs-value">{{ formatNumber(communityStats.strategiesSharedCount) }}</span>
                 <span class="cs-label">策略分享</span>
               </div>
             </div>
             <div class="cs-stat" v-if="authStore.isAdmin">
-              <span class="cs-icon">⚠️</span>
+              <span class="cs-icon">
+                <el-icon>
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6">
+                    <path d="M12 9v4" />
+                    <circle cx="12" cy="17" r="0.8" fill="currentColor" />
+                    <path d="M10.29 3.86 3.82 15a2 2 0 0 0 1.71 3h12.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+                  </svg>
+                </el-icon>
+              </span>
               <div class="cs-content">
                 <span class="cs-value admin-value">{{ adminStats.pendingPostsCount }}</span>
                 <span class="cs-label">待审内容</span>
               </div>
             </div>
             <div class="cs-stat" v-if="authStore.isAdmin">
-              <span class="cs-icon">🚩</span>
+              <span class="cs-icon">
+                <el-icon>
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6">
+                    <path d="M6 3v18" />
+                    <path d="M7 4h9l-2 4 2 4H7" />
+                  </svg>
+                </el-icon>
+              </span>
               <div class="cs-content">
                 <span class="cs-value admin-value">{{ adminStats.openReportsCount }}</span>
                 <span class="cs-label">待处举报</span>
@@ -477,7 +535,15 @@
         <!-- 第六层：简单推荐入口-->
         <div class="sidebar-card recommend-card">
           <div class="sidebar-card-title">
-            <span class="title-emoji">💡</span>
+            <span class="title-emoji">
+              <el-icon>
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6">
+                  <path d="M9 18h6" />
+                  <path d="M10 22h4" />
+                  <path d="M8 14a4 4 0 0 1-1.2-2.83A5.2 5.2 0 0 1 12 6.1a5.2 5.2 0 0 1 5.2 5.07A4 4 0 0 1 16 14c-1 1.2-1 1.8-1 2H9c0-.2 0-.8-1-2Z" />
+                </svg>
+              </el-icon>
+            </span>
             <h3>为你推荐</h3>
           </div>
           <div class="recommend-list">
@@ -487,7 +553,11 @@
               class="recommend-item"
               @click="$router.push(item.link)"
             >
-              <span class="rec-icon">{{ item.icon }}</span>
+              <span class="rec-icon">
+                <el-icon>
+                  <component :is="item.icon" />
+                </el-icon>
+              </span>
               <div class="rec-info">
                 <span class="rec-title">{{ item.title }}</span>
                 <span class="rec-desc">{{ item.desc }}</span>
@@ -777,21 +847,21 @@ const recommendList = computed(() => {
   const items = [
     {
       id: 'market',
-      icon: '📈',
+      icon: DataLine,
       title: '行情列表',
       desc: '浏览 A/H/美股行情数据',
       link: '/market'
     },
     {
       id: 'rankings',
-      icon: '🏅',
+      icon: CollectionTag,
       title: '涨跌幅榜',
       desc: '今日热门股票排行',
       link: '/market/rankings'
     },
     {
       id: 'portfolios',
-      icon: '📊',
+      icon: Star,
       title: '投资组合',
       desc: '分享你的投资策略',
       link: '/portfolios'
@@ -800,7 +870,7 @@ const recommendList = computed(() => {
   if (authStore.isLoggedIn) {
     items.push({
       id: 'holdings',
-      icon: '💼',
+      icon: DataLine,
       title: '我的持仓',
       desc: '查看持仓收益分析',
       link: '/holdings'
