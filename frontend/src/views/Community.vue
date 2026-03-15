@@ -1,7 +1,10 @@
 <template>
   <div class="community">
     <div class="community-header">
-      <h2 class="page-title">社区论坛</h2>
+      <div class="header-content">
+        <h2 class="page-title">社区论坛</h2>
+        <p class="page-subtitle">分享投资观点、策略与市场观察</p>
+      </div>
       <el-button 
         type="primary" 
         size="large"
@@ -9,7 +12,7 @@
         :icon="Plus"
         class="create-btn"
       >
-        发表讨论
+        发布讨论
       </el-button>
     </div>
 
@@ -32,7 +35,7 @@
     <el-dialog
       v-model="showCreatePost"
       title="分享你的投资见解"
-      width="600px"
+      width="800px"
       class="create-post-dialog"
     >
       <el-form
@@ -61,10 +64,26 @@
         </el-form-item>
 
         <el-form-item prop="tags">
-          <el-input
-            v-model="createForm.tagsInput"
-            placeholder="添加标签，用逗号分隔（如：股票,ETF,投资策略）"
-          />
+          <div class="tags-input-wrapper">
+            <el-input
+              v-model="createForm.tagsInput"
+              placeholder="添加标签，用逗号分隔（如：股票,ETF,投资策略）"
+              class="tags-input"
+              @keyup.enter="handleTagInput"
+            />
+            <div v-if="createForm.tagsInput" class="tags-preview">
+              <el-tag
+                v-for="(tag, index) in createForm.tagsInput.split(',').filter(t => t.trim())"
+                :key="index"
+                size="small"
+                closable
+                class="tag-preview-item"
+                @close="removeTag(index)"
+              >
+                #{{ tag.trim() }}
+              </el-tag>
+            </div>
+          </div>
         </el-form-item>
 
         <el-form-item>
@@ -402,6 +421,16 @@ const resetCreateForm = () => {
   createFormRef.value?.clearValidate()
 }
 
+const handleTagInput = () => {
+  // 标签输入处理（可选，用于实时预览）
+}
+
+const removeTag = (index: number) => {
+  const tags = createForm.value.tagsInput.split(',').filter(t => t.trim())
+  tags.splice(index, 1)
+  createForm.value.tagsInput = tags.join(',')
+}
+
 const handleLike = async (postId: number) => {
   if (!authStore.isLoggedIn) {
     ElMessage.warning('请先登录')
@@ -494,14 +523,16 @@ onMounted(() => {
 .community {
   max-width: 1000px;
   margin: 0 auto;
+  padding: 0 1rem;
   animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .community-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+  gap: 1.5rem;
 
   @media (max-width: 640px) {
     flex-direction: column;
@@ -510,12 +541,25 @@ onMounted(() => {
   }
 }
 
+.header-content {
+  flex: 1;
+}
+
 .page-title {
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   font-weight: 700;
-  color: $text-primary;
-  margin: 0;
+  color: $apple-text-primary;
+  margin: 0 0 0.5rem 0;
   letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.page-subtitle {
+  font-size: 0.9375rem;
+  color: $apple-text-secondary;
+  margin: 0;
+  line-height: 1.5;
+  font-weight: 400;
 }
 
 .create-btn {
@@ -535,77 +579,91 @@ onMounted(() => {
 .filter-tabs {
   display: flex;
   gap: 0.5rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
   padding-bottom: 1rem;
-  border-bottom: 1px solid $border-subtle;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   flex-wrap: wrap;
 }
 
 .filter-tab {
-  border-radius: 8px !important;
+  border-radius: 10px !important;
   font-weight: 500 !important;
   font-size: 0.8125rem !important;
-  border-color: $border-default !important;
-  color: $text-muted !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  color: $apple-text-secondary !important;
   background: transparent !important;
-  transition: $transition-all !important;
+  transition: all 0.2s ease !important;
+  padding: 0.5rem 1rem !important;
 
   &:hover:not(.el-button--primary) {
-    border-color: $primary-color !important;
-    color: $primary-color !important;
-    background: rgba(29, 78, 216, 0.06) !important;
+    border-color: $apple-accent !important;
+    color: $apple-accent !important;
+    background: rgba(0, 113, 227, 0.06) !important;
   }
 
   &.el-button--primary {
-    background: rgba(29, 78, 216, 0.12) !important;
-    border-color: rgba(29, 78, 216, 0.25) !important;
-    color: $primary-color !important;
+    background: rgba(0, 113, 227, 0.1) !important;
+    border-color: rgba(0, 113, 227, 0.2) !important;
+    color: $apple-accent !important;
   }
 }
 
 .create-post-dialog {
   :deep(.el-dialog) {
-    background: $bg-card !important;
-    border: 1px solid $border-strong !important;
-    border-radius: $border-radius-xl !important;
+    background: rgba(255, 255, 255, 0.95) !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    border-radius: 20px !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08) !important;
   }
 
   :deep(.el-dialog__header) {
-    padding: 1.5rem 1.5rem 1rem;
-    border-bottom: 1px solid $border-default !important;
+    padding: 2rem 2.5rem 1.5rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
   }
 
   :deep(.el-dialog__title) {
-    color: $text-primary !important;
+    color: $apple-text-primary !important;
     font-weight: 700 !important;
-    font-size: 1.0625rem !important;
+    font-size: 1.25rem !important;
+    letter-spacing: -0.015em;
   }
 
   :deep(.el-dialog__body) {
-    padding: 1.5rem;
+    padding: 2rem 2.5rem;
+  }
+
+  :deep(.el-dialog__footer) {
+    padding: 1.5rem 2.5rem 2rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.06) !important;
   }
 }
 
 .title-input {
   :deep(.el-input__wrapper) {
-    background: rgba(15, 23, 42, 0.03) !important;
-    border: 1px solid $border-default !important;
-    border-radius: 10px !important;
+    background: rgba(245, 245, 247, 0.8) !important;
+    border: 1px solid rgba(0, 0, 0, 0.06) !important;
+    border-radius: 14px !important;
     box-shadow: none !important;
+    padding: 0.875rem 1.25rem !important;
+    transition: all 0.2s ease !important;
 
     &.is-focus {
-      border-color: $primary-color !important;
-      box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12) !important;
+      border-color: $apple-accent !important;
+      box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.1) !important;
+      background: rgba(255, 255, 255, 0.95) !important;
     }
   }
 
   :deep(.el-input__inner) {
-    font-size: 1rem !important;
+    font-size: 1.125rem !important;
     font-weight: 600 !important;
-    color: $text-primary !important;
+    color: $apple-text-primary !important;
+    font-family: $apple-font-family !important;
 
     &::placeholder {
-      color: $text-muted !important;
+      color: $apple-text-tertiary !important;
       font-weight: 400 !important;
     }
   }
@@ -613,21 +671,27 @@ onMounted(() => {
 
 .content-input {
   :deep(.el-textarea__inner) {
-    background: rgba(15, 23, 42, 0.03) !important;
-    border: 1px solid $border-default !important;
-    border-radius: 10px !important;
+    background: rgba(245, 245, 247, 0.8) !important;
+    border: 1px solid rgba(0, 0, 0, 0.06) !important;
+    border-radius: 14px !important;
     resize: none !important;
-    font-size: 0.9rem !important;
-    line-height: 1.6 !important;
-    color: $text-primary !important;
+    font-size: 1rem !important;
+    line-height: 1.75 !important;
+    color: $apple-text-primary !important;
+    padding: 1.25rem 1.5rem !important;
+    font-family: $apple-font-family !important;
+    min-height: 200px !important;
+    transition: all 0.2s ease !important;
 
     &:focus {
-      border-color: $primary-color !important;
-      box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12) !important;
+      border-color: $apple-accent !important;
+      box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.1) !important;
+      background: rgba(255, 255, 255, 0.95) !important;
     }
 
     &::placeholder {
-      color: $text-muted !important;
+      color: $apple-text-tertiary !important;
+      font-weight: 400 !important;
     }
   }
 }
@@ -636,6 +700,83 @@ onMounted(() => {
   display: flex;
   gap: 0.75rem;
   justify-content: flex-end;
+
+  :deep(.el-button) {
+    border-radius: 10px !important;
+    font-weight: 500 !important;
+    padding: 0.625rem 1.5rem !important;
+    transition: all 0.2s ease !important;
+  }
+
+  :deep(.el-button--default) {
+    color: $apple-text-secondary !important;
+    border-color: rgba(0, 0, 0, 0.1) !important;
+    background: transparent !important;
+
+    &:hover {
+      border-color: $apple-accent !important;
+      color: $apple-accent !important;
+      background: rgba(0, 113, 227, 0.06) !important;
+    }
+  }
+
+  :deep(.el-button--primary) {
+    background: $apple-accent !important;
+    border-color: $apple-accent !important;
+
+    &:hover {
+      background: rgba(0, 113, 227, 0.9) !important;
+    }
+  }
+}
+
+.tags-input-wrapper {
+  width: 100%;
+}
+
+.tags-input {
+  margin-bottom: 0.75rem;
+
+  :deep(.el-input__wrapper) {
+    background: rgba(245, 245, 247, 0.8) !important;
+    border: 1px solid rgba(0, 0, 0, 0.06) !important;
+    border-radius: 14px !important;
+    transition: all 0.2s ease !important;
+
+    &.is-focus {
+      border-color: $apple-accent !important;
+      box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.1) !important;
+      background: rgba(255, 255, 255, 0.95) !important;
+    }
+  }
+
+  :deep(.el-input__inner) {
+    font-size: 0.9375rem !important;
+    color: $apple-text-primary !important;
+    font-family: $apple-font-family !important;
+
+    &::placeholder {
+      color: $apple-text-tertiary !important;
+    }
+  }
+}
+
+.tags-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.tag-preview-item {
+  background: rgba(100, 116, 139, 0.1) !important;
+  border: 1px solid rgba(100, 116, 139, 0.15) !important;
+  color: rgba(100, 116, 139, 0.9) !important;
+  border-radius: 10px !important;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+  padding: 0.25rem 0.625rem !important;
+  font-family: $apple-font-family !important;
 }
 
 // ============================================
@@ -652,9 +793,9 @@ onMounted(() => {
 }
 
 .post-skeleton {
-  background: #FFFFFF;
-  border: 1px solid $border-subtle;
-  border-radius: $border-radius;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
   padding: 1.5rem;
 }
 
@@ -663,9 +804,9 @@ onMounted(() => {
   justify-content: center;
   align-items: center;
   min-height: 300px;
-  background: linear-gradient(145deg, rgba(255,255,255,0.03) 0%, transparent 100%);
-  border: 1px dashed $border-default;
-  border-radius: $border-radius;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px dashed rgba(0, 0, 0, 0.1);
+  border-radius: 16px;
 }
 
 .posts-list {
@@ -675,37 +816,21 @@ onMounted(() => {
 }
 
 .post-card {
-  background: #FFFFFF;
-  border: 1px solid $border-subtle;
-  border-radius: $border-radius;
-  padding: 1.375rem 1.5rem;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
+  padding: 1.5rem 1.75rem;
   cursor: pointer;
-  transition: $transition-all;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  overflow: hidden;
-
-  &::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 3px;
-    background: $gradient-primary;
-    border-radius: 3px 0 0 3px;
-    opacity: 0;
-    transition: opacity 0.25s ease;
-  }
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 
   &:hover {
-    border-color: rgba(29, 78, 216, 0.2);
-    background: linear-gradient(145deg, rgba(29, 78, 216, 0.03) 0%, rgba(255,255,255,0.02) 100%);
-    box-shadow: $shadow;
+    border-color: rgba(0, 113, 227, 0.15);
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
     transform: translateY(-2px);
-
-    &::before {
-      opacity: 1;
-    }
   }
 }
 
@@ -713,7 +838,7 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 0.875rem;
+  margin-bottom: 1rem;
 }
 
 .author-info {
@@ -729,44 +854,67 @@ onMounted(() => {
 }
 
 .author-name {
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
-  color: $text-primary;
+  color: $apple-text-primary;
   margin: 0;
+  line-height: 1.4;
 }
 
 .post-date {
-  font-size: 0.725rem;
-  color: $text-muted;
+  font-size: 0.75rem;
+  color: $apple-text-tertiary;
   margin: 0;
   font-family: 'IBM Plex Mono', monospace;
+  line-height: 1.4;
 }
 
 .status-tag {
-  font-size: 0.7rem !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.04em !important;
+  font-size: 0.6875rem !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.02em !important;
+  padding: 0.25rem 0.625rem !important;
+  border-radius: 10px !important;
+  border: none !important;
+  
+  // 已发布：浅绿色
+  &.el-tag--success {
+    background: rgba(22, 163, 74, 0.12) !important;
+    color: rgba(22, 163, 74, 0.9) !important;
+  }
+  
+  // 审核中：浅橙色
+  &.el-tag--warning {
+    background: rgba(217, 119, 6, 0.12) !important;
+    color: rgba(217, 119, 6, 0.9) !important;
+  }
+  
+  // 草稿：浅灰蓝色
+  &.el-tag--info {
+    background: rgba(100, 116, 139, 0.12) !important;
+    color: rgba(100, 116, 139, 0.9) !important;
+  }
 }
 
 .post-title {
-  font-size: 1.0625rem;
+  font-size: 1.25rem;
   font-weight: 700;
-  color: $text-primary;
-  margin: 0 0 0.625rem 0;
-  line-height: 1.45;
-  letter-spacing: -0.01em;
-  transition: $transition-colors;
+  color: $apple-text-primary;
+  margin: 0 0 0.75rem 0;
+  line-height: 1.4;
+  letter-spacing: -0.015em;
+  transition: color 0.2s ease;
 
   &:hover {
-    color: $primary-color;
+    color: $apple-accent;
   }
 }
 
 .post-content {
-  font-size: 0.875rem;
-  color: $text-secondary;
-  line-height: 1.65;
-  margin: 0 0 0.875rem 0;
+  font-size: 0.9375rem;
+  color: $apple-text-secondary;
+  line-height: 1.75;
+  margin: 0 0 1rem 0;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
@@ -776,34 +924,68 @@ onMounted(() => {
 .post-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.375rem;
-  margin-bottom: 0.875rem;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
 }
 
+// Topic Tag (内容标签) - 浅灰蓝胶囊
 .post-tag {
-  background: rgba(124, 58, 237, 0.1) !important;
-  border: 1px solid rgba(29, 78, 216, 0.12) !important;
-  color: $primary-color !important;
-  font-size: 0.7rem !important;
-  font-weight: 600 !important;
-  border-radius: 6px !important;
-  padding: 0 0.5rem !important;
+  background: rgba(100, 116, 139, 0.1) !important;
+  border: 1px solid rgba(100, 116, 139, 0.15) !important;
+  color: rgba(100, 116, 139, 0.9) !important;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+  border-radius: 10px !important;
+  padding: 0.25rem 0.625rem !important;
+  font-family: $apple-font-family !important;
 }
 
+// Asset Tag (关联标的) - 淡红/淡蓝/淡灰金融风
 .asset-link-tag {
   text-decoration: none;
 
   .asset-tag {
     cursor: pointer;
+    border-radius: 10px !important;
+    padding: 0.25rem 0.625rem !important;
+    font-size: 0.75rem !important;
+    font-weight: 500 !important;
+    border: none !important;
+    font-family: $apple-font-family !important;
 
     .asset-tag-name {
-      font-size: 0.65rem;
-      opacity: 0.8;
-      margin-left: 3px;
+      font-size: 0.6875rem;
+      opacity: 0.85;
+      margin-left: 4px;
+    }
+
+    // 股票市场 - 淡红
+    &.el-tag--danger {
+      background: rgba(232, 93, 93, 0.12) !important;
+      color: rgba(232, 93, 93, 0.95) !important;
+    }
+
+    // 港股 - 淡橙
+    &.el-tag--warning {
+      background: rgba(217, 119, 6, 0.12) !important;
+      color: rgba(217, 119, 6, 0.95) !important;
+    }
+
+    // 美股 - 淡蓝
+    &.el-tag--primary {
+      background: rgba(0, 113, 227, 0.12) !important;
+      color: rgba(0, 113, 227, 0.95) !important;
+    }
+
+    // 其他 - 淡灰
+    &.el-tag--info {
+      background: rgba(100, 116, 139, 0.12) !important;
+      color: rgba(100, 116, 139, 0.95) !important;
     }
 
     &:hover {
-      opacity: 0.8;
+      opacity: 0.85;
+      transform: translateY(-1px);
     }
   }
 }
@@ -813,42 +995,72 @@ onMounted(() => {
   align-items: center;
   gap: 6px;
   font-size: 0.875rem;
-  color: #A0AABF;
-  margin-bottom: 0.5rem;
+  color: $apple-text-secondary;
+  margin-bottom: 0.75rem;
   width: 100%;
+  font-weight: 500;
 }
 
 .post-actions {
   display: flex;
-  gap: 1.25rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid $border-subtle;
+  gap: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  align-items: center;
 }
 
 .action-btn {
   display: flex !important;
   align-items: center !important;
   gap: 0.375rem !important;
-  color: $text-muted !important;
+  color: $apple-text-tertiary !important;
   font-size: 0.8125rem !important;
-  padding: 0.25rem 0.5rem !important;
-  border-radius: 6px !important;
-  transition: $transition-all !important;
+  padding: 0.375rem 0.5rem !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
   cursor: pointer;
+  background: transparent !important;
+  border: none !important;
+  font-weight: 500 !important;
+
+  :deep(.el-icon) {
+    font-size: 1rem;
+  }
+
+  span {
+    font-size: 0.8125rem;
+  }
 
   &:hover {
-    color: $primary-color !important;
-    background: rgba(124, 58, 237, 0.1) !important;
+    color: $apple-accent !important;
+    background: rgba(0, 113, 227, 0.08) !important;
   }
 
   &.liked {
-    color: $error-color !important;
-    background: rgba(239, 68, 68, 0.08) !important;
+    color: rgba(232, 93, 93, 0.9) !important;
+    
+    &:hover {
+      background: rgba(232, 93, 93, 0.1) !important;
+    }
   }
 
   &.favorited {
-    color: $warning-color !important;
-    background: rgba(245, 158, 11, 0.08) !important;
+    color: rgba(217, 119, 6, 0.9) !important;
+    
+    &:hover {
+      background: rgba(217, 119, 6, 0.1) !important;
+    }
+  }
+
+  &.report-btn {
+    margin-left: auto;
+    opacity: 0.6;
+    
+    &:hover {
+      opacity: 1;
+      color: $apple-text-secondary !important;
+      background: rgba(0, 0, 0, 0.04) !important;
+    }
   }
 }
 

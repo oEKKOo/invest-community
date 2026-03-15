@@ -133,7 +133,7 @@ const chartOption = computed(() => {
 
   const volumes = klineData.value.map(d => d.volume || 0)
   const upColors = klineData.value.map((d, i) =>
-    parseFloat(String(d.close)) >= parseFloat(String(d.open)) ? '#f56c6c' : '#67c23a'
+    parseFloat(String(d.close)) >= parseFloat(String(d.open)) ? '#e85d5d' : '#16a34a'
   )
 
   return {
@@ -143,8 +143,12 @@ const chartOption = computed(() => {
       trigger: 'axis',
       axisPointer: { type: 'cross' },
       backgroundColor: '#FFFFFF',
-      borderColor: 'rgba(0,0,0,0.1)',
-      textStyle: { color: '#475569', fontSize: 12 },
+      borderColor: 'rgba(0,0,0,0.08)',
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: [8, 12],
+      textStyle: { color: '#1d1d1f', fontSize: 12, fontFamily: 'Inter, sans-serif' },
+      boxShadow: '0 4px 12px rgba(15, 23, 42, 0.08)',
       formatter: (params: any[]) => {
         if (!params || !params[0]) return ''
         const d = klineData.value[params[0].dataIndex]
@@ -168,8 +172,8 @@ const chartOption = computed(() => {
       link: [{ xAxisIndex: 'all' }]
     },
     grid: [
-      { left: '8%', right: '3%', top: '5%', height: '60%' },
-      { left: '8%', right: '3%', top: '70%', height: '20%' }
+      { left: '10%', right: '4%', top: '8%', height: '60%' },
+      { left: '10%', right: '4%', top: '70%', height: '20%' }
     ],
     xAxis: [
       {
@@ -178,10 +182,10 @@ const chartOption = computed(() => {
         gridIndex: 0,
         scale: true,
         boundaryGap: false,
-        axisLine: { lineStyle: { color: 'rgba(0,0,0,0.1)' } },
+        axisLine: { lineStyle: { color: 'rgba(0,0,0,0.05)' } },
         axisTick: { show: false },
         axisLabel: {
-          color: '#6B7280',
+          color: '#8e8e93',
           fontSize: 11,
           interval: Math.floor(times.length / 8)
         },
@@ -193,7 +197,7 @@ const chartOption = computed(() => {
         gridIndex: 1,
         scale: true,
         boundaryGap: false,
-        axisLine: { lineStyle: { color: 'rgba(0,0,0,0.1)' } },
+        axisLine: { lineStyle: { color: 'rgba(0,0,0,0.05)' } },
         axisTick: { show: false },
         axisLabel: { show: false },
         splitLine: { show: false }
@@ -206,8 +210,8 @@ const chartOption = computed(() => {
         splitNumber: 5,
         axisLine: { show: false },
         axisTick: { show: false },
-        axisLabel: { color: '#6B7280', fontSize: 11 },
-        splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } }
+        axisLabel: { color: '#8e8e93', fontSize: 11 },
+        splitLine: { lineStyle: { color: 'rgba(0,0,0,0.03)', type: 'dashed' } }
       },
       {
         scale: true,
@@ -216,7 +220,7 @@ const chartOption = computed(() => {
         axisLine: { show: false },
         axisTick: { show: false },
         axisLabel: {
-          color: '#6B7280',
+          color: '#8e8e93',
           fontSize: 10,
           formatter: (v: number) => formatVol(v)
         },
@@ -252,10 +256,10 @@ const chartOption = computed(() => {
         yAxisIndex: 0,
         data: ohlcv,
         itemStyle: {
-          color: '#f56c6c',
-          color0: '#67c23a',
-          borderColor: '#f56c6c',
-          borderColor0: '#67c23a'
+          color: '#e85d5d',
+          color0: '#16a34a',
+          borderColor: '#e85d5d',
+          borderColor0: '#16a34a'
         }
       },
       {
@@ -317,48 +321,57 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss" scoped>
+@use '@/styles/variables.scss' as *;
+
 .kline-chart-wrapper {
   width: 100%;
+  padding: $market-space-4 0;
 }
 
 .chart-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: $market-space-4;
+  padding: 0 $market-space-2;
 }
 
 .interval-tabs {
   display: flex;
-  gap: 4px;
+  gap: $market-space-2;
+  background: rgba(0, 0, 0, 0.02);
+  padding: 4px;
+  border-radius: $market-radius-segmented;
 }
 
 .interval-btn {
-  padding: 4px 12px;
-  border-radius: 6px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 6px 16px;
+  border-radius: $market-radius-segmented-item;
+  border: none;
   background: transparent;
-  color: #6B7280;
-  font-size: 0.75rem;
+  color: $market-text-secondary;
+  font-size: $market-font-caption;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 
   &:hover {
     background: rgba(0, 0, 0, 0.04);
-    color: #374151;
+    color: $market-text-primary;
   }
 
   &.active {
-    background: rgba(29, 78, 216, 0.12);
-    border-color: rgba(29, 78, 216, 0.25);
-    color: #3B82F6;
+    background: $market-bg-soft;
+    color: $market-accent;
     font-weight: 600;
+    box-shadow: $market-shadow-sm;
   }
 }
 
 .data-source-hint {
-  font-size: 0.7rem;
-  color: #9CA3AF;
+  font-size: $market-font-mini;
+  color: $market-text-tertiary;
+  font-style: italic;
 }
 
 .chart-loading {
@@ -378,7 +391,8 @@ onUnmounted(() => {
 
 .kline-echart {
   width: 100%;
-  height: 400px;
+  height: 450px;
+  padding: $market-space-4;
 }
 
 .chart-error,

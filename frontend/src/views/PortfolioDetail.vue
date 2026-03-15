@@ -17,82 +17,92 @@
     </div>
 
     <div v-else class="portfolio-container">
-      <!-- 组合头部信息 -->
-      <div class="portfolio-header">
-        <div class="header-main">
-          <h1 class="portfolio-title">{{ portfoliosStore.currentPortfolio.title }}</h1>
-          <p class="portfolio-description">{{ portfoliosStore.currentPortfolio.description }}</p>
-          
-          <div class="portfolio-meta">
-            <el-tag 
-              :type="getRiskLevelType(portfoliosStore.currentPortfolio.riskLevel)"
-              size="large"
-              class="risk-tag"
-            >
-              {{ portfoliosStore.currentPortfolio.riskLevel }} 风险
-            </el-tag>
+      <!-- 组合头部信息 (Hero区域) -->
+      <div class="portfolio-hero">
+        <div class="hero-content">
+          <div class="hero-main">
+            <!-- 第一重点：组合名称 -->
+            <h1 class="portfolio-title">{{ portfoliosStore.currentPortfolio.title }}</h1>
             
-            <div class="portfolio-stats">
-              <div class="stat-item">
-                <span class="stat-label">收益</span>
-                <span class="stat-value" :class="perf ? pnlClass(perf.totalUnrealizedReturn) : ''">
-                  {{ perf ? fmtRate(perf.totalUnrealizedReturn) : '--' }}
-                </span>
+            <!-- 第二重点：收益率（突出显示） -->
+            <div class="hero-return">
+              <div class="return-value" :class="perf ? pnlClass(perf.totalUnrealizedReturn) : ''">
+                {{ perf ? fmtRate(perf.totalUnrealizedReturn) : '--' }}
               </div>
-              <div class="stat-item">
-                <span class="stat-label">点赞</span>
-                <span class="stat-value">{{ portfoliosStore.currentPortfolio.likes }}</span>
+              <div class="return-label">收益率</div>
+            </div>
+
+            <!-- 第三重点：风险等级 -->
+            <div class="hero-meta-strip">
+              <el-tag 
+                :type="getRiskLevelType(portfoliosStore.currentPortfolio.riskLevel)"
+                size="default"
+                class="risk-tag"
+                :class="`risk-${portfoliosStore.currentPortfolio.riskLevel.toLowerCase()}`"
+              >
+                {{ portfoliosStore.currentPortfolio.riskLevel === 'Low' ? '低风险' : portfoliosStore.currentPortfolio.riskLevel === 'Medium' ? '中等风险' : '高风险' }}
+              </el-tag>
+              
+              <div class="meta-divider"></div>
+              
+              <div class="meta-item">
+                <span class="meta-label">点赞</span>
+                <span class="meta-value">{{ portfoliosStore.currentPortfolio.likes }}</span>
+              </div>
+            </div>
+
+            <!-- 第四重点：作者与创建时间 -->
+            <div class="portfolio-author">
+              <el-avatar
+                :size="36"
+                :src="getAvatarUrl(portfoliosStore.currentPortfolio.id)"
+                class="author-clickable"
+                @click.stop="$router.push({ name: 'UserProfile', params: { userId: portfoliosStore.currentPortfolio.userId } })"
+              >
+                {{ portfoliosStore.currentPortfolio.userName[0] }}
+              </el-avatar>
+              <div
+                class="author-info author-clickable"
+                @click.stop="$router.push({ name: 'UserProfile', params: { userId: portfoliosStore.currentPortfolio.userId } })"
+              >
+                <p class="author-name">{{ portfoliosStore.currentPortfolio.userName }}</p>
+                <p class="create-date">创建于 {{ formatDate(portfoliosStore.currentPortfolio.createdAt) }}</p>
               </div>
             </div>
           </div>
 
-          <div class="portfolio-author">
-            <el-avatar
-              :size="40"
-              :src="getAvatarUrl(portfoliosStore.currentPortfolio.id)"
-              class="author-clickable"
-              @click.stop="$router.push({ name: 'UserProfile', params: { userId: portfoliosStore.currentPortfolio.userId } })"
+          <!-- 第五重点：操作按钮（右上角） -->
+          <div class="hero-actions">
+            <el-button
+              type="text"
+              :class="{ liked: portfoliosStore.currentPortfolio.isLiked }"
+              @click="handleLike"
+              class="action-btn like-btn"
             >
-              {{ portfoliosStore.currentPortfolio.userName[0] }}
-            </el-avatar>
-            <div
-              class="author-info author-clickable"
-              @click.stop="$router.push({ name: 'UserProfile', params: { userId: portfoliosStore.currentPortfolio.userId } })"
+              <el-icon><Star /></el-icon>
+              <span>{{ portfoliosStore.currentPortfolio.isLiked ? '已点赞' : '点赞' }}</span>
+            </el-button>
+            
+            <el-button
+              type="primary"
+              @click="showShareDialog = true"
+              class="action-btn"
             >
-              <p class="author-name">{{ portfoliosStore.currentPortfolio.userName }}</p>
-              <p class="create-date">创建于：{{ formatDate(portfoliosStore.currentPortfolio.createdAt) }}</p>
-            </div>
+              <el-icon><Share /></el-icon>
+              分享组合
+            </el-button>
+
+            <el-button
+              v-if="authStore.isLoggedIn && !isOwner"
+              type="danger"
+              plain
+              @click="openReportPortfolioDialog"
+              class="action-btn"
+            >
+              <el-icon><Warning /></el-icon>
+              举报组合
+            </el-button>
           </div>
-        </div>
-
-        <div class="header-actions">
-          <el-button
-            type="text"
-            :class="{ liked: portfoliosStore.currentPortfolio.isLiked }"
-            @click="handleLike"
-            class="like-btn"
-          >
-            <el-icon><Star /></el-icon>
-            <span>{{ portfoliosStore.currentPortfolio.isLiked ? '已点赞' : '点赞' }}</span>
-          </el-button>
-          
-          <el-button
-            type="primary"
-            @click="showShareDialog = true"
-          >
-            <el-icon><Share /></el-icon>
-            分享组合
-          </el-button>
-
-          <el-button
-            v-if="authStore.isLoggedIn && !isOwner"
-            type="danger"
-            plain
-            @click="openReportPortfolioDialog"
-          >
-            <el-icon><Warning /></el-icon>
-            举报组合
-          </el-button>
         </div>
       </div>
 
@@ -286,8 +296,8 @@
 
       <!-- 组合评论区 -->
       <div class="comments-card">
-        <h2 class="section-title">组合讨论</h2>
-        <el-empty v-if="!comments.length" description="还没有人发表评论，抢沙发～" />
+        <h2 class="section-title">大家怎么看这个组合？</h2>
+        <el-empty v-if="!comments.length" description="还没有人分享观点，来聊聊这个组合的思路" />
         <div v-else class="comment-list">
           <div v-for="c in comments" :key="c.id" class="comment-item">
             <div class="comment-main">
@@ -308,11 +318,12 @@
           <el-input
             v-model="newComment"
             type="textarea"
-            :rows="3"
+            :rows="4"
             resize="none"
-            placeholder="发表你对该组合的看法..."
+            placeholder="写下你对这套组合的看法…&#10;比如配置逻辑、风险判断、收益预期等"
+            class="comment-input"
           />
-          <el-button type="primary" size="small" class="comment-submit" @click="handleSubmitComment">
+          <el-button type="primary" size="default" class="comment-submit" @click="handleSubmitComment">
             发布评论
           </el-button>
         </div>
@@ -322,17 +333,15 @@
       <div class="updates-card">
         <h2 class="section-title">组合更新日志</h2>
         <el-empty v-if="!updateLogs.length" description="作者还没有发布任何更新日志" />
-        <ul v-else class="update-list">
-          <li v-for="u in updateLogs" :key="u.id" class="update-item">
-            <div class="update-header">
-              <span class="update-title">{{ u.title }}</span>
-              <span class="update-time">{{ formatDate(u.createdAt) }}</span>
+        <div v-else class="update-timeline">
+          <div v-for="u in updateLogs" :key="u.id" class="timeline-item">
+            <div class="timeline-marker"></div>
+            <div class="timeline-content">
+              <div class="update-time">{{ formatTime(u.createdAt) }}</div>
+              <div class="update-text">{{ u.content || u.title }}</div>
             </div>
-            <div class="update-content">
-              {{ u.content }}
-            </div>
-          </li>
-        </ul>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -384,6 +393,7 @@ import ReportDialog from '@/components/ReportDialog.vue'
 import dayjs from 'dayjs'
 import { getHoldingPerformance } from '../api/holdings'
 import type { HoldingPerformanceItem } from '../types'
+import { getPortfolioComments, getPortfolioUpdates, createPortfolioComment } from '../api/portfolios'
 
 use([CanvasRenderer, PieChart, TooltipComponent, LegendComponent])
 
@@ -626,13 +636,22 @@ onMounted(async () => {
       // 如果是本人的组合，同步拉持仓收益（非阻塞）
       fetchHoldingPerf()
       // 组合评论与更新日志
-      const [commentRes, updateRes] = await Promise.all([
-        getPortfolioComments(portfolioId),
-        getPortfolioUpdates(portfolioId)
-      ])
-      comments.value = commentRes.items
-      updateLogs.value = updateRes.items
+      try {
+        const [commentRes, updateRes] = await Promise.all([
+          getPortfolioComments(portfolioId),
+          getPortfolioUpdates(portfolioId)
+        ])
+        // 容错处理：确保数据结构正确
+        comments.value = commentRes?.items || commentRes || []
+        updateLogs.value = updateRes?.items || updateRes || []
+      } catch (commentError) {
+        // 评论和更新日志加载失败不影响主页面显示
+        console.warn('加载评论或更新日志失败:', commentError)
+        comments.value = []
+        updateLogs.value = []
+      }
     } catch (error) {
+      console.error('获取投资组合详情失败:', error)
       ElMessage.error('获取投资组合详情失败')
     }
   }
@@ -675,129 +694,186 @@ const handleSubmitComment = async () => {
   gap: 1.5rem;
 }
 
-.portfolio-header {
-  background: #FFFFFF;
+// Hero区域
+.portfolio-hero {
+  background: $bg-card;
   border: 1px solid $border-default;
-  border-radius: $border-radius;
-  padding: 2rem;
+  border-radius: $portfolio-hero-radius;
+  padding: $portfolio-hero-padding;
+  position: relative;
+}
+
+.hero-content {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  gap: $portfolio-space-8;
 
   @media (max-width: 768px) {
     flex-direction: column;
-    gap: 1.5rem;
+    gap: $portfolio-space-6;
   }
 }
 
-.header-main {
+.hero-main {
   flex: 1;
 }
 
 .portfolio-title {
-  font-size: 1.875rem;
+  font-size: $portfolio-title-size;
   font-weight: 700;
   color: $text-primary;
-  margin: 0 0 0.75rem 0;
+  margin: 0 0 $portfolio-space-6 0;
   line-height: 1.2;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
 }
 
-.portfolio-description {
-  font-size: 0.9375rem;
-  color: $text-secondary;
-  line-height: 1.6;
-  margin: 0 0 1.5rem 0;
-  max-width: 600px;
+// 收益率（第二重点）
+.hero-return {
+  margin-bottom: $portfolio-space-6;
+  padding: $portfolio-space-6 0;
+  border-top: 1px solid $border-subtle;
+  border-bottom: 1px solid $border-subtle;
 }
 
-.portfolio-meta {
+.return-value {
+  font-size: $portfolio-return-size;
+  font-weight: 700;
+  font-family: 'IBM Plex Mono', monospace;
+  line-height: 1.2;
+  margin-bottom: $portfolio-space-2;
+
+  &.pnl-up {
+    color: $portfolio-return-positive;
+  }
+
+  &.pnl-down {
+    color: $portfolio-return-negative;
+  }
+
+  &.pnl-zero {
+    color: $text-muted;
+  }
+}
+
+.return-label {
+  font-size: $portfolio-caption;
+  color: $text-muted;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+// 横向指标组（风险/点赞）
+.hero-meta-strip {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
+  gap: $portfolio-space-4;
+  margin-bottom: $portfolio-space-6;
   flex-wrap: wrap;
-
-  @media (max-width: 640px) {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.75rem;
-  }
 }
 
 .risk-tag {
-  font-weight: 700 !important;
+  font-weight: 600 !important;
+  font-size: $portfolio-caption !important;
+  padding: 6px 12px !important;
+  border-radius: $apple-radius-sm !important;
+
+  &.risk-low {
+    background: $portfolio-risk-low-bg !important;
+    color: $portfolio-risk-low !important;
+    border-color: $portfolio-risk-low !important;
+  }
+
+  &.risk-medium {
+    background: $portfolio-risk-medium-bg !important;
+    color: $portfolio-risk-medium !important;
+    border-color: $portfolio-risk-medium !important;
+  }
+
+  &.risk-high {
+    background: $portfolio-risk-high-bg !important;
+    color: $portfolio-risk-high !important;
+    border-color: $portfolio-risk-high !important;
+  }
 }
 
-.portfolio-stats {
+.meta-divider {
+  width: 1px;
+  height: 20px;
+  background: $border-subtle;
+}
+
+.meta-item {
   display: flex;
-  gap: 1.5rem;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.stat-item {
-  text-align: center;
-}
-
-.stat-label {
-  display: block;
-  font-size: 0.6875rem;
+.meta-label {
+  font-size: $portfolio-mini;
   color: $text-muted;
-  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-bottom: 0.25rem;
+  letter-spacing: 0.05em;
 }
 
-.stat-value {
-  display: block;
-  font-size: 1.25rem;
-  font-weight: 700;
+.meta-value {
+  font-size: $portfolio-body;
+  font-weight: 600;
   color: $text-primary;
   font-family: 'IBM Plex Mono', monospace;
-
-  &.positive {
-    color: $success-color;
-  }
 }
 
 .portfolio-author {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: $portfolio-space-3;
 }
 
 .author-info {
   display: flex;
   flex-direction: column;
-  gap: 0.125rem;
+  gap: 2px;
 }
 
 .author-name {
-  font-size: 0.875rem;
-  font-weight: 600;
+  font-size: $portfolio-body;
+  font-weight: 500;
   color: $text-primary;
   margin: 0;
 }
 
 .create-date {
-  font-size: 0.75rem;
+  font-size: $portfolio-caption;
   color: $text-muted;
   margin: 0;
   font-family: 'IBM Plex Mono', monospace;
 }
 
-.header-actions {
+.author-clickable {
+  cursor: pointer;
+  transition: $transition-all;
+
+  &:hover {
+    opacity: 0.8;
+  }
+}
+
+// 操作按钮（右上角）
+.hero-actions {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: $portfolio-space-3;
   align-self: flex-start;
 
   @media (max-width: 768px) {
     flex-direction: row;
     align-self: stretch;
+    flex-wrap: wrap;
   }
+}
+
+.action-btn {
+  white-space: nowrap;
 }
 
 .like-btn {
@@ -831,23 +907,26 @@ const handleSubmitComment = async () => {
 }
 
 .assets-overview {
-  background: #FFFFFF;
+  background: $bg-card;
   border: 1px solid $border-default;
-  border-radius: $border-radius;
-  padding: 1.75rem;
+  border-radius: $portfolio-hero-radius;
+  padding: $portfolio-space-8;
 }
 
 .section-title {
-  font-size: 1rem;
+  font-size: $portfolio-section-title;
   font-weight: 700;
   color: $text-primary;
-  margin: 0 0 1.5rem 0;
+  margin: 0 0 $portfolio-space-8 0;
   letter-spacing: -0.01em;
 }
 
 .chart-container {
-  height: 380px;
-  margin-bottom: 1.5rem;
+  height: 420px;
+  margin-bottom: $portfolio-space-8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .pie-chart {
@@ -856,9 +935,10 @@ const handleSubmitComment = async () => {
 }
 
 .assets-table {
-  border-radius: 10px;
+  border-radius: $apple-radius-md;
   overflow: hidden;
   border: 1px solid $border-subtle;
+  background: $bg-card;
 }
 
 .table-header,
@@ -866,12 +946,12 @@ const handleSubmitComment = async () => {
   display: grid;
   grid-template-columns: 120px 1fr 100px;
   align-items: center;
-  padding: 0.875rem 1rem;
-  font-size: 0.875rem;
+  padding: $portfolio-space-4 $portfolio-space-5;
+  font-size: $portfolio-body;
 
   @media (max-width: 640px) {
     grid-template-columns: 80px 1fr 80px;
-    padding: 0.75rem;
+    padding: $portfolio-space-3;
   }
 }
 
@@ -879,7 +959,7 @@ const handleSubmitComment = async () => {
 .table-header--enhanced,
 .table-row--enhanced,
 .table-row--total {
-  grid-template-columns: 110px 1fr 70px 120px 110px 110px 90px;
+  grid-template-columns: 110px 1fr 70px 140px 110px 110px 90px;
 
   @media (max-width: 900px) {
     grid-template-columns: 90px 1fr 60px 100px;
@@ -887,12 +967,12 @@ const handleSubmitComment = async () => {
 }
 
 .table-header {
-  background: rgba(15, 23, 42, 0.03);
+  background: rgba(15, 23, 42, 0.02);
   font-weight: 600;
   color: $text-muted;
-  font-size: 0.7rem;
+  font-size: $portfolio-caption;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   border-bottom: 1px solid $border-subtle;
 }
 
@@ -905,19 +985,21 @@ const handleSubmitComment = async () => {
   }
 
   &:hover {
-    background: rgba(124, 58, 237, 0.06);
+    background: rgba(29, 78, 216, 0.04);
   }
 }
 
 .table-row--total {
-  background: rgba(124, 58, 237, 0.06) !important;
-  border-top: 1px solid rgba(29, 78, 216, 0.12) !important;
+  background: rgba(29, 78, 216, 0.05) !important;
+  border-top: 2px solid rgba(29, 78, 216, 0.15) !important;
   border-bottom: none !important;
+  font-weight: 600 !important;
 }
 
 .total-label {
   font-weight: 700 !important;
   color: $primary-color !important;
+  font-size: $portfolio-body !important;
 }
 
 .total-alloc,
@@ -968,20 +1050,22 @@ const handleSubmitComment = async () => {
 .col-allocation {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  font-weight: 700;
+  gap: 6px;
+  font-weight: 600;
   color: $primary-color;
   font-family: 'IBM Plex Mono', monospace;
 }
 
 .alloc-badge {
-  font-size: 0.8rem;
+  font-size: $portfolio-body;
+  font-weight: 600;
 }
 
 .alloc-bar-wrap {
-  width: 80%;
-  height: 3px;
-  background: rgba(255,255,255,0.08);
+  width: 100%;
+  max-width: 120px;
+  height: 4px;
+  background: rgba(15, 23, 42, 0.06);
   border-radius: 2px;
   overflow: hidden;
 }
@@ -1025,22 +1109,22 @@ const handleSubmitComment = async () => {
 
 .comments-card,
 .updates-card {
-  margin-top: 1rem;
-  background: #ffffff;
+  margin-top: $portfolio-space-6;
+  background: $bg-card;
   border: 1px solid $border-default;
-  border-radius: $border-radius;
-  padding: 1.5rem;
+  border-radius: $apple-radius-md;
+  padding: $portfolio-space-8;
 }
 
 .comment-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
+  gap: $portfolio-space-5;
+  margin-bottom: $portfolio-space-6;
 }
 
 .comment-item {
-  padding-bottom: 0.5rem;
+  padding-bottom: $portfolio-space-4;
   border-bottom: 1px solid $border-subtle;
 
   &:last-child {
@@ -1050,94 +1134,123 @@ const handleSubmitComment = async () => {
 
 .comment-meta {
   display: flex;
-  gap: 0.5rem;
-  font-size: 0.75rem;
+  gap: $portfolio-space-3;
+  font-size: $portfolio-caption;
   color: $text-muted;
-  margin-bottom: 0.15rem;
+  margin-bottom: $portfolio-space-2;
 }
 
 .comment-body {
-  font-size: 0.85rem;
+  font-size: $portfolio-body;
   color: $text-primary;
+  line-height: 1.6;
 }
 
 .comment-editor {
-  margin-top: 0.75rem;
+  margin-top: $portfolio-space-6;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: $portfolio-space-4;
+}
+
+.comment-input {
+  :deep(.el-textarea__inner) {
+    border-radius: $apple-input-radius;
+    border-color: $border-subtle;
+    font-size: $portfolio-body;
+    line-height: 1.6;
+    padding: $portfolio-space-4;
+  }
 }
 
 .comment-submit {
   align-self: flex-end;
+  border-radius: $apple-input-radius;
+  font-weight: 500;
 }
 
-.update-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.update-item {
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid $border-subtle;
-
-  &:last-child {
-    border-bottom: none;
+.update-timeline {
+  position: relative;
+  padding-left: $portfolio-space-6;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: $border-subtle;
   }
 }
 
-.update-header {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.8rem;
-  margin-bottom: 0.25rem;
+.timeline-item {
+  position: relative;
+  margin-bottom: $portfolio-space-6;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
 }
 
-.update-title {
-  font-weight: 600;
+.timeline-marker {
+  position: absolute;
+  left: -$portfolio-space-6 - 3px;
+  top: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: $primary-color;
+  border: 2px solid $bg-card;
+  z-index: 1;
+}
+
+.timeline-content {
+  display: flex;
+  flex-direction: column;
+  gap: $portfolio-space-2;
 }
 
 .update-time {
+  font-size: $portfolio-caption;
   color: $text-muted;
+  font-family: 'IBM Plex Mono', monospace;
 }
 
-.update-content {
-  font-size: 0.85rem;
-  color: $text-secondary;
+.update-text {
+  font-size: $portfolio-body;
+  color: $text-primary;
+  line-height: 1.6;
 }
 
 .stats-card {
-  background: #FFFFFF;
+  background: $bg-card;
   border: 1px solid $border-default;
-  border-radius: $border-radius;
-  padding: 1.375rem;
+  border-radius: $apple-radius-md;
+  padding: $portfolio-space-6;
 }
 
 .card-title {
-  font-size: 0.875rem;
+  font-size: $portfolio-body;
   font-weight: 700;
   color: $text-primary;
-  margin: 0 0 1rem 0;
+  margin: 0 0 $portfolio-space-5 0;
   letter-spacing: -0.01em;
 }
 
 .stats-list {
   display: flex;
   flex-direction: column;
-  gap: 0.625rem;
+  gap: $portfolio-space-3;
 }
 
 .stat-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.8125rem;
-  padding: 0.375rem 0;
-  border-bottom: 1px solid $border-subtle;
+  font-size: $portfolio-caption;
+  padding: $portfolio-space-2 0;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.04);
 
   &:last-child {
     border-bottom: none;
@@ -1146,12 +1259,14 @@ const handleSubmitComment = async () => {
 
 .stat-name {
   color: $text-muted;
+  font-size: $portfolio-caption;
 }
 
 .stat-data {
   font-weight: 600;
   color: $text-primary;
   font-family: 'IBM Plex Mono', monospace;
+  font-size: $portfolio-body;
 }
 
 .share-options {

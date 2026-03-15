@@ -6,7 +6,7 @@
         <div class="hero-avatar">
           <el-avatar 
             :src="displayUser?.avatar || authStore.user?.avatar" 
-            :size="120"
+            :size="104"
             class="user-avatar"
           >
             {{ displayUser?.displayName?.[0] || authStore.user?.displayName?.[0] }}
@@ -153,11 +153,22 @@
 
         <!-- 右侧：主内容区 -->
         <main class="profile-main-content">
-          <!-- Tab 导航 -->
-          <el-tabs v-model="activeTab" class="profile-tabs" @tab-change="handleTabChange">
-            <el-tab-pane label="总览" name="overview">
-              <div class="tab-content">
-                <!-- 总览页内容 -->
+          <!-- Segmented Control 导航 -->
+          <div class="segmented-control">
+            <button
+              v-for="tab in tabs"
+              :key="tab.name"
+              :class="['segmented-item', { active: activeTab === tab.name }]"
+              @click="handleTabChange(tab.name)"
+            >
+              {{ tab.label }}
+            </button>
+          </div>
+          
+          <!-- Tab 内容 -->
+          <div class="tab-content-wrapper">
+            <div v-if="activeTab === 'overview'" class="tab-content">
+              <!-- 总览页内容 -->
                 <div v-if="overviewLoading" class="loading-container">
                   <el-skeleton :rows="5" animated />
                 </div>
@@ -245,12 +256,10 @@
                     </div>
                   </div>
                 </div>
-              </div>
-            </el-tab-pane>
+            </div>
 
-            <el-tab-pane :label="`帖子 (${userPostsCount})`" name="posts">
-              <div class="tab-content">
-                <div v-if="loading" class="loading-container">
+            <div v-else-if="activeTab === 'posts'" class="tab-content">
+              <div v-if="loading" class="loading-container">
                   <div v-for="i in 3" :key="i" class="activity-skeleton">
                     <el-skeleton :rows="3" animated />
                   </div>
@@ -300,12 +309,10 @@
                     </div>
                   </div>
                 </div>
-              </div>
-            </el-tab-pane>
+            </div>
 
-            <el-tab-pane :label="`投资组合 (${userPortfoliosCount})`" name="portfolios">
-              <div class="tab-content">
-                <div v-if="portfoliosLoading" class="loading-container">
+            <div v-else-if="activeTab === 'portfolios'" class="tab-content">
+              <div v-if="portfoliosLoading" class="loading-container">
                   <div v-for="i in 3" :key="i" class="portfolio-skeleton">
                     <el-skeleton :rows="4" animated />
                   </div>
@@ -350,12 +357,10 @@
                     </div>
                   </div>
                 </div>
-              </div>
-            </el-tab-pane>
+            </div>
 
-            <el-tab-pane v-if="isSelf" label="收藏" name="favorites">
-              <div class="tab-content">
-                <div v-if="favoritesLoading" class="loading-container">
+            <div v-else-if="activeTab === 'favorites' && isSelf" class="tab-content">
+              <div v-if="favoritesLoading" class="loading-container">
                   <el-skeleton :rows="5" animated />
                 </div>
                 <div v-else-if="allFavoriteRecords.length === 0" class="empty-state">
@@ -377,12 +382,10 @@
                     </div>
                   </div>
                 </div>
-              </div>
-            </el-tab-pane>
+            </div>
 
-            <el-tab-pane v-if="isSelf" label="点赞记录" name="likes">
-              <div class="tab-content">
-                <div v-if="likesLoading" class="loading-container">
+            <div v-else-if="activeTab === 'likes' && isSelf" class="tab-content">
+              <div v-if="likesLoading" class="loading-container">
                   <el-skeleton :rows="5" animated />
                 </div>
                 <div v-else-if="allLikeRecords.length === 0" class="empty-state">
@@ -409,18 +412,18 @@
                     </div>
                   </div>
                 </div>
-              </div>
-            </el-tab-pane>
-          </el-tabs>
+            </div>
+          </div>
         </main>
       </div>
     </div>
 
-    <!-- 编辑资料对话框 -->
+    <!-- 编辑资料对话框 - Apple Style -->
     <el-dialog
       v-model="showEditProfile"
       title="编辑个人资料"
-      width="500px"
+      width="560px"
+      class="edit-profile-dialog"
     >
       <el-form
         ref="editFormRef"
@@ -823,7 +826,14 @@ const isFollowing = ref(false)
 
 const fetchDisplayUser = async () => {
   if (!route.params.userId) {
-    displayUser.value = authStore.user
+    // 查看自己的主页时，从 API 获取完整的用户信息（包括 followers 和 following）
+    try {
+      await authStore.fetchCurrentUser()
+      displayUser.value = authStore.user
+    } catch {
+      // 如果获取失败，使用缓存的用户信息
+      displayUser.value = authStore.user
+    }
     return
   }
 
@@ -1114,7 +1124,23 @@ const fetchOverviewData = async () => {
 }
 
 // ──────────── Tab 切换 ────────────
+const tabs = computed(() => {
+  const baseTabs = [
+    { name: 'overview', label: '总览' },
+    { name: 'posts', label: `帖子 (${userPostsCount.value})` },
+    { name: 'portfolios', label: `投资组合 (${userPortfoliosCount.value})` }
+  ]
+  if (isSelf.value) {
+    baseTabs.push(
+      { name: 'favorites', label: '收藏' },
+      { name: 'likes', label: '点赞记录' }
+    )
+  }
+  return baseTabs
+})
+
 const handleTabChange = async (tabName: string) => {
+  activeTab.value = tabName
   if (tabName === 'overview') {
     await fetchOverviewData()
   } else if (tabName === 'posts') {
@@ -1299,27 +1325,32 @@ watch(showEditProfile, (val) => {
 .profile {
   max-width: 1200px;
   margin: 0 auto;
+  padding: 0 $apple-space-8;
   animation: fadeIn 0.3s ease-out;
 }
 
-// ──────────── Hero 区 ────────────
+// ──────────── Hero 区 - Apple Style ────────────
 .profile-hero {
   position: relative;
-  margin-bottom: 2rem;
-  border-radius: $border-radius-lg;
+  margin-bottom: $apple-space-6;
+  border-radius: $apple-radius-xl;
   overflow: hidden;
-  background: $bg-card;
-  border: 1px solid $border-subtle;
-  box-shadow: $shadow;
+  background: $apple-bg-elevated;
+  backdrop-filter: $apple-glass-blur;
+  -webkit-backdrop-filter: $apple-glass-blur;
+  border: 1px solid $apple-border-soft;
+  box-shadow: $apple-shadow-lg;
+  padding: $apple-space-10 $apple-space-10;
 }
 
 .hero-content {
   position: relative;
   z-index: 1;
-  padding: 2rem;
+  padding: 0;
   display: flex;
-  gap: 2rem;
+  gap: $apple-space-6;
   align-items: flex-start;
+  position: relative;
 
   @media (max-width: 768px) {
     flex-direction: column;
@@ -1333,8 +1364,8 @@ watch(showEditProfile, (val) => {
 }
 
 .user-avatar {
-  border: 4px solid white;
-  box-shadow: $shadow-md;
+  border: 4px solid rgba(255, 255, 255, 0.8);
+  box-shadow: $apple-shadow-md;
 }
 
 .hero-info {
@@ -1355,11 +1386,12 @@ watch(showEditProfile, (val) => {
 }
 
 .hero-name {
-  font-size: 2rem;
-  font-weight: 700;
-  color: $text-primary;
+  font-size: $apple-font-h1;
+  font-weight: 600;
+  color: $apple-text-primary;
   margin: 0;
   letter-spacing: -0.02em;
+  font-family: $apple-font-family;
 }
 
 .hero-role-tag {
@@ -1369,25 +1401,29 @@ watch(showEditProfile, (val) => {
 }
 
 .hero-username {
-  font-size: 1rem;
-  color: $text-secondary;
-  font-weight: 500;
-  margin: 0 0 0.75rem 0;
+  font-size: $apple-font-body;
+  color: $apple-text-secondary;
+  font-weight: 400;
+  margin: 0 0 $apple-space-3 0;
+  font-family: $apple-font-family;
 }
 
 .hero-bio {
-  font-size: 0.9375rem;
-  color: $text-secondary;
+  font-size: $apple-font-body;
+  color: $apple-text-secondary;
   line-height: 1.6;
-  margin: 0 0 1.5rem 0;
+  margin: 0 0 $apple-space-6 0;
   max-width: 600px;
+  font-family: $apple-font-family;
 }
 
 .hero-stats {
   display: flex;
-  gap: 2rem;
-  margin-bottom: 1.5rem;
+  gap: $apple-space-8;
+  margin-bottom: $apple-space-6;
   flex-wrap: wrap;
+  padding-top: $apple-space-4;
+  border-top: 1px solid $apple-border-light;
 
   @media (max-width: 768px) {
     justify-content: center;
@@ -1413,30 +1449,36 @@ watch(showEditProfile, (val) => {
 
 .hero-stat-value {
   display: block;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: $text-primary;
-  font-family: 'IBM Plex Mono', monospace;
+  font-size: $apple-font-h3;
+  font-weight: 600;
+  color: $apple-text-primary;
+  font-family: $apple-font-family;
 }
 
 .hero-stat-label {
   display: block;
-  font-size: 0.75rem;
-  color: $text-muted;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-top: 0.25rem;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-top: $apple-space-2;
+  font-family: $apple-font-family;
 }
 
 .hero-actions {
+  position: absolute;
+  top: $apple-space-10;
+  right: $apple-space-10;
   display: flex;
-  gap: 0.75rem;
+  gap: $apple-space-3;
   flex-wrap: wrap;
 
   @media (max-width: 768px) {
+    position: static;
     justify-content: center;
     width: 100%;
+    margin-top: $apple-space-4;
   }
 }
 
@@ -1466,18 +1508,21 @@ watch(showEditProfile, (val) => {
 }
 
 .sidebar-card {
-  background: $bg-card;
-  border-radius: $border-radius;
-  padding: 1.5rem;
-  border: 1px solid $border-subtle;
-  box-shadow: $shadow-sm;
+  background: $apple-bg-elevated;
+  backdrop-filter: $apple-glass-blur;
+  -webkit-backdrop-filter: $apple-glass-blur;
+  border-radius: $apple-radius-md;
+  padding: $apple-space-6;
+  border: 1px solid $apple-border-light;
+  box-shadow: $apple-shadow-sm;
 }
 
 .card-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: $text-primary;
-  margin: 0 0 1rem 0;
+  font-size: $apple-font-body;
+  font-weight: 600;
+  color: $apple-text-primary;
+  margin: 0 0 $apple-space-4 0;
+  font-family: $apple-font-family;
 }
 
 .quick-actions {
@@ -1501,21 +1546,24 @@ watch(showEditProfile, (val) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem 0;
-  font-size: 0.875rem;
+  padding: $apple-space-3 0;
+  font-size: $apple-font-body;
+  font-family: $apple-font-family;
 
   &:not(:last-child) {
-    border-bottom: 1px solid $border-subtle;
+    border-bottom: 1px solid $apple-border-light;
   }
 }
 
 .info-label {
-  color: $text-secondary;
+  color: $apple-text-secondary;
+  font-family: $apple-font-family;
 }
 
 .info-value {
   font-weight: 600;
-  color: $text-primary;
+  color: $apple-text-primary;
+  font-family: $apple-font-family;
 
   &.verified {
     color: $success-color;
@@ -1525,24 +1573,24 @@ watch(showEditProfile, (val) => {
 .overview-item {
   display: flex;
   align-items: flex-start;
-  gap: 0.875rem;
-  padding: 0.75rem 0;
+  gap: $apple-space-3;
+  padding: $apple-space-4 0;
   cursor: pointer;
-  border-radius: 0.5rem;
-  transition: background 0.15s;
+  border-radius: $apple-radius-sm;
+  transition: background 0.2s ease;
 
   &:hover {
-    background: $bg-dark;
-    margin: 0 -0.5rem;
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
+    background: rgba(0, 0, 0, 0.03);
+    margin: 0 (-$apple-space-3);
+    padding-left: $apple-space-3;
+    padding-right: $apple-space-3;
   }
 }
 
 .overview-icon {
   width: 2.25rem;
   height: 2.25rem;
-  border-radius: 0.5rem;
+  border-radius: $apple-radius-sm;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1566,99 +1614,126 @@ watch(showEditProfile, (val) => {
 }
 
 .overview-label {
-  font-size: 0.875rem;
+  font-size: $apple-font-body;
   font-weight: 600;
-  color: $text-primary;
-  margin-bottom: 0.25rem;
+  color: $apple-text-primary;
+  margin-bottom: $apple-space-2;
+  font-family: $apple-font-family;
 }
 
 .overview-count {
-  font-size: 0.75rem;
-  color: $text-muted;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
   display: block;
+  font-family: $apple-font-family;
 }
 
 .overview-arrow {
-  color: $text-muted;
+  color: $apple-text-tertiary;
   flex-shrink: 0;
-  margin-top: 0.25rem;
+  margin-top: $apple-space-2;
 }
 
 .overview-divider {
   height: 1px;
-  background: $border-subtle;
-  margin: 0.25rem 0;
+  background: $apple-border-light;
+  margin: $apple-space-2 0;
 }
 
 // ──────────── 主内容区 ────────────
 .profile-main-content {
-  background: $bg-card;
-  border-radius: $border-radius;
-  border: 1px solid $border-subtle;
-  box-shadow: $shadow-sm;
-  overflow: hidden;
+  background: transparent;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  overflow: visible;
 }
 
-.profile-tabs {
-  :deep(.el-tabs__header) {
-    margin: 0;
-    padding: 0 1.5rem;
-    border-bottom: 1px solid $border-subtle;
+// Segmented Control - Apple Style
+.segmented-control {
+  display: inline-flex;
+  padding: 4px;
+  border-radius: $apple-radius-segmented;
+  background: rgba(0, 0, 0, 0.05);
+  margin-bottom: $apple-space-6;
+  gap: 4px;
+}
+
+.segmented-item {
+  padding: 10px 16px;
+  border-radius: $apple-radius-segmented-item;
+  color: $apple-text-secondary;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: $apple-font-body;
+  font-weight: 400;
+  font-family: $apple-font-family;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  &:hover {
+    color: $apple-text-primary;
   }
 
-  :deep(.el-tabs__item) {
-    font-weight: 600;
-    color: $text-secondary;
-    
-    &.is-active {
-      color: $primary-color;
-    }
+  &.active {
+    background: #fff;
+    color: $apple-text-primary;
+    font-weight: 500;
+    box-shadow: $apple-shadow-sm;
   }
+}
+
+.tab-content-wrapper {
+  min-height: 400px;
 }
 
 .tab-content {
-  padding: 1.5rem;
+  padding: 0;
   min-height: 400px;
 }
 
 .section-title {
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: $text-primary;
-  margin: 0 0 1rem 0;
+  font-size: $apple-font-h3;
+  font-weight: 600;
+  color: $apple-text-primary;
+  margin: 0 0 $apple-space-4 0;
+  font-family: $apple-font-family;
 }
 
-// ──────────── 总览页 ────────────
+// ──────────── 总览页 - Apple Style ────────────
 .overview-content {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: $apple-space-6;
 }
 
 .overview-section {
   &:not(:last-child) {
-    padding-bottom: 2rem;
-    border-bottom: 1px solid $border-subtle;
+    padding-bottom: $apple-space-6;
+    border-bottom: 1px solid $apple-border-light;
   }
 }
 
 .featured-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1rem;
+  gap: $apple-space-6;
 }
 
 .featured-card {
-  background: $bg-dark;
-  border: 1px solid $border-subtle;
-  border-radius: $border-radius;
-  padding: 1.25rem;
+  background: $apple-bg-elevated;
+  backdrop-filter: $apple-glass-blur;
+  -webkit-backdrop-filter: $apple-glass-blur;
+  border: 1px solid $apple-border-light;
+  border-radius: $apple-radius-md;
+  padding: $apple-space-6;
   cursor: pointer;
-  transition: $transition-all;
+  transition: all 0.25s ease;
   position: relative;
 
   &:hover {
-    box-shadow: $shadow;
+    box-shadow: $apple-shadow-md;
     transform: translateY(-2px);
   }
 
@@ -1686,26 +1761,29 @@ watch(showEditProfile, (val) => {
 }
 
 .featured-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: $text-primary;
-  margin: 0 0 0.5rem 0;
+  font-size: $apple-font-body;
+  font-weight: 600;
+  color: $apple-text-primary;
+  margin: 0 0 $apple-space-3 0;
   line-height: 1.4;
+  font-family: $apple-font-family;
 }
 
 .featured-content {
-  font-size: 0.875rem;
-  color: $text-secondary;
+  font-size: $apple-font-body;
+  color: $apple-text-secondary;
   line-height: 1.5;
-  margin: 0 0 0.75rem 0;
+  margin: 0 0 $apple-space-4 0;
+  font-family: $apple-font-family;
 }
 
 .featured-stats {
   display: flex;
-  gap: 1rem;
+  gap: $apple-space-4;
   align-items: center;
-  font-size: 0.75rem;
-  color: $text-muted;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
+  font-family: $apple-font-family;
 }
 
 .activity-timeline {
@@ -1720,14 +1798,14 @@ watch(showEditProfile, (val) => {
 
 .timeline-item {
   display: flex;
-  gap: 0.75rem;
-  padding: 0.75rem;
-  border-radius: $border-radius;
+  gap: $apple-space-3;
+  padding: $apple-space-4;
+  border-radius: $apple-radius-sm;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.2s ease;
 
   &:hover {
-    background: $bg-dark;
+    background: rgba(0, 0, 0, 0.03);
   }
 }
 
@@ -1763,63 +1841,70 @@ watch(showEditProfile, (val) => {
 }
 
 .timeline-text {
-  font-size: 0.875rem;
-  color: $text-primary;
-  margin: 0 0 0.25rem 0;
+  font-size: $apple-font-body;
+  color: $apple-text-primary;
+  margin: 0 0 $apple-space-2 0;
+  font-family: $apple-font-family;
 }
 
 .timeline-time {
-  font-size: 0.75rem;
-  color: $text-muted;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
+  font-family: $apple-font-family;
 }
 
 .influence-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 1rem;
+  gap: $apple-space-4;
 }
 
 .influence-card {
-  background: $bg-dark;
-  border: 1px solid $border-subtle;
-  border-radius: $border-radius;
-  padding: 1.25rem;
+  background: $apple-bg-elevated;
+  backdrop-filter: $apple-glass-blur;
+  -webkit-backdrop-filter: $apple-glass-blur;
+  border: 1px solid $apple-border-light;
+  border-radius: $apple-radius-md;
+  padding: $apple-space-6;
   text-align: center;
 }
 
 .influence-value {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: $primary-color;
-  font-family: 'IBM Plex Mono', monospace;
-  margin-bottom: 0.5rem;
+  font-size: $apple-font-h2;
+  font-weight: 600;
+  color: $apple-accent;
+  font-family: $apple-font-family;
+  margin-bottom: $apple-space-3;
 }
 
 .influence-label {
-  font-size: 0.75rem;
-  color: $text-muted;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: $apple-font-family;
 }
 
-// ──────────── 帖子列表 ────────────
+// ──────────── 帖子列表 - Apple Style ────────────
 .posts-list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: $apple-space-4;
 }
 
 .post-card {
-  background: $bg-dark;
-  border: 1px solid $border-subtle;
-  border-radius: $border-radius;
-  padding: 1.25rem;
+  background: $apple-bg-elevated;
+  backdrop-filter: $apple-glass-blur;
+  -webkit-backdrop-filter: $apple-glass-blur;
+  border: 1px solid $apple-border-light;
+  border-radius: $apple-radius-md;
+  padding: $apple-space-6;
   cursor: pointer;
-  transition: $transition-all;
+  transition: all 0.25s ease;
 
   &:hover {
-    box-shadow: $shadow;
+    box-shadow: $apple-shadow-md;
     transform: translateY(-2px);
   }
 }
@@ -1839,30 +1924,34 @@ watch(showEditProfile, (val) => {
 }
 
 .post-date {
-  font-size: 0.75rem;
-  color: $text-muted;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
+  font-family: $apple-font-family;
 }
 
 .post-title {
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: $text-primary;
-  margin: 0 0 0.5rem 0;
+  font-size: $apple-font-h3;
+  font-weight: 600;
+  color: $apple-text-primary;
+  margin: 0 0 $apple-space-3 0;
   line-height: 1.4;
+  font-family: $apple-font-family;
 }
 
 .post-content {
-  font-size: 0.875rem;
-  color: $text-secondary;
+  font-size: $apple-font-body;
+  color: $apple-text-secondary;
   line-height: 1.6;
-  margin: 0 0 0.75rem 0;
+  margin: 0 0 $apple-space-4 0;
+  font-family: $apple-font-family;
 }
 
 .post-stats {
   display: flex;
-  gap: 1rem;
-  font-size: 0.75rem;
-  color: $text-muted;
+  gap: $apple-space-4;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
+  font-family: $apple-font-family;
 }
 
 .stat-item {
@@ -1871,23 +1960,25 @@ watch(showEditProfile, (val) => {
   gap: 0.25rem;
 }
 
-// ──────────── 投资组合列表 ────────────
+// ──────────── 投资组合列表 - Apple Style ────────────
 .portfolios-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1rem;
+  gap: $apple-space-6;
 }
 
 .portfolio-card {
-  background: $bg-dark;
-  border: 1px solid $border-subtle;
-  border-radius: $border-radius;
-  padding: 1.25rem;
+  background: $apple-bg-elevated;
+  backdrop-filter: $apple-glass-blur;
+  -webkit-backdrop-filter: $apple-glass-blur;
+  border: 1px solid $apple-border-light;
+  border-radius: $apple-radius-md;
+  padding: $apple-space-6;
   cursor: pointer;
-  transition: $transition-all;
+  transition: all 0.25s ease;
 
   &:hover {
-    box-shadow: $shadow;
+    box-shadow: $apple-shadow-md;
     transform: translateY(-2px);
   }
 }
@@ -1900,96 +1991,107 @@ watch(showEditProfile, (val) => {
 }
 
 .portfolio-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: $text-primary;
+  font-size: $apple-font-body;
+  font-weight: 600;
+  color: $apple-text-primary;
   margin: 0;
   flex: 1;
   line-height: 1.4;
+  font-family: $apple-font-family;
 }
 
 .risk-tag {
-  font-size: 0.7rem !important;
-  font-weight: 700 !important;
-  margin-left: 0.75rem !important;
+  font-size: $apple-font-caption !important;
+  font-weight: 500 !important;
+  margin-left: $apple-space-3 !important;
 }
 
 .portfolio-description {
-  font-size: 0.875rem;
-  color: $text-secondary;
+  font-size: $apple-font-body;
+  color: $apple-text-secondary;
   line-height: 1.5;
-  margin: 0 0 0.75rem 0;
+  margin: 0 0 $apple-space-4 0;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
+  font-family: $apple-font-family;
 }
 
 .portfolio-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 0.75rem;
-  border-top: 1px solid $border-subtle;
+  padding-top: $apple-space-4;
+  border-top: 1px solid $apple-border-light;
 }
 
 .portfolio-stats {
   display: flex;
-  gap: 0.5rem;
-  font-size: 0.75rem;
-  color: $text-muted;
+  gap: $apple-space-3;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
+  font-family: $apple-font-family;
 }
 
 .portfolio-date {
-  font-size: 0.75rem;
-  color: $text-muted;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
+  font-family: $apple-font-family;
 }
 
-// ──────────── 收藏/点赞列表 ────────────
+// ──────────── 收藏/点赞列表 - Apple Style ────────────
 .favorites-list,
 .likes-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: $apple-space-4;
 }
 
 .favorite-card,
 .like-card {
-  background: $bg-dark;
-  border: 1px solid $border-subtle;
-  border-radius: $border-radius;
-  padding: 1rem;
+  background: $apple-bg-elevated;
+  backdrop-filter: $apple-glass-blur;
+  -webkit-backdrop-filter: $apple-glass-blur;
+  border: 1px solid $apple-border-light;
+  border-radius: $apple-radius-md;
+  padding: $apple-space-4;
   cursor: pointer;
-  transition: $transition-all;
+  transition: all 0.25s ease;
 
   &:hover {
-    box-shadow: $shadow-sm;
+    box-shadow: $apple-shadow-sm;
+    transform: translateY(-1px);
   }
 
   &.clickable:hover {
-    background: $bg-card-hover;
+    background: rgba(255, 255, 255, 0.9);
   }
 }
 
 .favorite-title {
-  font-size: 1rem;
+  font-size: $apple-font-body;
   font-weight: 600;
-  color: $text-primary;
-  margin: 0 0 0.5rem 0;
+  color: $apple-text-primary;
+  margin: 0 0 $apple-space-3 0;
+  font-family: $apple-font-family;
 }
 
 .favorite-author {
-  font-size: 0.875rem;
-  color: $text-secondary;
-  margin: 0 0 0.5rem 0;
+  font-size: $apple-font-body;
+  color: $apple-text-secondary;
+  margin: 0 0 $apple-space-3 0;
+  font-family: $apple-font-family;
 }
 
 .favorite-stats {
   display: flex;
-  gap: 1rem;
+  gap: $apple-space-4;
   align-items: center;
-  font-size: 0.75rem;
-  color: $text-muted;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
+  font-family: $apple-font-family;
 }
 
 .favorite-date {
@@ -2012,14 +2114,16 @@ watch(showEditProfile, (val) => {
 }
 
 .like-title {
-  font-size: 0.875rem;
-  color: $text-primary;
-  margin: 0 0 0.25rem 0;
+  font-size: $apple-font-body;
+  color: $apple-text-primary;
+  margin: 0 0 $apple-space-2 0;
+  font-family: $apple-font-family;
 }
 
 .like-date {
-  font-size: 0.75rem;
-  color: $text-muted;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
+  font-family: $apple-font-family;
 }
 
 // ──────────── 通用样式 ────────────
@@ -2036,8 +2140,8 @@ watch(showEditProfile, (val) => {
 
 .activity-skeleton,
 .portfolio-skeleton {
-  padding: 1rem;
-  border-bottom: 1px solid $border-subtle;
+  padding: $apple-space-4;
+  border-bottom: 1px solid $apple-border-light;
 
   &:last-child {
     border-bottom: none;
@@ -2064,18 +2168,18 @@ watch(showEditProfile, (val) => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  padding: 1rem 0;
-  border-bottom: 1px solid $border-subtle;
-  gap: 0.75rem;
+  padding: $apple-space-4 0;
+  border-bottom: 1px solid $apple-border-light;
+  gap: $apple-space-3;
   transition: background 0.15s;
-  border-radius: 0.5rem;
+  border-radius: $apple-radius-sm;
 
   &.clickable {
     cursor: pointer;
     &:hover {
-      background: $bg-dark;
-      padding-left: 0.5rem;
-      padding-right: 0.5rem;
+      background: rgba(0, 0, 0, 0.03);
+      padding-left: $apple-space-3;
+      padding-right: $apple-space-3;
     }
   }
 
@@ -2102,54 +2206,59 @@ watch(showEditProfile, (val) => {
 }
 
 .drawer-item-title {
-  font-size: 0.875rem;
+  font-size: $apple-font-body;
   font-weight: 500;
-  color: $text-primary;
-  margin: 0 0 0.25rem;
+  color: $apple-text-primary;
+  margin: 0 0 $apple-space-2;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
+  font-family: $apple-font-family;
 }
 
 .drawer-item-sub {
-  font-size: 0.75rem;
-  color: $text-muted;
-  margin: 0 0 0.125rem;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
+  margin: 0 0 $apple-space-2;
+  font-family: $apple-font-family;
 }
 
 .drawer-item-author {
-  font-size: 0.75rem;
-  color: $text-muted;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
   margin: 0;
+  font-family: $apple-font-family;
 }
 
 .drawer-item-right {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 0.25rem;
+  gap: $apple-space-2;
   flex-shrink: 0;
 }
 
 .drawer-item-stats {
   display: flex;
-  gap: 0.5rem;
-  font-size: 0.75rem;
-  color: $text-muted;
+  gap: $apple-space-3;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
   align-items: center;
+  font-family: $apple-font-family;
 }
 
 .drawer-item-date {
-  font-size: 0.625rem;
-  color: $text-muted;
+  font-size: $apple-font-mini;
+  color: $apple-text-tertiary;
+  font-family: $apple-font-family;
 }
 
 .drawer-item-arrow {
-  color: $text-muted;
-  font-size: 0.875rem;
+  color: $apple-text-tertiary;
+  font-size: $apple-font-body;
 }
 
 .drawer-load-more {
@@ -2166,12 +2275,12 @@ watch(showEditProfile, (val) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid $border-subtle;
+  padding: $apple-space-4 $apple-space-6;
+  border-bottom: 1px solid $apple-border-light;
   transition: background-color 0.2s ease;
 
   &:hover {
-    background-color: $bg-dark;
+    background-color: rgba(0, 0, 0, 0.03);
   }
 
   &:last-child {
@@ -2203,12 +2312,13 @@ watch(showEditProfile, (val) => {
 }
 
 .follow-name {
-  font-size: 1rem;
+  font-size: $apple-font-body;
   font-weight: 600;
-  color: $text-primary;
+  color: $apple-text-primary;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-family: $apple-font-family;
 }
 
 .follow-role-tag {
@@ -2216,22 +2326,24 @@ watch(showEditProfile, (val) => {
 }
 
 .follow-username {
-  font-size: 0.875rem;
-  color: $text-secondary;
-  margin: 0 0 0.25rem 0;
+  font-size: $apple-font-body;
+  color: $apple-text-secondary;
+  margin: 0 0 $apple-space-2 0;
+  font-family: $apple-font-family;
 }
 
 .follow-stats {
-  font-size: 0.75rem;
-  color: $text-muted;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: $apple-space-2;
+  font-family: $apple-font-family;
 }
 
 .follow-stats-sep {
-  color: $text-muted;
+  color: $apple-text-tertiary;
 }
 
 .follow-action {
@@ -2239,10 +2351,101 @@ watch(showEditProfile, (val) => {
   margin-left: 1rem;
 }
 
+// 编辑资料弹窗 - Apple Style
+.edit-profile-dialog {
+  :deep(.el-dialog) {
+    border-radius: $apple-radius-lg;
+    border: 1px solid $apple-border-light;
+    box-shadow: $apple-shadow-lg;
+  }
+
+  :deep(.el-dialog__header) {
+    padding: $apple-space-6 $apple-space-6 $apple-space-4;
+    border-bottom: 1px solid $apple-border-light;
+    
+    .el-dialog__title {
+      font-size: $apple-font-h3;
+      font-weight: 600;
+      color: $apple-text-primary;
+      font-family: $apple-font-family;
+    }
+  }
+
+  :deep(.el-dialog__body) {
+    padding: $apple-space-6;
+  }
+
+  :deep(.el-form-item__label) {
+    font-size: $apple-font-body;
+    color: $apple-text-primary;
+    font-weight: 500;
+    font-family: $apple-font-family;
+  }
+
+  :deep(.el-input__wrapper) {
+    background: $apple-input-bg;
+    border: 1px solid $apple-input-border;
+    border-radius: $apple-input-radius;
+    box-shadow: none;
+    padding: 0 $apple-space-4;
+    min-height: $apple-input-height;
+    transition: all 0.2s ease;
+
+    &:hover {
+      border-color: rgba(0, 0, 0, 0.1);
+    }
+
+    &.is-focus {
+      border-color: $apple-accent;
+      box-shadow: 0 0 0 3px $apple-accent-soft;
+    }
+  }
+
+  :deep(.el-input__inner) {
+    height: $apple-input-height;
+    line-height: $apple-input-height;
+    font-size: $apple-font-body;
+    color: $apple-text-primary;
+    font-family: $apple-font-family;
+
+    &::placeholder {
+      color: $apple-text-tertiary;
+    }
+  }
+
+  :deep(.el-textarea__inner) {
+    background: $apple-input-bg;
+    border: 1px solid $apple-input-border;
+    border-radius: $apple-input-radius;
+    padding: $apple-space-4;
+    font-size: $apple-font-body;
+    color: $apple-text-primary;
+    font-family: $apple-font-family;
+    min-height: 120px;
+    transition: all 0.2s ease;
+
+    &:hover {
+      border-color: rgba(0, 0, 0, 0.1);
+    }
+
+    &:focus {
+      border-color: $apple-accent;
+      box-shadow: 0 0 0 3px $apple-accent-soft;
+    }
+
+    &::placeholder {
+      color: $apple-text-tertiary;
+    }
+  }
+}
+
 .dialog-footer {
   display: flex;
-  gap: 0.75rem;
+  gap: $apple-space-3;
   justify-content: flex-end;
+  padding-top: $apple-space-4;
+  margin-top: $apple-space-4;
+  border-top: 1px solid $apple-border-light;
 }
 
 @keyframes fadeIn {

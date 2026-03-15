@@ -93,3 +93,184 @@ $breakpoint-sm: 640px;
 $breakpoint-md: 768px;
 $breakpoint-lg: 1024px;
 $breakpoint-xl: 1280px;
+
+// ============================================
+// Apple Style Design System Variables
+// Based on UIfix.mdc design specifications
+// ============================================
+
+// Apple Style Background Colors
+$apple-bg-page: #f5f5f7;
+$apple-bg-elevated: rgba(255, 255, 255, 0.78);
+$apple-bg-soft: #ffffff;
+$apple-bg-glass: rgba(255, 255, 255, 0.55);
+
+// Apple Style Text Colors
+$apple-text-primary: #1d1d1f;
+$apple-text-secondary: #6e6e73;
+$apple-text-tertiary: #8e8e93;
+
+// Apple Style Accent Colors
+$apple-accent: #0071e3;
+$apple-accent-soft: rgba(0, 113, 227, 0.1);
+
+// Apple Style Border Colors
+$apple-border-light: rgba(0, 0, 0, 0.06);
+$apple-border-soft: rgba(255, 255, 255, 0.5);
+
+// Apple Style Border Radius
+$apple-radius-sm: 10px;
+$apple-radius-md: 16px;
+$apple-radius-lg: 24px;
+$apple-radius-xl: 28px;
+$apple-radius-segmented: 14px;
+$apple-radius-segmented-item: 10px;
+
+// Apple Style Shadows (lighter, more subtle)
+$apple-shadow-sm: 0 4px 12px rgba(15, 23, 42, 0.04);
+$apple-shadow-md: 0 10px 30px rgba(15, 23, 42, 0.06);
+$apple-shadow-lg: 0 20px 50px rgba(15, 23, 42, 0.08);
+
+// Apple Style Typography
+$apple-font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+$apple-font-display: 40px;
+$apple-font-h1: 32px;
+$apple-font-h2: 24px;
+$apple-font-h3: 20px;
+$apple-font-body: 16px;
+$apple-font-caption: 13px;
+$apple-font-mini: 12px;
+
+// Apple Style Spacing
+$apple-space-2: 8px;
+$apple-space-3: 12px;
+$apple-space-4: 16px;
+$apple-space-5: 20px;
+$apple-space-6: 24px;
+$apple-space-8: 32px;
+$apple-space-10: 40px;
+
+// Apple Style Glass Effect
+$apple-glass-bg: rgba(255, 255, 255, 0.68);
+$apple-glass-blur: blur(24px);
+$apple-glass-border: rgba(255, 255, 255, 0.45);
+
+// Apple Style Sidebar
+$apple-sidebar-width: 248px;
+$apple-sidebar-bg: rgba(255, 255, 255, 0.55);
+$apple-sidebar-active-bg: rgba(0, 0, 0, 0.05);
+
+// Apple Style Input
+$apple-input-bg: rgba(245, 245, 247, 0.9);
+$apple-input-border: rgba(0, 0, 0, 0.06);
+$apple-input-radius: 14px;
+$apple-input-height: 48px;
+
+// ============================================
+// Market Module Design System Variables
+// Based on 行情列表UI fix.mdc specifications
+// ============================================
+
+// Market Color System (Reduced Saturation)
+$market-up: #e85d5d;        // Red (up) - reduced saturation
+$market-down: #16a34a;      // Green (down) - reduced saturation
+$market-neutral: #64748b;   // Neutral gray
+
+// Market Background Colors
+$market-bg-page: #f5f5f7;
+$market-bg-panel: rgba(255, 255, 255, 0.82);
+$market-bg-soft: #ffffff;
+
+// Market Text Colors
+$market-text-primary: #1d1d1f;
+$market-text-secondary: #6e6e73;
+$market-text-tertiary: #8e8e93;
+
+// Market Accent Colors
+$market-accent: #0071e3;
+$market-accent-soft: rgba(0, 113, 227, 0.10);
+
+// Market Typography
+$market-font-display: 44px;   // Price display
+$market-font-h1: 34px;        // Page title
+$market-font-h2: 24px;        // Module title
+$market-font-h3: 20px;        // Card title
+$market-font-body: 16px;
+$market-font-caption: 13px;
+$market-font-mini: 12px;
+
+// Market Border Radius
+$market-radius-sm: 10px;      // Small elements
+$market-radius-md: 16px;      // Table row hover, normal cards
+$market-radius-lg: 20px;      // Regular cards
+$market-radius-xl: 28px;      // Hero cards
+$market-radius-input: 14px;   // Input fields
+$market-radius-segmented: 14px;      // Segmented control container
+$market-radius-segmented-item: 10px; // Segmented control item
+
+// Market Shadows
+$market-shadow-sm: 0 4px 12px rgba(15, 23, 42, 0.04);
+$market-shadow-md: 0 10px 30px rgba(15, 23, 42, 0.06);
+$market-shadow-lg: 0 20px 50px rgba(15, 23, 42, 0.08);
+
+// Market Spacing
+$market-space-2: 8px;
+$market-space-3: 12px;
+$market-space-4: 16px;
+$market-space-5: 20px;
+$market-space-6: 24px;
+$market-space-8: 32px;
+$market-space-10: 40px;
+
+// ============================================
+// Portfolio Module Design System Variables
+// Based on 投资组合UI fix.mdc specifications
+// ============================================
+
+// Portfolio Risk Level Colors (Unified System)
+$portfolio-risk-low: #16a34a;              // Green
+$portfolio-risk-low-bg: rgba(22, 163, 74, 0.10);
+$portfolio-risk-medium: #d97706;          // Amber/Orange
+$portfolio-risk-medium-bg: rgba(217, 119, 6, 0.10);
+$portfolio-risk-high: #dc2626;            // Red
+$portfolio-risk-high-bg: rgba(220, 38, 38, 0.10);
+
+// Portfolio Card Styling
+$portfolio-card-radius: 24px;             // Large rounded corners
+$portfolio-card-padding: 28px;            // Generous padding
+$portfolio-card-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+$portfolio-card-shadow-hover: 0 10px 30px rgba(15, 23, 42, 0.06);
+
+// Portfolio Typography
+$portfolio-title-size: 32px;              // Portfolio name (32-36px range)
+$portfolio-return-size: 36px;              // Return rate (34-40px range)
+$portfolio-section-title: 24px;           // Section titles
+$portfolio-body: 16px;                    // Body text
+$portfolio-caption: 13px;                  // Caption text
+$portfolio-mini: 12px;                      // Mini text
+
+// Portfolio Text Colors (alias to existing)
+$portfolio-text-primary: $text-primary;
+$portfolio-text-secondary: $text-secondary;
+$portfolio-text-muted: $text-muted;
+
+// Portfolio Spacing
+$portfolio-space-2: 8px;
+$portfolio-space-3: 12px;
+$portfolio-space-4: 16px;
+$portfolio-space-5: 20px;
+$portfolio-space-6: 24px;
+$portfolio-space-8: 32px;
+$portfolio-space-10: 40px;
+
+// Portfolio Hero Section
+$portfolio-hero-padding: 32px;             // Large padding for hero
+$portfolio-hero-radius: 28px;              // Hero card radius
+
+// Portfolio Chart Colors (Unified Palette)
+$portfolio-chart-colors: #3B82F6 #34D399 #60A5FA #F472B6 #FBBF24 #818CF8;
+
+// Portfolio Return Colors (Reduced Saturation)
+$portfolio-return-positive: #16a34a;      // Green (positive)
+$portfolio-return-negative: #dc2626;      // Red (negative)
+$portfolio-return-neutral: #64748b;       // Neutral gray

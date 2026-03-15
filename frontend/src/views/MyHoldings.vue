@@ -3,7 +3,7 @@
     <div class="holdings-header">
       <div class="header-left">
         <h2 class="page-title">我的持仓</h2>
-        <span class="subtitle">管理并跟踪您持有的资产持仓</span>
+        <span class="subtitle">跟踪资产表现、成本结构与累计收益</span>
       </div>
       <el-button
         type="primary"
@@ -183,18 +183,20 @@
         @row-click="(row) => openEditDialog(row)"
       >
         <!-- 资产信息 -->
-        <el-table-column label="资产" min-width="180">
+        <el-table-column label="资产" min-width="160">
           <template #default="{ row }">
             <div class="asset-cell">
-              <span class="asset-code" @click.stop="goToAsset(row.assetId)">{{ row.code }}</span>
-              <span class="asset-name">{{ row.name }}</span>
+              <div class="asset-identity">
+                <span class="asset-code" @click.stop="goToAsset(row.assetId)">{{ row.code }}</span>
+                <span class="asset-name">{{ row.name }}</span>
+              </div>
               <el-tag size="small" class="market-badge">{{ row.displayMarket }}</el-tag>
             </div>
           </template>
         </el-table-column>
 
         <!-- 类型 -->
-        <el-table-column label="类型" width="80" align="center">
+        <el-table-column label="类型" width="90" align="center">
           <template #default="{ row }">
             <el-tag size="small" :type="getAssetTypeTag(row.assetType)">
               {{ row.assetType }}
@@ -203,21 +205,21 @@
         </el-table-column>
 
         <!-- 持有数量 -->
-        <el-table-column label="数量（股）" width="130" align="right">
+        <el-table-column label="数量（股）" width="100" align="right">
           <template #default="{ row }">
             <span class="mono-value">{{ formatNumber(row.quantity) }}</span>
           </template>
         </el-table-column>
 
         <!-- 成本均价 -->
-        <el-table-column label="成本均价" width="130" align="right">
+        <el-table-column label="成本均价" width="105" align="right">
           <template #default="{ row }">
             <span class="mono-value">¥ {{ formatPrice(row.costPrice) }}</span>
           </template>
         </el-table-column>
 
         <!-- 持仓成本 -->
-        <el-table-column label="持仓成本" width="130" align="right">
+        <el-table-column label="持仓成本" width="115" align="right">
           <template #default="{ row }">
             <span class="mono-value cost-value">
               ¥ {{ formatCost(row.quantity, row.costPrice) }}
@@ -226,7 +228,7 @@
         </el-table-column>
 
         <!-- 今日估值价 -->
-        <el-table-column label="今日估值价" width="110" align="right">
+        <el-table-column label="今日估值价" width="105" align="right">
           <template #default="{ row }">
             <template v-if="getPerfItem(row.id)?.hasData">
               <span class="mono-value">¥ {{ formatPrice(getPerfItem(row.id)?.todayPrice) }}</span>
@@ -236,7 +238,7 @@
         </el-table-column>
 
         <!-- 市值-->
-        <el-table-column label="市值" width="120" align="right">
+        <el-table-column label="市值" width="95" align="right">
           <template #default="{ row }">
             <template v-if="getPerfItem(row.id)?.hasData">
               <span class="mono-value">{{ formatMoneyShort(getPerfItem(row.id)?.marketValue) }}</span>
@@ -246,11 +248,11 @@
         </el-table-column>
 
         <!-- 当日收益 -->
-        <el-table-column label="当日收益" width="130" align="right">
+        <el-table-column label="当日收益" width="115" align="right">
           <template #default="{ row }">
             <template v-if="getPerfItem(row.id)?.hasData">
-              <div class="pnl-cell" :class="pnlClass(getPerfItem(row.id)?.dailyPnl)">
-                <span>{{ formatPnl(getPerfItem(row.id)?.dailyPnl) }}</span>
+              <div class="pnl-cell pnl-cell--daily" :class="pnlClass(getPerfItem(row.id)?.dailyPnl)">
+                <span class="pnl-amount">{{ formatPnl(getPerfItem(row.id)?.dailyPnl) }}</span>
                 <span class="pnl-rate">{{ formatRate(getPerfItem(row.id)?.dailyReturn) }}</span>
               </div>
             </template>
@@ -259,11 +261,11 @@
         </el-table-column>
 
         <!-- 持有收益（浮盈） -->
-        <el-table-column label="持有收益" width="130" align="right">
+        <el-table-column label="持有收益" width="125" align="right">
           <template #default="{ row }">
             <template v-if="getPerfItem(row.id)?.hasData">
-              <div class="pnl-cell" :class="pnlClass(getPerfItem(row.id)?.unrealizedPnl)">
-                <span>{{ formatPnl(getPerfItem(row.id)?.unrealizedPnl) }}</span>
+              <div class="pnl-cell pnl-cell--unrealized" :class="pnlClass(getPerfItem(row.id)?.unrealizedPnl)">
+                <span class="pnl-amount">{{ formatPnl(getPerfItem(row.id)?.unrealizedPnl) }}</span>
                 <span class="pnl-rate">{{ formatRate(getPerfItem(row.id)?.unrealizedReturn) }}</span>
               </div>
             </template>
@@ -272,27 +274,29 @@
         </el-table-column>
 
         <!-- 备注 -->
-        <el-table-column label="备注" min-width="100">
+        <el-table-column label="备注" min-width="120">
           <template #default="{ row }">
             <span class="notes-text" :title="row.notes">{{ row.notes || '--' }}</span>
           </template>
         </el-table-column>
 
         <!-- 操作 -->
-        <el-table-column label="操作" width="120" align="center" fixed="right">
+        <el-table-column label="操作" width="140" align="center" fixed="right">
           <template #default="{ row }">
-            <el-button
-              size="small"
-              type="primary"
-              text
-              @click.stop="openEditDialog(row)"
-            >编辑</el-button>
-            <el-button
-              size="small"
-              type="danger"
-              text
-              @click.stop="handleDelete(row)"
-            >删除</el-button>
+            <div class="action-buttons">
+              <el-button
+                size="small"
+                type="primary"
+                text
+                @click.stop="openEditDialog(row)"
+              >编辑</el-button>
+              <el-button
+                size="small"
+                type="danger"
+                text
+                @click.stop="handleDelete(row)"
+              >删除</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -371,10 +375,11 @@
             style="width: 100%"
             placeholder="买入均价（元）"
             controls-position="right"
+            class="holding-input-number"
           />
-          <div class="form-hint">
-            持仓成本：
-            <strong>¥ {{ formatCost(holdingForm.quantity, holdingForm.costPrice) }}</strong>
+          <div class="cost-summary" v-if="holdingForm.quantity > 0 && holdingForm.costPrice > 0">
+            <span class="cost-summary-label">预计持仓成本</span>
+            <span class="cost-summary-value">¥ {{ formatCost(holdingForm.quantity, holdingForm.costPrice) }}</span>
           </div>
         </el-form-item>
 
@@ -383,7 +388,8 @@
             v-model="holdingForm.notes"
             type="textarea"
             :rows="2"
-            placeholder="可填写买入理由、策略备注等..."
+            placeholder="记录买入逻辑、仓位规划或策略备注…"
+            class="holding-textarea"
           />
         </el-form-item>
       </el-form>
@@ -546,9 +552,9 @@ const returnsChartOption = computed(() => {
   const marketValues = items.map(i => Number(i.totalMarketValue).toFixed(2))
   const costValue = Number(returnsHistory.value?.totalCostValue ?? 0)
 
-  // 找最新值的颜色
+  // 找最新值的颜色（低饱和度）
   const lastReturn = Number(returnRates[returnRates.length - 1])
-  const lineColor = lastReturn >= 0 ? '#10b981' : '#f43f5e'
+  const lineColor = lastReturn >= 0 ? '#16a34a' : '#dc2626'
 
   return {
     backgroundColor: 'transparent',
@@ -563,7 +569,7 @@ const returnsChartOption = computed(() => {
         const mv = Number(marketValues[p.dataIndex])
         const pnl = mv - costValue
         const pnlStr = pnl >= 0 ? `+${pnl.toFixed(2)}` : pnl.toFixed(2)
-        const pnlColor = pnl >= 0 ? '#10b981' : '#f43f5e'
+        const pnlColor = pnl >= 0 ? '#16a34a' : '#dc2626'
         const rateVal = Number(returnRates[p.dataIndex])
         const rateStr = rateVal >= 0 ? `+${rateVal}%` : `${rateVal}%`
         return `
@@ -580,9 +586,9 @@ const returnsChartOption = computed(() => {
     xAxis: {
       type: 'category',
       data: dates,
-      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.1)' } },
+      axisLine: { lineStyle: { color: 'rgba(0, 0, 0, 0.08)' } },
       axisLabel: {
-        color: '#475569',
+        color: '#8e8e93',
         fontSize: 11,
         fontFamily: 'IBM Plex Mono',
         rotate: dates.length > 60 ? 30 : 0,
@@ -593,13 +599,13 @@ const returnsChartOption = computed(() => {
     yAxis: {
       type: 'value',
       axisLabel: {
-        color: '#475569',
+        color: '#8e8e93',
         fontSize: 11,
         fontFamily: 'IBM Plex Mono',
         formatter: (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%`,
       },
       axisLine: { show: false },
-      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
+      splitLine: { lineStyle: { color: 'rgba(0, 0, 0, 0.04)' } },
     },
     series: [
       {
@@ -608,12 +614,12 @@ const returnsChartOption = computed(() => {
         data: returnRates.map(Number),
         smooth: true,
         symbol: 'none',
-        lineStyle: { color: lineColor, width: 2 },
+        lineStyle: { color: lineColor, width: 2.5 },
         areaStyle: {
           color: {
             type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
             colorStops: [
-              { offset: 0, color: lastReturn >= 0 ? 'rgba(16,185,129,0.25)' : 'rgba(244,63,94,0.25)' },
+              { offset: 0, color: lastReturn >= 0 ? 'rgba(22,163,74,0.15)' : 'rgba(220,38,38,0.15)' },
               { offset: 1, color: 'rgba(0,0,0,0)' },
             ]
           }
@@ -621,7 +627,7 @@ const returnsChartOption = computed(() => {
         markLine: {
           silent: true,
           symbol: ['none', 'none'],
-          lineStyle: { color: 'rgba(255,255,255,0.2)', type: 'dashed', width: 1 },
+          lineStyle: { color: 'rgba(0, 0, 0, 0.12)', type: 'dashed', width: 1 },
           data: [{ yAxis: 0 }],
         },
       }
@@ -834,18 +840,21 @@ onMounted(() => {
 .my-holdings {
   max-width: 1200px;
   margin: 0 auto;
+  padding: 0 1rem;
   animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  background: $apple-bg-page;
+  min-height: 100vh;
 }
 
 .holdings-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 1.5rem;
+  margin-bottom: $apple-space-6;
 
   @media (max-width: 640px) {
     flex-direction: column;
-    gap: 1rem;
+    gap: $apple-space-4;
   }
 }
 
@@ -856,117 +865,164 @@ onMounted(() => {
 }
 
 .page-title {
-  font-size: 1.5rem;
+  font-size: $apple-font-h2; // 32px
   font-weight: 700;
-  color: $text-primary;
+  color: $apple-text-primary;
   margin: 0;
   letter-spacing: -0.025em;
+  font-family: $apple-font-family;
 }
 
 .subtitle {
-  font-size: 0.875rem;
-  color: $text-muted;
+  font-size: $apple-font-caption; // 13px
+  color: $apple-text-secondary;
+  font-family: $apple-font-family;
 }
 
 .add-btn {
   background: $gradient-primary !important;
   border: none !important;
-  box-shadow: $shadow-purple !important;
+  box-shadow: $apple-shadow-md !important;
   font-weight: 600 !important;
-  border-radius: 10px !important;
+  border-radius: $apple-radius-sm !important; // 10px
+  font-family: $apple-font-family !important;
+  transition: $transition-all !important;
 
   &:hover {
-    box-shadow: 0 8px 24px rgba(29, 78, 216, 0.3) !important;
+    box-shadow: 0 10px 30px rgba(29, 78, 216, 0.25) !important;
     transform: translateY(-1px);
   }
 }
 
-// ---- 收益 Banner ----
+// ---- 收益 Banner (Hero Summary) ----
 .perf-banner {
   position: relative;
-  background: linear-gradient(135deg, rgba(29, 78, 216, 0.08) 0%, rgba(16, 185, 129, 0.06) 100%);
-  border: 1px solid rgba(29, 78, 216, 0.12);
-  border-radius: $border-radius;
-  padding: 1.25rem 1.5rem;
-  margin-bottom: 1.25rem;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1.25rem;
-  min-height: 80px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.85), rgba(245,250,255,0.92));
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: $apple-radius-xl; // 28px
+  padding: $apple-space-8; // 32px
+  margin-bottom: $apple-space-6;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: $apple-space-6;
+  align-items: start;
+  box-shadow: $apple-shadow-md;
+  min-height: 120px;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+    gap: $apple-space-4;
+  }
 }
 
 .perf-section {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  min-width: 140px;
+  gap: 0.5rem;
+  min-width: 0; // 防止flex子项溢出
 
   &--main {
+    grid-column: span 2;
+    
+    @media (max-width: 1024px) {
+      grid-column: span 2;
+    }
+    
+    @media (max-width: 640px) {
+      grid-column: span 1;
+    }
+    
     flex-direction: row;
-    align-items: center;
-    gap: 1rem;
+    align-items: center; // 改为center，确保垂直居中
+    gap: $apple-space-6;
+    flex-wrap: nowrap; // 防止换行
   }
 }
 
 .perf-sep {
-  width: 1px;
-  height: 48px;
-  background: rgba(255,255,255,0.1);
-  flex-shrink: 0;
+  display: none; // 移除分隔线，使用grid gap
 }
 
 .perf-divider {
   width: 1px;
-  height: 32px;
-  background: rgba(255,255,255,0.08);
+  height: 48px;
+  background: rgba(0, 0, 0, 0.06);
+  flex-shrink: 0;
+  align-self: center; // 确保分隔线垂直居中
 }
 
 .perf-metric {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.375rem;
+  min-width: 0; // 防止内容溢出
+  flex: 0 0 auto; // 防止被压缩
 
   &__label {
-    font-size: 0.7rem;
-    color: $text-muted;
+    font-size: $apple-font-mini; // 12px
+    color: $apple-text-tertiary;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
+    font-family: $apple-font-family;
+    white-space: nowrap; // 防止标签换行
   }
 
   &__val {
-    font-size: 1.2rem;
+    font-size: 1.75rem; // 主焦点：总市值
     font-weight: 700;
-    color: $text-primary;
+    color: $apple-text-primary;
     font-family: 'IBM Plex Mono', monospace;
+    line-height: 1.2;
+    white-space: nowrap; // 防止数字换行
+    word-break: keep-all; // 保持数字完整
 
     &--sub {
-      font-size: 0.95rem;
-      color: $text-secondary;
+      font-size: 1.1rem; // 第二层：持仓成本
+      color: $apple-text-secondary;
+      font-weight: 600;
+      white-space: nowrap;
     }
   }
 
   &__pnl {
-    font-size: 1.25rem;
+    font-size: 1.5rem; // 主焦点：持有收益
     font-weight: 700;
     font-family: 'IBM Plex Mono', monospace;
+    line-height: 1.2;
+    white-space: nowrap; // 防止收益数字换行
   }
 
   &__rate {
-    font-size: 0.8rem;
+    font-size: 0.875rem; // 第二层：今日收益
     font-family: 'IBM Plex Mono', monospace;
+    font-weight: 500;
+    white-space: nowrap;
   }
 }
 
 .perf-date {
-  margin-left: auto;
-  font-size: 0.72rem;
-  color: $text-muted;
+  grid-column: span 4;
+  justify-self: flex-end;
+  font-size: $apple-font-mini;
+  color: $apple-text-tertiary;
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  align-self: flex-end;
+  gap: 0.375rem;
+  margin-top: $apple-space-2;
+  font-family: $apple-font-family;
+
+  @media (max-width: 1024px) {
+    grid-column: span 2;
+  }
+
+  @media (max-width: 640px) {
+    grid-column: span 1;
+  }
 
   &__tip {
     cursor: help;
@@ -975,83 +1031,135 @@ onMounted(() => {
 }
 
 .perf-nodata {
-  margin-left: auto;
-  font-size: 0.78rem;
-  color: #f59e0b;
+  grid-column: span 4;
+  justify-self: flex-end;
+  font-size: $apple-font-caption;
+  color: $warning-color;
   display: flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.375rem;
+  margin-top: $apple-space-2;
+  font-family: $apple-font-family;
+
+  @media (max-width: 1024px) {
+    grid-column: span 2;
+  }
+
+  @media (max-width: 640px) {
+    grid-column: span 1;
+  }
 }
 
-// PnL 颜色
-.pnl-up   { color: #10b981; }  // 绿涨
-.pnl-down { color: #f43f5e; }  // 红跌
-.pnl-zero { color: $text-muted; }
+// PnL 颜色（低饱和度）
+.pnl-up   { color: #16a34a; }  // 低饱和绿色
+.pnl-down { color: #dc2626; }  // 低饱和红色
+.pnl-zero { color: $apple-text-tertiary; }
 
 .pnl-cell {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  gap: 0.15rem; // 减小间距
   align-items: flex-end;
+  line-height: 1.2;
+
+  &--daily {
+    // 当日收益：轻量显示
+    .pnl-amount {
+      font-size: 12px; // 从13px减小到12px
+      font-weight: 500;
+    }
+    .pnl-rate {
+      font-size: 10px; // 从11px减小到10px
+      opacity: 0.75;
+    }
+  }
+
+  &--unrealized {
+    // 持有收益：更重要
+    .pnl-amount {
+      font-size: 13px; // 从14px减小到13px
+      font-weight: 600;
+    }
+    .pnl-rate {
+      font-size: 11px; // 从12px减小到11px
+    }
+  }
+}
+
+.pnl-amount {
+  font-family: 'IBM Plex Mono', monospace;
+  line-height: 1.3;
 }
 
 .pnl-rate {
-  font-size: 0.72rem;
+  font-family: 'IBM Plex Mono', monospace;
+  line-height: 1.3;
 }
 
 .no-data-dash {
-  color: $text-muted;
-  font-size: 0.85rem;
+  color: $apple-text-tertiary;
+  font-size: 12px; // 减小字体
 }
 
-// ---- 汇总卡片----
+// ---- 汇总卡片 (Quick Stats) ----
 .summary-cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: $apple-space-4;
+  margin-bottom: $apple-space-6;
 }
 
 .summary-card {
-  background: #FFFFFF;
-  border: 1px solid $border-subtle;
-  border-radius: $border-radius;
-  padding: 1rem 1.25rem;
+  background: $apple-bg-elevated; // rgba(255, 255, 255, 0.78)
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: $apple-radius-lg; // 20px
+  padding: $apple-space-5 $apple-space-6; // 20px 24px
+  box-shadow: $apple-shadow-sm;
+  transition: $transition-all;
+
+  &:hover {
+    box-shadow: $apple-shadow-md;
+    transform: translateY(-2px);
+  }
 }
 
 .summary-label {
-  font-size: 0.75rem;
-  color: $text-muted;
+  font-size: $apple-font-mini; // 12px
+  color: $apple-text-tertiary;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  margin-bottom: 0.5rem;
+  margin-bottom: $apple-space-3;
+  font-family: $apple-font-family;
 }
 
 .summary-value {
   font-size: 1.5rem;
   font-weight: 700;
-  color: $text-primary;
+  color: $apple-text-primary;
   font-family: 'IBM Plex Mono', monospace;
+  line-height: 1.2;
 }
 
 .summary-markets {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.375rem;
-  margin-top: 0.25rem;
+  gap: $apple-space-2;
+  margin-top: $apple-space-2;
 }
 
 .market-tag {
-  font-size: 0.7rem !important;
+  font-size: $apple-font-mini !important;
+  border-radius: $apple-radius-sm !important;
 }
 
 // ---- 持仓表格 ----
 .holdings-table-wrap {
-  background: #FFFFFF;
-  border: 1px solid $border-subtle;
-  border-radius: $border-radius;
+  background: $apple-bg-elevated;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: $apple-radius-lg; // 20px
   overflow: hidden;
+  box-shadow: $apple-shadow-sm;
 }
 
 .holdings-table {
@@ -1059,131 +1167,262 @@ onMounted(() => {
   background: transparent !important;
 
   :deep(.el-table__header-wrapper th) {
-    background: rgba(255,255,255,0.03) !important;
-    color: $text-muted !important;
-    font-size: 0.75rem !important;
+    background: rgba(0, 0, 0, 0.02) !important;
+    color: $apple-text-tertiary !important;
+    font-size: $apple-font-mini !important; // 12px
     font-weight: 700 !important;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    border-bottom: 1px solid $border-subtle !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+    font-family: $apple-font-family !important;
+    padding: 12px 10px !important; // 减小padding，避免列太宽
+    white-space: nowrap !important;
   }
 
   :deep(.el-table__row) {
     background: transparent !important;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: background 0.2s ease;
 
     &:hover td {
-      background: rgba(29, 78, 216, 0.04) !important;
+      background: rgba(0, 113, 227, 0.04) !important;
     }
   }
 
   :deep(td) {
-    border-bottom: 1px solid rgba(255,255,255,0.04) !important;
-    color: $text-primary !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04) !important;
+    color: $apple-text-primary !important;
+    padding: 14px 10px !important; // 减小padding，增加列间距
+    vertical-align: middle !important; // 确保单元格内容垂直居中
+  }
+  
+  // 确保表格单元格内容不换行（除非明确需要）
+  :deep(.el-table__cell) {
+    word-break: keep-all;
+    overflow-wrap: break-word;
+    overflow: hidden; // 防止内容溢出
+  }
+  
+  // 固定列样式优化
+  :deep(.el-table__fixed-right) {
+    box-shadow: -2px 0 8px rgba(0, 0, 0, 0.04) !important;
   }
 }
 
 .asset-cell {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 0.5rem;
-  flex-wrap: wrap;
+  align-items: flex-start;
+  min-width: 0; // 防止内容溢出
+}
+
+.asset-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 100%;
+  min-width: 0;
 }
 
 .asset-code {
   font-weight: 700;
   font-family: 'IBM Plex Mono', monospace;
-  color: $primary-color;
+  color: $apple-accent;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 13px; // 减小字体
+  line-height: 1.3;
+  white-space: nowrap; // 防止代码换行
+  display: inline-block;
 
   &:hover {
     text-decoration: underline;
+    color: $primary-dark;
   }
 }
 
 .asset-name {
-  font-size: 0.8125rem;
-  color: $text-secondary;
+  font-size: 12px; // 减小字体，从13px改为12px
+  color: $apple-text-secondary;
+  line-height: 1.3;
+  white-space: nowrap; // 防止名称换行
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  display: block;
 }
 
 .market-badge {
-  font-size: 0.65rem !important;
-  padding: 0 5px !important;
-  height: 18px !important;
-  line-height: 18px !important;
+  font-size: $apple-font-mini !important; // 12px
+  padding: 2px 6px !important;
+  height: 20px !important;
+  line-height: 20px !important;
+  border-radius: $apple-radius-sm !important;
+  flex-shrink: 0; // 防止标签被压缩
+  white-space: nowrap; // 防止标签文字换行
+  display: inline-flex !important;
+  align-items: center !important;
 }
 
 .mono-value {
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.875rem;
+  font-size: 14px; // 减小字体，从16px改为14px
+  white-space: nowrap; // 防止数字换行
+  display: inline-block;
 }
 
 .cost-value {
-  color: $primary-color;
+  color: $apple-accent;
+  font-weight: 600;
 }
 
 .notes-text {
-  font-size: 0.8125rem;
-  color: $text-muted;
+  font-size: 12px; // 减小字体
+  color: $apple-text-tertiary;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   display: block;
-  max-width: 150px;
+  max-width: 120px; // 减小最大宽度
+}
+
+// 操作按钮组
+.action-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px; // 横向排列，间距8px
+  flex-wrap: nowrap; // 防止换行
+  
+  :deep(.el-button) {
+    padding: 4px 8px !important; // 减小按钮padding
+    font-size: 12px !important; // 减小按钮字体
+    min-height: 24px !important; // 减小按钮高度
+    margin: 0 !important;
+  }
 }
 
 .time-text {
-  font-size: 0.75rem;
-  color: $text-muted;
+  font-size: $apple-font-mini;
+  color: $apple-text-tertiary;
   font-family: 'IBM Plex Mono', monospace;
 }
 
 // ---- 对话框----
 .holding-dialog {
   :deep(.el-dialog) {
-    background: $bg-card !important;
-    border: 1px solid $border-strong !important;
-    border-radius: $border-radius-xl !important;
+    background: $apple-bg-elevated !important;
+    border: 1px solid rgba(0, 0, 0, 0.06) !important;
+    border-radius: $apple-radius-xl !important; // 28px
+    box-shadow: $apple-shadow-lg !important;
+  }
+
+  :deep(.el-dialog__header) {
+    padding: $apple-space-6 $apple-space-8 $apple-space-4 !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
   }
 
   :deep(.el-dialog__title) {
-    color: $text-primary !important;
+    color: $apple-text-primary !important;
     font-weight: 700 !important;
+    font-size: $apple-font-h3 !important; // 20px
+    font-family: $apple-font-family !important;
+  }
+
+  :deep(.el-dialog__body) {
+    padding: $apple-space-6 $apple-space-8 !important;
   }
 
   :deep(.el-form-item__label) {
-    color: $text-secondary !important;
+    color: $apple-text-secondary !important;
+    font-family: $apple-font-family !important;
+  }
+
+  // 输入框统一样式
+  :deep(.el-input__wrapper) {
+    border-radius: $apple-radius-segmented !important; // 14px
+    background: $apple-input-bg !important;
+    border: 1px solid $apple-input-border !important;
+    box-shadow: none !important;
+    min-height: $apple-input-height !important; // 48px
+  }
+
+  :deep(.el-input__inner) {
+    font-family: $apple-font-family !important;
+  }
+
+  :deep(.el-textarea__inner) {
+    border-radius: $apple-radius-segmented !important; // 14px
+    background: $apple-input-bg !important;
+    border: 1px solid $apple-input-border !important;
+    font-family: $apple-font-family !important;
+  }
+
+  :deep(.el-input-number) {
+    width: 100%;
+
+    .el-input__wrapper {
+      width: 100%;
+    }
+  }
+
+  :deep(.el-select) {
+    .el-input__wrapper {
+      border-radius: $apple-radius-segmented !important;
+      background: $apple-input-bg !important;
+      border: 1px solid $apple-input-border !important;
+      min-height: $apple-input-height !important;
+    }
   }
 }
 
 .edit-asset-info {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid $border-subtle;
-  border-radius: 8px;
+  gap: $apple-space-2;
+  padding: $apple-space-3 $apple-space-4;
+  background: rgba(245, 245, 247, 0.6);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: $apple-radius-sm;
+}
+
+.cost-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: $apple-space-3;
+  padding: $apple-space-3 $apple-space-4;
+  background: rgba(0, 113, 227, 0.05);
+  border: 1px solid rgba(0, 113, 227, 0.1);
+  border-radius: 12px;
+
+  &-label {
+    font-size: $apple-font-caption;
+    color: $apple-text-secondary;
+    font-family: $apple-font-family;
+  }
+
+  &-value {
+    font-size: $apple-font-body;
+    font-weight: 600;
+    color: $apple-accent;
+    font-family: 'IBM Plex Mono', monospace;
+  }
 }
 
 .form-hint {
-  font-size: 0.75rem;
-  color: $text-muted;
-  margin-top: 0.25rem;
-
-  strong {
-    color: $primary-color;
-    font-family: 'IBM Plex Mono', monospace;
-  }
+  font-size: $apple-font-mini;
+  color: $apple-text-tertiary;
+  margin-top: $apple-space-2;
+  font-family: $apple-font-family;
 }
 
 .asset-option {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.8125rem;
+  gap: $apple-space-2;
+  font-size: $apple-font-caption;
+  font-family: $apple-font-family;
 
   .opt-code {
     font-weight: 700;
@@ -1193,59 +1432,72 @@ onMounted(() => {
 
   .opt-name {
     flex: 1;
-    color: $text-secondary;
+    color: $apple-text-secondary;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .opt-market {
-    font-size: 0.65rem !important;
-    padding: 0 4px !important;
-    height: 16px !important;
-    line-height: 16px !important;
+    font-size: $apple-font-mini !important;
+    padding: 2px 4px !important;
+    height: 18px !important;
+    line-height: 18px !important;
     flex-shrink: 0;
+    border-radius: $apple-radius-sm !important;
   }
 }
 
 .dialog-footer {
   display: flex;
-  gap: 0.75rem;
+  gap: $apple-space-3;
   justify-content: flex-end;
+  padding: $apple-space-4 $apple-space-8 $apple-space-6 !important;
+
+  :deep(.el-button) {
+    border-radius: 12px !important;
+    font-family: $apple-font-family !important;
+    
+    &.el-button--default {
+      color: $apple-text-secondary !important;
+    }
+  }
 }
 
-// ---- 累计收益曲线卡片 ----
+// ---- 累计收益曲线卡片 (Performance Chart) ----
 .returns-chart-card {
-  background: #FFFFFF;
-  border: 1px solid $border-subtle;
-  border-radius: $border-radius;
-  margin-bottom: 1.5rem;
+  background: $apple-bg-elevated;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: $apple-radius-lg; // 24px
+  margin-bottom: $apple-space-6;
   overflow: hidden;
+  box-shadow: $apple-shadow-md;
 }
 
 .returns-chart-header {
-  padding: 1rem 1.5rem 0.75rem;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
+  padding: $apple-space-6 $apple-space-8 $apple-space-4; // 24px 28px 16px
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .returns-chart-title-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  gap: $apple-space-2;
+  margin-bottom: $apple-space-4;
 }
 
 .returns-chart-title {
-  font-size: 0.9375rem;
+  font-size: $apple-font-h2; // 24px
   font-weight: 700;
-  color: $text-primary;
+  color: $apple-text-primary;
   margin: 0;
   letter-spacing: -0.01em;
+  font-family: $apple-font-family;
 }
 
 .info-icon {
-  color: $text-muted;
-  font-size: 0.875rem;
+  color: $apple-text-tertiary;
+  font-size: $apple-font-body;
   cursor: help;
 }
 
@@ -1253,47 +1505,71 @@ onMounted(() => {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: $apple-space-5;
 }
 
 .meta-item {
-  font-size: 0.75rem;
-  color: $text-muted;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: $apple-space-2;
+  font-family: $apple-font-family;
 }
 
 .meta-label {
-  color: $text-muted;
+  color: $apple-text-tertiary;
 }
 
 .meta-value {
-  color: $text-secondary;
-  &.mono { font-family: 'IBM Plex Mono', monospace; }
+  color: $apple-text-secondary;
+  &.mono { 
+    font-family: 'IBM Plex Mono', monospace; 
+  }
 }
 
 .meta-return {
-  font-size: 0.8125rem;
+  font-size: $apple-font-body;
+  font-weight: 600;
+  font-family: $apple-font-family;
 
   strong {
     font-family: 'IBM Plex Mono', monospace;
-    font-size: 1rem;
+    font-size: 1.25rem; // 突出显示最新收益率
+    font-weight: 700;
   }
 }
 
 .returns-chart-body {
-  padding: 0.5rem 0.5rem 0.25rem;
+  padding: $apple-space-4 $apple-space-5 $apple-space-3;
 }
 
 .returns-chart {
   width: 100%;
-  height: 260px;
+  height: 280px;
 }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+// 统一字体系统
+* {
+  font-family: $apple-font-family;
+}
+
+// 确保所有数字使用等宽字体
+.mono-value,
+.perf-metric__val,
+.perf-metric__pnl,
+.perf-metric__rate,
+.summary-value,
+.asset-code,
+.pnl-amount,
+.pnl-rate,
+.cost-summary-value {
+  font-family: 'IBM Plex Mono', monospace;
 }
 </style>
 

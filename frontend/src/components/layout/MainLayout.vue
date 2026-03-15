@@ -34,7 +34,6 @@
             </el-icon>
           </div>
           <span class="nav-text">{{ item.label }}</span>
-          <div class="nav-indicator" v-if="route.name === item.name"></div>
         </router-link>
       </nav>
 
@@ -611,16 +610,18 @@ watch(
 .main-layout {
   display: flex;
   min-height: 100vh;
-  background: $bg-dark;
+  background: $apple-bg-page;
 }
 
 // ============================================
-// Sidebar
+// Sidebar - Apple Style
 // ============================================
 .sidebar {
-  width: 260px;
-  background: #FFFFFF;
-  border-right: 1px solid $border-subtle;
+  width: $apple-sidebar-width;
+  background: $apple-sidebar-bg;
+  backdrop-filter: $apple-glass-blur;
+  -webkit-backdrop-filter: $apple-glass-blur;
+  border-right: 1px solid $apple-border-light;
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -652,8 +653,8 @@ watch(
 }
 
 .sidebar-header {
-  padding: 1.5rem 1.25rem 1rem;
-  border-bottom: 1px solid $border-subtle;
+  padding: $apple-space-6 $apple-space-5 $apple-space-4;
+  border-bottom: 1px solid $apple-border-light;
   position: relative;
   z-index: 1;
 }
@@ -685,17 +686,19 @@ watch(
 .logo-text {
   font-size: 1.1rem;
   font-weight: 700;
-  color: $text-primary;
+  color: $apple-text-primary;
   margin: 0;
   letter-spacing: -0.02em;
+  font-family: $apple-font-family;
 }
 
 .logo-tagline {
   font-size: 0.65rem;
-  color: $primary-color;
+  color: $apple-accent;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+  font-family: $apple-font-family;
 }
 
 .nav-menu {
@@ -713,35 +716,49 @@ watch(
   align-items: center;
   gap: 0.875rem;
   padding: 0.7rem 1rem;
-  border-radius: 10px;
-  color: $text-muted;
+  border-radius: $apple-radius-sm;
+  color: $apple-text-tertiary;
   text-decoration: none;
-  transition: $transition-all;
+  transition: all 0.2s ease;
   position: relative;
   cursor: pointer;
+  font-family: $apple-font-family;
 
   &:hover {
-    background: $bg-surface;
-    color: $text-secondary;
+    background: $apple-sidebar-active-bg;
+    color: $apple-text-secondary;
 
     .nav-icon-wrap {
-      background: rgba(29, 78, 216, 0.08);
-      color: $primary-color;
+      background: transparent;
+      color: $apple-text-secondary;
     }
   }
 
   &.active {
-    background: rgba(29, 78, 216, 0.08);
-    color: $primary-color;
-    border: 1px solid rgba(29, 78, 216, 0.15);
+    background: $apple-sidebar-active-bg;
+    color: $apple-text-primary;
 
     .nav-icon-wrap {
-      background: rgba(29, 78, 216, 0.12);
-      color: $primary-color;
+      background: transparent;
+      color: $apple-accent;
     }
 
     .nav-text {
       font-weight: 600;
+      color: $apple-text-primary;
+    }
+
+    // 左侧细蓝线指示器 - Apple/Linear风格
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 20px;
+      background: $apple-accent;
+      border-radius: 0 2px 2px 0;
     }
   }
 }
@@ -766,23 +783,14 @@ watch(
   font-size: 0.875rem;
   font-weight: 500;
   white-space: nowrap;
+  font-family: $apple-font-family;
 }
 
-.nav-indicator {
-  position: absolute;
-  right: -0.75rem;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 20px;
-  background: $gradient-primary;
-  border-radius: 2px 0 0 2px;
-  box-shadow: $glow-blue;
-}
+// 移除右侧指示器，改用左侧小蓝点（在 .nav-item.active::before 中实现）
 
 .sidebar-footer {
-  padding: 1rem 0.75rem;
-  border-top: 1px solid $border-subtle;
+  padding: $apple-space-4 $apple-space-3;
+  border-top: 1px solid $apple-border-light;
   position: relative;
   z-index: 1;
 }
@@ -792,14 +800,13 @@ watch(
   align-items: center;
   gap: 0.75rem;
   padding: 0.625rem 0.75rem;
-  border-radius: 10px;
-  background: $bg-surface;
-  border: 1px solid $border-subtle;
-  transition: $transition-all;
+  border-radius: $apple-radius-sm;
+  background: transparent;
+  border: none;
+  transition: all 0.2s ease;
 
   &:hover {
-    background: $bg-dark;
-    border-color: $border-default;
+    background: $apple-sidebar-active-bg;
   }
 }
 
@@ -818,29 +825,31 @@ watch(
 .user-name {
   font-size: 0.8125rem;
   font-weight: 600;
-  color: $text-primary;
+  color: $apple-text-primary;
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-family: $apple-font-family;
 }
 
 .user-username {
   font-size: 0.7rem;
-  color: $text-muted;
+  color: $apple-text-tertiary;
   margin: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-family: $apple-font-family;
 }
 
 .logout-btn {
   background: none;
   border: none;
-  color: $text-muted;
+  color: $apple-text-tertiary;
   cursor: pointer;
-  padding: 0.375rem;
-  border-radius: 6px;
+  padding: $apple-space-3;
+  border-radius: $apple-radius-sm;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -858,7 +867,7 @@ watch(
 // ============================================
 .main-content {
   flex: 1;
-  margin-left: 260px;
+  margin-left: $apple-sidebar-width;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -869,9 +878,11 @@ watch(
 }
 
 .main-header {
-  height: 64px;
-  background: rgba(255, 255, 255, 0.92);
-  border-bottom: 1px solid $border-subtle;
+  height: 72px;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
   padding: 0 1.5rem;
   display: flex;
   align-items: center;
@@ -880,8 +891,6 @@ watch(
   position: sticky;
   top: 0;
   z-index: 5;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 
 .header-left {
@@ -895,18 +904,20 @@ watch(
 }
 
 .breadcrumb-dot {
-  width: 7px;
-  height: 7px;
-  background: $primary-color;
+  width: 6px;
+  height: 6px;
+  background: $apple-accent;
   border-radius: 50%;
-  box-shadow: 0 0 8px rgba(29, 78, 216, 0.5);
+  box-shadow: 0 0 6px rgba(0, 113, 227, 0.3);
+  opacity: 0.8;
 }
 
 .breadcrumb-text {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: $text-primary;
+  font-size: $apple-font-body;
+  font-weight: 500;
+  color: $apple-text-primary;
   letter-spacing: 0.01em;
+  font-family: $apple-font-family;
 }
 
 .search-bar {
@@ -921,23 +932,24 @@ watch(
 .search-inner {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
-  background: $bg-surface;
-  border: 1px solid $border-default;
-  border-radius: 10px;
-  padding: 0.5rem 1rem;
-  transition: $transition-all;
-  box-shadow: $shadow-sm;
+  gap: $apple-space-3;
+  background: rgba(245, 245, 247, 0.9);
+  border: 1px solid $apple-input-border;
+  border-radius: 14px;
+  padding: $apple-space-3 $apple-space-4;
+  transition: all 0.2s ease;
+  box-shadow: $apple-shadow-sm;
+  font-family: $apple-font-family;
 
   &:focus-within {
-    border-color: $primary-color;
+    border-color: $apple-accent;
     background: #FFFFFF;
-    box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12);
+    box-shadow: 0 0 0 3px $apple-accent-soft;
   }
 }
 
 .search-icon {
-  color: $text-muted;
+  color: $apple-text-tertiary;
   flex-shrink: 0;
 }
 
@@ -946,12 +958,12 @@ watch(
   background: none;
   border: none;
   outline: none;
-  color: $text-primary;
-  font-family: 'Inter', sans-serif;
-  font-size: 0.875rem;
+  color: $apple-text-primary;
+  font-family: $apple-font-family;
+  font-size: $apple-font-body;
 
   &::placeholder {
-    color: $text-muted;
+    color: $apple-text-tertiary;
   }
 }
 
@@ -960,11 +972,13 @@ watch(
   top: calc(100% + 6px);
   left: 0;
   right: 0;
-  background: #ffffff;
-  border-radius: 10px;
-  border: 1px solid $border-subtle;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
-  padding: 0.4rem 0.5rem;
+  background: $apple-bg-soft;
+  backdrop-filter: $apple-glass-blur;
+  -webkit-backdrop-filter: $apple-glass-blur;
+  border-radius: $apple-radius-md;
+  border: 1px solid $apple-border-light;
+  box-shadow: $apple-shadow-lg;
+  padding: $apple-space-3;
   z-index: 20;
 }
 
@@ -1086,22 +1100,22 @@ watch(
 .notification-btn {
   position: relative;
   background: #FFFFFF;
-  border: 1px solid $border-default;
-  color: $text-secondary;
+  border: 1px solid $apple-input-border;
+  color: $apple-text-secondary;
   cursor: pointer;
   width: 38px;
   height: 38px;
-  border-radius: 10px;
+  border-radius: $apple-input-radius;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: $transition-all;
-  box-shadow: $shadow-sm;
+  transition: all 0.2s ease;
+  box-shadow: $apple-shadow-sm;
 
   &:hover {
-    background: $bg-surface;
-    color: $primary-color;
-    border-color: $primary-color;
+    background: rgba(0, 0, 0, 0.03);
+    color: $apple-accent;
+    border-color: $apple-accent;
   }
 }
 
@@ -1125,21 +1139,22 @@ watch(
 .header-avatar {
   :deep(.el-avatar) {
     cursor: pointer;
-    border: 2px solid $border-default;
-    transition: $transition-all;
-    box-shadow: $shadow-sm;
+    border: 2px solid $apple-input-border;
+    transition: all 0.2s ease;
+    box-shadow: $apple-shadow-sm;
 
     &:hover {
-      border-color: $primary-color;
-      box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12);
+      border-color: $apple-accent;
+      box-shadow: 0 0 0 3px $apple-accent-soft;
     }
   }
 }
 
 .page-content {
   flex: 1;
-  padding: 1.5rem;
+  padding: $apple-space-6;
   overflow-y: auto;
+  background: $apple-bg-page;
 }
 
 .notif-drawer-body {
@@ -1152,41 +1167,44 @@ watch(
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1rem;
+  margin-bottom: $apple-space-4;
 
   h3 {
     margin: 0;
-    font-size: 1rem;
+    font-size: $apple-font-body;
     font-weight: 600;
-    color: $text-primary;
+    color: $apple-text-primary;
+    font-family: $apple-font-family;
   }
 }
 
 .notif-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: $apple-space-3;
   max-height: 100%;
   overflow-y: auto;
 }
 
 .notif-item {
   position: relative;
-  padding: 0.75rem 0.75rem;
-  border-radius: 8px;
-  border: 1px solid $border-subtle;
-  background: #fff;
+  padding: $apple-space-4;
+  border-radius: $apple-radius-sm;
+  border: 1px solid $apple-border-light;
+  background: $apple-bg-elevated;
+  backdrop-filter: $apple-glass-blur;
+  -webkit-backdrop-filter: $apple-glass-blur;
   cursor: pointer;
-  transition: $transition-all;
+  transition: all 0.2s ease;
 
   &:hover {
-    border-color: $primary-color;
-    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+    border-color: $apple-accent;
+    box-shadow: $apple-shadow-sm;
   }
 
   &.unread {
-    background: rgba(37, 99, 235, 0.04);
-    border-color: rgba(37, 99, 235, 0.18);
+    background: rgba(0, 113, 227, 0.04);
+    border-color: rgba(0, 113, 227, 0.15);
   }
 }
 
@@ -1236,19 +1254,22 @@ watch(
 }
 
 .notif-time {
-  font-size: 0.7rem;
-  color: $text-muted;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
+  font-family: $apple-font-family;
 }
 
 .notif-title {
-  font-size: 0.85rem;
+  font-size: $apple-font-body;
   font-weight: 600;
-  color: $text-primary;
+  color: $apple-text-primary;
+  font-family: $apple-font-family;
 }
 
 .notif-content {
-  font-size: 0.8rem;
-  color: $text-secondary;
+  font-size: $apple-font-body;
+  color: $apple-text-secondary;
+  font-family: $apple-font-family;
 }
 
 .notif-status-dot {
@@ -1263,15 +1284,16 @@ watch(
 }
 
 .sidebar-disclaimer {
-  padding: 0.625rem 1rem;
-  border-top: 1px solid $border-subtle;
+  padding: $apple-space-3 $apple-space-4;
+  border-top: 1px solid $apple-border-light;
 
   p {
-    font-size: 0.6rem;
-    color: $text-muted;
+    font-size: $apple-font-mini;
+    color: $apple-text-tertiary;
     line-height: 1.5;
     margin: 0;
     font-style: italic;
+    font-family: $apple-font-family;
   }
 
   @media (max-width: 768px) {

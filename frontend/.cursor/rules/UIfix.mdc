@@ -1,0 +1,877 @@
+---
+alwaysApply: false
+---
+当然可以。下面我直接给你一套能落地的：
+
+# InvestHub Apple 风格 UI 设计方案
+
+目标不是单纯“换皮”，而是把你现在这个偏 **后台系统感** 的个人主页，重构成一种更像 **Apple / Linear / Notion / Stripe** 的风格：
+
+* 更简洁
+* 更高级
+* 更有呼吸感
+* 更适合“投资社区”这种内容型产品
+
+我会按你开发最需要的方式来给：
+**页面布局图 + Vue 组件结构 + CSS 设计系统 + 卡片组件设计 + 改版重点**
+
+---
+
+# 一、整体设计定位
+
+你的当前页面问题不是功能少，而是：
+
+* 信息块太碎
+* 边框感太重
+* 默认组件痕迹太明显
+* 左侧导航和主内容风格不统一
+* 缺少“高级留白”和“统一视觉秩序”
+
+新的设计方向：
+
+> **像 Apple 官网一样克制，像 Linear 一样精致，像 Notion 一样清爽。**
+
+设计关键词：
+
+* 大留白
+* 弱边框
+* 浅灰背景
+* 半透明毛玻璃
+* 统一圆角
+* 清晰的信息层级
+* 少而精的强调色
+
+---
+
+# 二、页面重构思路
+
+你现在是：
+
+```text
+左侧导航
+顶部搜索
+大用户卡片
+左下互动
+右侧tab内容
+最近动态
+```
+
+这个结构本身没问题，但视觉上太像“拼起来的模块”。
+
+我建议你重构成下面这种结构：
+
+---
+
+## 1. 页面整体布局图
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ Top Bar                                                    │
+│ Logo / Breadcrumb        Search         Notification Avatar │
+├───────────────┬─────────────────────────────────────────────┤
+│ Sidebar       │                                             │
+│               │   Profile Hero                              │
+│ 市场总览      │   Avatar   Name   Bio   Actions             │
+│ 行情列表      │   Stats Row                                 │
+│ 社区论坛      │                                             │
+│ 投资组合      ├─────────────────────────────────────────────┤
+│ 我的持仓      │   Segmented Tabs                            │
+│ 我的主页      │   Overview | Posts | Portfolios | Likes     │
+│               │                                             │
+│               │   Featured Content Grid                     │
+│               │   - Featured Post                           │
+│               │   - Featured Portfolio                      │
+│               │                                             │
+│               ├─────────────────────────────────────────────┤
+│               │   Activity Timeline                         │
+│               │                                             │
+└───────────────┴─────────────────────────────────────────────┘
+```
+
+---
+
+## 2. 页面分层逻辑
+
+个人主页建议只保留 **4个核心区块**：
+
+### A. Profile Hero 顶部主卡片
+
+放最核心的身份信息：
+
+* 头像
+* 用户名
+* @handle
+* 一句话简介
+* Follow / 编辑资料 / 分享主页
+* 统计信息
+
+### B. Tabs 内容切换
+
+用更高级的 segmented control 风格：
+
+* Overview
+* Posts
+* Portfolios
+* Favorites
+* Likes
+
+### C. Featured Content 代表内容
+
+只展示最重要的内容，而不是堆太多小卡片。
+
+### D. Activity Timeline 最近动态
+
+时间线做轻量化展示。
+
+---
+
+# 三、Apple 风格页面布局建议
+
+---
+
+## 1. 顶部栏 Top Bar
+
+顶部栏要“悬浮”，不要太实。
+
+建议样式：
+
+* 高度：72px
+* 毛玻璃背景
+* 搜索栏居中
+* 通知和头像靠右
+* 页面滚动时有轻微模糊感
+
+结构：
+
+```text
+[ 页面标题 ]              [ 搜索输入框 ]           [铃铛] [头像]
+```
+
+CSS 气质：
+
+```css
+topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+```
+
+---
+
+## 2. 左侧 Sidebar
+
+当前左侧导航“太管理后台”了。
+建议改成更轻的“桌面应用”风格。
+
+### 调整点：
+
+* 图标更细
+* 选中项不要大色块，改成浅灰底 + 小蓝点/细线
+* Logo 区域更有品牌感
+* 底部用户信息卡也简化
+
+结构建议：
+
+```text
+InvestHub
+投资社区
+
+市场总览
+行情列表
+社区论坛
+投资组合
+我的持仓
+
+——
+
+我的主页
+设置
+```
+
+样式建议：
+
+* 宽度：248px
+* 背景：`rgba(255,255,255,0.55)`
+* 毛玻璃：`blur(24px)`
+* 选中项：浅灰背景 + 文字加深
+
+---
+
+## 3. 主内容宽度
+
+不要铺满整个屏幕，Apple 风格的关键之一就是 **收窄主内容区**。
+
+建议：
+
+* 内容最大宽度：1200px
+* 左右 padding：32px
+* 卡片之间间距：24px
+
+```css
+.main-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px;
+}
+```
+
+---
+
+# 四、个人主页 Hero 区重设计
+
+这个区域是整个页面的脸面，必须精致。
+
+---
+
+## 1. 当前问题
+
+你现在的 Hero 区：
+
+* 信息都堆在左边
+* 统计区略乱
+* 操作按钮比较普通
+* 头像存在感不够
+* 缺少“品牌人物感”
+
+---
+
+## 2. 改造后结构
+
+```text
+┌──────────────────────────────────────────────────────┐
+│  Avatar      testuser6             [Edit Profile]    │
+│              @testuser6            [Share]           │
+│              Long-term investor, focused on ETFs.    │
+│                                                      │
+│  1          1          2          8          7       │
+│  Followers  Following  Posts      Portfolios Likes   │
+└──────────────────────────────────────────────────────┘
+```
+
+### 视觉建议
+
+* 左侧头像大一些：88~104px
+* 用户名字号更大：36px
+* 简介控制在 1~2 行
+* 统计数字横向排开，保持留白
+* 按钮放右上角，不要挤在内容区里
+
+---
+
+## 3. Hero 卡片风格
+
+```css
+.profile-hero {
+  background: rgba(255,255,255,0.78);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.55);
+  border-radius: 28px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.06);
+  padding: 36px 40px;
+}
+```
+
+---
+
+# 五、Tabs 区改造
+
+你现在的 Tab 很像默认 UI 库组件。
+建议不要用默认下划线 Tabs，而改成 **Segmented Control**。
+
+## 1. 结构建议
+
+```text
+[ Overview ] [ Posts ] [ Portfolios ] [ Favorites ] [ Likes ]
+```
+
+样式：
+
+* 背景是浅灰块
+* 选中项是白底
+* 有轻微阴影
+* 字体简洁偏中性
+
+```css
+.segmented {
+  display: inline-flex;
+  padding: 4px;
+  border-radius: 14px;
+  background: rgba(0,0,0,0.05);
+}
+
+.segmented-item {
+  padding: 10px 16px;
+  border-radius: 10px;
+  color: #6e6e73;
+  transition: all .2s ease;
+}
+
+.segmented-item.active {
+  background: #fff;
+  color: #111827;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+```
+
+---
+
+# 六、Overview 页面内容设计
+
+Overview 不要再做“左边互动、右边作品”的传统后台布局。
+我建议改成更现代的两段式：
+
+---
+
+## 1. 第一部分：精选内容
+
+```text
+Featured
+┌──────────────────────────────┬──────────────────────────────┐
+│ Featured Post                │ Featured Portfolio           │
+│ 标题                         │ 组合名                       │
+│ 摘要                         │ 组合说明                     │
+│ 数据/标签                    │ 风险等级 / 资产数            │
+└──────────────────────────────┴──────────────────────────────┘
+```
+
+特点：
+
+* 两张大卡，不要塞太多
+* 信息少而精
+* 标签设计简洁
+* 可以有轻微 hover 动效
+
+---
+
+## 2. 第二部分：近期动态 Timeline
+
+```text
+Recent Activity
+• 发布了帖子《测试222》
+• 创建了投资组合《个人》
+• 点赞了某篇文章
+```
+
+做成真正的时间线，不要只是一个纯列表。
+
+---
+
+# 七、Posts 页面设计
+
+帖子列表要像内容平台，而不是表格。
+
+每一条帖子卡片建议包含：
+
+* 标题
+* 摘要
+* 发布时间
+* 关联股票/基金标签
+* 点赞/评论数
+* 审核状态（若需要）
+
+视觉风格：
+
+* 大标题
+* 浅灰辅助信息
+* hover 浮起一点
+
+---
+
+# 八、Portfolios 页面设计
+
+这个是你系统的特色模块，应该重点突出。
+
+每个组合卡片建议展示：
+
+* 组合名称
+* 风险等级
+* 简短说明
+* 持仓数
+* 收益率
+* 更新时间
+
+可以做成更“投资产品展示”的感觉，而不是普通列表。
+
+例如：
+
+```text
+个人成长组合
+Low Risk
+聚焦ETF与稳健蓝筹，长期持有策略
+
+8 Assets   +6.42%   Updated 2d ago
+```
+
+---
+
+# 九、Likes / Favorites 页面设计
+
+这些页面最容易变成“杂物间”。
+建议统一成简洁列表，不要额外搞复杂布局。
+
+每项显示：
+
+* 被点赞/收藏内容类型
+* 标题
+* 作者
+* 时间
+* 快速跳转按钮
+
+---
+
+# 十、设计系统（你最需要的部分）
+
+下面这部分你可以直接当项目里的 UI 规范。
+
+---
+
+## 1. 颜色系统
+
+### 主背景
+
+```css
+--bg-page: #f5f5f7;
+--bg-elevated: rgba(255,255,255,0.78);
+--bg-soft: #ffffff;
+```
+
+### 文字
+
+```css
+--text-primary: #1d1d1f;
+--text-secondary: #6e6e73;
+--text-tertiary: #8e8e93;
+```
+
+### 品牌强调色
+
+建议不要用很艳的蓝，改成 Apple 风的克制蓝：
+
+```css
+--accent: #0071e3;
+--accent-soft: rgba(0,113,227,0.1);
+```
+
+### 边框 / 分割线
+
+```css
+--border-light: rgba(0,0,0,0.06);
+--border-soft: rgba(255,255,255,0.5);
+```
+
+### 功能色
+
+```css
+--success: #16a34a;
+--warning: #d97706;
+--danger: #dc2626;
+```
+
+---
+
+## 2. 圆角系统
+
+不要各种圆角乱飞，统一：
+
+```css
+--radius-sm: 10px;
+--radius-md: 16px;
+--radius-lg: 24px;
+--radius-xl: 28px;
+```
+
+推荐：
+
+* 按钮：10px
+* 输入框：14px
+* 普通卡片：20px
+* Hero 卡片：28px
+
+---
+
+## 3. 阴影系统
+
+Apple 风格阴影一定要淡。
+
+```css
+--shadow-sm: 0 4px 12px rgba(15,23,42,.04);
+--shadow-md: 0 10px 30px rgba(15,23,42,.06);
+--shadow-lg: 0 20px 50px rgba(15,23,42,.08);
+```
+
+---
+
+## 4. 字体系统
+
+推荐优先级：
+
+```css
+font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display",
+  "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+```
+
+字号建议：
+
+```css
+--text-display: 40px;
+--text-h1: 32px;
+--text-h2: 24px;
+--text-h3: 20px;
+--text-body: 16px;
+--text-caption: 13px;
+--text-mini: 12px;
+```
+
+字重建议：
+
+* 标题：600
+* 普通正文：400
+* 辅助文字：400/500
+* 统计数字：600
+
+---
+
+## 5. Spacing 间距系统
+
+统一间距很重要：
+
+```css
+--space-2: 8px;
+--space-3: 12px;
+--space-4: 16px;
+--space-5: 20px;
+--space-6: 24px;
+--space-8: 32px;
+--space-10: 40px;
+```
+
+用法建议：
+
+* 元素内部间距：12 / 16
+* 卡片 padding：24 / 32
+* 模块之间：24 / 32 / 40
+
+---
+
+# 十一、毛玻璃系统
+
+毛玻璃不要乱用，建议只在这三处使用：
+
+* 顶部导航
+* 左侧 sidebar
+* Hero 主卡片
+
+统一样式：
+
+```css
+.glass {
+  background: rgba(255,255,255,0.68);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.45);
+}
+```
+
+不要每个小卡片都毛玻璃，不然会“廉价炫技”。
+
+---
+
+# 十二、核心卡片组件设计
+
+---
+
+## 1. ProfileHeroCard
+
+作用：顶部用户信息
+
+内容：
+
+* avatar
+* name
+* handle
+* bio
+* stats
+* actions
+
+适合做成单独组件：
+
+```vue
+<ProfileHeroCard
+  :user="user"
+  :stats="stats"
+  @edit="openEditDialog"
+  @share="handleShare"
+/>
+```
+
+---
+
+## 2. SegmentedTabs
+
+作用：Overview / Posts / Portfolios 切换
+
+```vue
+<SegmentedTabs
+  v-model="activeTab"
+  :items="tabItems"
+/>
+```
+
+---
+
+## 3. FeaturedPostCard
+
+内容：
+
+* title
+* excerpt
+* likes/comments
+* tags
+* publishedAt
+
+适合作为大卡片。
+
+---
+
+## 4. PortfolioPreviewCard
+
+内容：
+
+* title
+* risk
+* shortDesc
+* holdingCount
+* returnRate
+
+---
+
+## 5. ActivityTimeline
+
+内容：
+
+* type
+* title
+* date
+* icon
+
+做成轻时间线组件。
+
+---
+
+## 6. MetricStatRow
+
+顶部统计行组件：
+
+* followers
+* followings
+* posts
+* portfolios
+* likes
+
+---
+
+# 十三、Vue 组件结构建议
+
+你这个页面可以拆成这样：
+
+```text
+pages/
+  ProfilePage.vue
+
+components/profile/
+  ProfileHeroCard.vue
+  ProfileStatRow.vue
+  ProfileActionButtons.vue
+  ProfileSegmentedTabs.vue
+  FeaturedPostCard.vue
+  FeaturedPortfolioCard.vue
+  ActivityTimeline.vue
+  InteractionSummaryCard.vue
+  EmptyStateCard.vue
+```
+
+如果再规范一点：
+
+```text
+components/common/
+  AppGlassPanel.vue
+  AppSegmentedControl.vue
+  AppMetricItem.vue
+  AppSectionHeader.vue
+```
+
+这样你后面市场总览、投资组合页也能复用。
+
+---
+
+# 十四、编辑资料弹窗重设计
+
+你现在弹窗也比较“表单味”。
+
+建议改成更轻的 Apple 风格：
+
+* 宽度控制在 560px
+* 标题更简洁
+* 输入框更圆润
+* 头像上传单独一行
+* 减少边框感
+* 按钮右下对齐
+
+结构建议：
+
+```text
+编辑个人资料
+--------------------------------
+头像
+显示昵称
+个人简介
+头像链接 / 上传
+--------------------------------
+取消                    保存
+```
+
+输入框样式建议：
+
+```css
+.input-apple {
+  background: rgba(245,245,247,0.9);
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 14px;
+  height: 48px;
+}
+```
+
+---
+
+# 十五、交互动效建议
+
+Apple 风格高级感，很多来自“轻微而克制”的动效。
+
+建议统一：
+
+### 卡片 hover
+
+```css
+transition: transform .25s ease, box-shadow .25s ease;
+```
+
+```css
+:hover {
+  transform: translateY(-2px);
+}
+```
+
+### 按钮 hover
+
+* 轻微亮度变化
+* 不要太强烈缩放
+
+### tab 切换
+
+* 200ms ease
+* 左右滑动或淡入
+
+---
+
+# 十六、你当前页面最该优先改的 8 个点
+
+按重要性排序：
+
+### 1. 去掉重边框感
+
+很多地方边框太明显，会显得廉价。
+
+### 2. 增加留白
+
+你页面最大的问题之一是“挤”。
+
+### 3. Hero 卡片重做
+
+这是整个页面最值钱的部分。
+
+### 4. Tabs 改成 segmented control
+
+这一步非常提气质。
+
+### 5. 左侧导航轻量化
+
+让它更像产品，而不是后台。
+
+### 6. 统一字体体系
+
+别再让默认字体拉低质感。
+
+### 7. 卡片数量减少
+
+不要一个区域一个小盒子，太 AI 拼接感。
+
+### 8. 把蓝色控制住
+
+现在蓝色有点“组件库默认风”，要更克制。
+
+---
+
+# 十七、给你一个可直接参考的视觉风格句子
+
+你后面自己改的时候，脑子里可以一直记一句：
+
+> **“少一点边框，多一点留白；少一点组件感，多一点产品感。”**
+
+这句对你这个页面非常适用。
+
+---
+
+# 十八、落地版页面结构示意
+
+我给你一个更接近最终效果的结构：
+
+```text
+ProfilePage
+├─ AppTopBar
+├─ AppSidebar
+└─ MainContent
+   ├─ ProfileHeroCard
+   │  ├─ Avatar
+   │  ├─ Name + Handle + Bio
+   │  ├─ Actions
+   │  └─ MetricStatRow
+   ├─ ProfileSegmentedTabs
+   ├─ OverviewPanel
+   │  ├─ FeaturedPostCard
+   │  ├─ FeaturedPortfolioCard
+   │  └─ ActivityTimeline
+   ├─ PostsPanel
+   ├─ PortfoliosPanel
+   ├─ FavoritesPanel
+   └─ LikesPanel
+```
+
+---
+
+# 十九、最适合你项目的最终风格总结
+
+InvestHub 不是电商，也不是纯后台，所以最适合的不是“强商业风”或“重数据后台风”，而是：
+
+> **内容社区 + 金融质感 + Apple 式简洁**
+
+也就是：
+
+* 社区：有人味，有内容感
+* 金融：稳、克制、专业
+* Apple：简洁、高级、统一
+
+这套风格会比你现在更适合答辩展示，因为老师一看就会觉得：
+
+* 页面更成熟
+* 产品感更强
+* 不是简单套组件
+* 你做了设计思考
+
+---
+
+接下来我可以继续直接给你第二步：
+**《InvestHub 个人主页高保真布局稿（文字版） + Vue 页面结构代码骨架》**，我会按你现在的页面一比一重构成更高级版本。

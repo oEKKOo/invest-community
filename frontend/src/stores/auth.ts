@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { User, LoginResponse } from '../types'
 import * as authApi from '../api/auth'
+import type { RegisterResponse } from '../api/auth'
 
 const TOKEN_KEY = 'investhub_token'
 const REFRESH_TOKEN_KEY = 'investhub_refresh_token'
@@ -11,11 +12,21 @@ export const useAuthStore = defineStore('auth', () => {
   // State
   const token = ref<string>(localStorage.getItem(TOKEN_KEY) || '')
   const refreshToken = ref<string>(localStorage.getItem(REFRESH_TOKEN_KEY) || '')
-  const user = ref<User | null>(
-    localStorage.getItem(USER_KEY) 
-      ? JSON.parse(localStorage.getItem(USER_KEY)!) 
-      : null
-  )
+  
+  // 安全地从 localStorage 读取用户信息
+  let initialUser: User | null = null
+  try {
+    const userStr = localStorage.getItem(USER_KEY)
+    if (userStr && userStr !== 'undefined' && userStr !== 'null') {
+      initialUser = JSON.parse(userStr)
+    }
+  } catch (error) {
+    console.warn('Failed to parse user from localStorage:', error)
+    // 清除无效数据
+    localStorage.removeItem(USER_KEY)
+  }
+  
+  const user = ref<User | null>(initialUser)
 
   // Getters
   const isLoggedIn = computed(() => !!token.value && !!user.value)
@@ -56,9 +67,29 @@ export const useAuthStore = defineStore('auth', () => {
 
   const register = async (params: authApi.RegisterParams) => {
     try {
-      const response = await authApi.register(params)
-      setAuth(response)
-      return response
+      const response = await authApi.register(params) as RegisterResponse
+      // 注册接口返回的数据格式与登录不同，需要转换
+      // 注册返回: { id, username, displayName, role, access, refresh }
+      // 需要转换为: { access, refresh, user: { id, username, displayName, role, ... } }
+      if (response && response.access && response.refresh && response.id) {
+        const loginResponse: LoginResponse = {
+          access: response.access,
+          refresh: response.refresh,
+          user: {
+            id: response.id,
+            username: response.username,
+            displayName: response.displayName || response.username,
+            avatar: '',
+            role: response.role || 'USER',
+            bio: '',
+            followers: 0,
+            following: 0
+          }
+        }
+        setAuth(loginResponse)
+        return loginResponse
+      }
+      throw new Error('注册响应数据格式错误')
     } catch (error) {
       throw error
     }

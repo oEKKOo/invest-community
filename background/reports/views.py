@@ -59,6 +59,38 @@ class AdminReportsView(generics.ListAPIView):
         
         return queryset.order_by('-created_at')
 
+    def list(self, request, *args, **kwargs):
+        """重写list方法，返回统一的响应格式"""
+        # 权限检查
+        if request.user.role not in ['MODERATOR', 'ADMIN']:
+            return Response({
+                'code': 4030,
+                'message': '无权限'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        queryset = self.get_queryset()
+
+        # 手动分页
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('pageSize', 20))
+
+        total = queryset.count()
+        start = (page - 1) * page_size
+        end = start + page_size
+
+        paginated_queryset = queryset[start:end]
+        serializer = self.get_serializer(paginated_queryset, many=True)
+
+        return Response({
+            'code': 0,
+            'data': {
+                'items': serializer.data,
+                'page': page,
+                'pageSize': page_size,
+                'total': total
+            }
+        })
+
 
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
@@ -152,6 +184,38 @@ class AdminAlertsView(generics.ListAPIView):
             queryset = queryset.filter(alert_type=alert_type)
         
         return queryset.order_by('-created_at')
+
+    def list(self, request, *args, **kwargs):
+        """重写list方法，返回统一的响应格式"""
+        # 权限检查
+        if request.user.role not in ['MODERATOR', 'ADMIN']:
+            return Response({
+                'code': 4030,
+                'message': '无权限'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        queryset = self.get_queryset()
+
+        # 手动分页
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('pageSize', 20))
+
+        total = queryset.count()
+        start = (page - 1) * page_size
+        end = start + page_size
+
+        paginated_queryset = queryset[start:end]
+        serializer = self.get_serializer(paginated_queryset, many=True)
+
+        return Response({
+            'code': 0,
+            'data': {
+                'items': serializer.data,
+                'page': page,
+                'pageSize': page_size,
+                'total': total
+            }
+        })
 
 
 @api_view(['PATCH'])

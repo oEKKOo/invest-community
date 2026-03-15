@@ -181,6 +181,11 @@ import {
 const router = useRouter()
 const authStore = useAuthStore()
 
+// 确保 store 已正确初始化
+if (!authStore) {
+  console.error('Failed to initialize authStore')
+}
+
 const activeTab = ref('login')
 const loading = ref(false)
 
@@ -276,9 +281,29 @@ const handleRegister = async () => {
     await registerFormRef.value.validate()
     loading.value = true
     
+    // 检查 store 和方法是否存在
+    if (!authStore) {
+      console.error('authStore is not initialized')
+      ElMessage.error('系统错误，请刷新页面重试')
+      return
+    }
+    
+    if (typeof authStore.register !== 'function') {
+      console.error('authStore.register is not a function', {
+        authStore,
+        methods: Object.keys(authStore),
+        registerType: typeof authStore.register
+      })
+      ElMessage.error('注册功能暂不可用，请刷新页面重试')
+      return
+    }
+    
     await authStore.register(registerForm)
     
     ElMessage.success('注册成功！欢迎加入InvestHub')
+    
+    // 确保状态更新后再跳转
+    await new Promise(resolve => setTimeout(resolve, 100))
     router.push('/')
   } catch (error: any) {
     if (error.fields) {

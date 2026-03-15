@@ -63,7 +63,7 @@ const chartOption = computed(() => {
   // 判断涨跌
   const firstPrice = prices[0] || 0
   const lastPrice = prices[prices.length - 1] || firstPrice
-  const lineColor = lastPrice >= firstPrice ? '#f56c6c' : '#67c23a'
+  const lineColor = lastPrice >= firstPrice ? '#e85d5d' : '#16a34a'
 
   return {
     backgroundColor: 'transparent',
@@ -71,8 +71,12 @@ const chartOption = computed(() => {
     tooltip: {
       trigger: 'axis',
       backgroundColor: '#FFFFFF',
-      borderColor: 'rgba(0,0,0,0.1)',
-      textStyle: { color: '#475569', fontSize: 12 },
+      borderColor: 'rgba(0,0,0,0.08)',
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: [8, 12],
+      textStyle: { color: '#1d1d1f', fontSize: 12, fontFamily: 'Inter, sans-serif' },
+      boxShadow: '0 4px 12px rgba(15, 23, 42, 0.08)',
       formatter: (params: any[]) => {
         if (!params?.length) return ''
         const p = params[0]
@@ -84,22 +88,22 @@ const chartOption = computed(() => {
         </div>`
       }
     },
-    grid: { left: '8%', right: '3%', top: '5%', bottom: '15%' },
+    grid: { left: '10%', right: '4%', top: '8%', bottom: '15%' },
     xAxis: {
       type: 'category',
       data: times,
       boundaryGap: false,
-      axisLine: { lineStyle: { color: 'rgba(0,0,0,0.1)' } },
+      axisLine: { lineStyle: { color: 'rgba(0,0,0,0.05)' } },
       axisTick: { show: false },
-      axisLabel: { color: '#6B7280', fontSize: 11, interval: Math.floor(times.length / 6) },
+      axisLabel: { color: '#8e8e93', fontSize: 11, interval: Math.floor(times.length / 6) },
       splitLine: { show: false }
     },
     yAxis: {
       scale: true,
       axisLine: { show: false },
       axisTick: { show: false },
-      axisLabel: { color: '#6B7280', fontSize: 11 },
-      splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } }
+      axisLabel: { color: '#8e8e93', fontSize: 11 },
+      splitLine: { lineStyle: { color: 'rgba(0,0,0,0.03)', type: 'dashed' } }
     },
     dataZoom: [{
       type: 'inside',
@@ -158,12 +162,15 @@ onMounted(fetchData)
 </script>
 
 <style lang="scss" scoped>
+@use '@/styles/variables.scss' as *;
+
 .intraday-chart-wrapper {
   width: 100%;
+  padding: $market-space-4 0;
 }
 
 .chart-loading {
-  padding: 16px;
+  padding: $market-space-4;
 }
 
 .chart-container {
@@ -172,7 +179,8 @@ onMounted(fetchData)
 
 .intraday-echart {
   width: 100%;
-  height: 300px;
+  height: 350px;
+  padding: $market-space-4;
 }
 
 .chart-error,

@@ -14,8 +14,8 @@
     </div>
 
     <template v-else-if="asset">
-      <!-- 区块 1: 标的头部卡片 -->
-      <div class="quote-header-card card">
+      <!-- 区块 1: Asset Hero 卡片 -->
+      <div class="quote-header-card card hero-card">
         <div class="asset-title">
           <div class="asset-code-name">
             <span class="asset-code">{{ asset.code }}</span>
@@ -224,7 +224,7 @@
       <!-- 区块 6: 快速发帖（登录用户）-->
       <div class="quick-post-card card" v-if="authStore.isLoggedIn">
         <div class="card-header">
-          <h3 class="card-title">发表看法</h3>
+          <h3 class="card-title">分享你的市场观察</h3>
         </div>
         <div class="quick-post-form">
           <el-input
@@ -235,8 +235,8 @@
           <el-input
             v-model="quickPostContent"
             type="textarea"
-            :rows="3"
-            placeholder="分享你对这支股票的看法..."
+            :rows="4"
+            placeholder="你怎么看这只股票？可以分享逻辑、风险点或操作思路。"
             class="quick-content-input"
           />
           <div class="quick-post-actions">
@@ -516,99 +516,127 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss" scoped>
+@use '@/styles/variables.scss' as *;
+
 .asset-detail {
   max-width: 1000px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: $market-space-5;
 }
 
 .page-header {
   :deep(.el-breadcrumb) {
-    font-size: 0.85rem;
+    font-size: $market-font-caption;
   }
   :deep(.el-breadcrumb__item) {
-    color: #6B7A99;
+    color: $market-text-secondary;
   }
 }
 
 .card {
-  background: #FFFFFF;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 14px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+  background: $market-bg-soft;
+  border: 1px solid $apple-border-light;
+  border-radius: $market-radius-lg;
+  padding: $market-space-6;
+  box-shadow: $market-shadow-sm;
+  transition: $transition-all;
+
+  &:hover {
+    box-shadow: $market-shadow-md;
+  }
 }
 
 .card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1rem;
+  margin-bottom: $market-space-4;
 }
 
 .card-title {
-  font-size: 1rem;
+  font-size: $market-font-h3;
   font-weight: 600;
-  color: #1F2937;
+  color: $market-text-primary;
   margin: 0;
 }
 
-// 头部卡片
+// Hero 头部卡片
+.hero-card {
+  background: $market-bg-panel;
+  border-radius: $market-radius-xl;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: $market-shadow-lg;
+}
+
 .quote-header-card {
   .asset-title {
-    margin-bottom: 1rem;
+    margin-bottom: $market-space-5;
   }
   
   .asset-code-name {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: $market-space-3;
     flex-wrap: wrap;
   }
   
   .asset-code {
-    font-size: 1.5rem;
+    font-size: $market-font-h2;
     font-weight: 700;
-    color: #1F2937;
+    color: $market-text-primary;
     letter-spacing: 0.02em;
   }
   
   .asset-name {
-    font-size: 1rem;
-    color: #6B7280;
+    font-size: $market-font-body;
+    color: $market-text-secondary;
     font-weight: 500;
   }
   
   .market-tag, .type-tag {
-    font-size: 0.7rem;
+    font-size: $market-font-mini;
+    border-radius: $market-radius-sm;
+    padding: 2px 8px;
   }
 }
 
 .main-price-row {
   display: flex;
   align-items: baseline;
-  gap: 1.25rem;
-  margin-bottom: 0.75rem;
+  gap: $market-space-5;
+  margin-bottom: $market-space-4;
   
   .main-price {
-    font-size: 2.25rem;
+    font-size: $market-font-display;
     font-weight: 700;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.03em;
+    line-height: 1;
   }
   
   .change-info {
     display: flex;
-    gap: 0.5rem;
-    font-size: 1rem;
+    flex-direction: column;
+    gap: 2px;
+    font-size: $market-font-body;
     font-weight: 600;
+  }
+
+  .change-amount {
+    font-size: $market-font-h3;
+  }
+
+  .change-pct {
+    font-size: $market-font-body;
   }
 }
 
-.up { color: #f56c6c; }
-.down { color: #67c23a; }
-.flat { color: #909399; }
+.up { color: $market-up; }
+.down { color: $market-down; }
+.flat { color: $market-neutral; }
 
 .stale-alert {
   margin-bottom: 0.75rem;
@@ -619,37 +647,40 @@ onUnmounted(() => {
 
 .quote-metrics {
   display: flex;
-  gap: 1.5rem;
+  gap: $market-space-6;
   flex-wrap: wrap;
-  padding: 0.75rem 0;
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  margin-bottom: 0.75rem;
+  padding: $market-space-4 0;
+  border-top: 1px solid $apple-border-light;
+  border-bottom: 1px solid $apple-border-light;
+  margin-bottom: $market-space-4;
   
   .metric-item {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: $market-space-2;
+    min-width: 80px;
   }
   
   .metric-label {
-    font-size: 0.7rem;
-    color: #6B7280;
+    font-size: $market-font-mini;
+    color: $market-text-tertiary;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
   
   .metric-value {
-    font-size: 0.9rem;
+    font-size: $market-font-body;
     font-weight: 600;
-    color: #1F2937;
+    color: $market-text-primary;
     
-    &.up { color: #f56c6c; }
-    &.down { color: #67c23a; }
+    &.up { color: $market-up; }
+    &.down { color: $market-down; }
   }
 }
 
 .quote-footer {
-  font-size: 0.7rem;
-  color: #6B7280;
+  font-size: $market-font-mini;
+  color: $market-text-tertiary;
   
   .data-source {
     font-style: italic;
@@ -657,55 +688,75 @@ onUnmounted(() => {
 }
 
 // 图表卡片
+.chart-card {
+  padding: $market-space-6;
+}
+
 .chart-type-tabs {
   display: flex;
-  gap: 4px;
+  gap: $market-space-2;
+  background: rgba(0, 0, 0, 0.02);
+  padding: 4px;
+  border-radius: $market-radius-segmented;
 }
 
 .chart-type-btn {
-  padding: 4px 12px;
-  border-radius: 6px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 6px 16px;
+  border-radius: $market-radius-segmented-item;
+  border: none;
   background: transparent;
-  color: #6B7280;
-  font-size: 0.75rem;
+  color: $market-text-secondary;
+  font-size: $market-font-caption;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 
   &:hover {
     background: rgba(0, 0, 0, 0.04);
-    color: #374151;
+    color: $market-text-primary;
   }
 
   &.active {
-    background: rgba(29, 78, 216, 0.12);
-    border-color: rgba(29, 78, 216, 0.25);
-    color: #3B82F6;
+    background: $market-bg-soft;
+    color: $market-accent;
     font-weight: 600;
+    box-shadow: $market-shadow-sm;
   }
 }
 
 // 公司信息
+.info-card {
+  .card-title {
+    margin-bottom: $market-space-4;
+  }
+}
+
 .company-info {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: $market-space-4;
+  margin-bottom: $market-space-4;
   
   .info-row {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: $market-space-2;
+    padding: $market-space-3;
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: $market-radius-md;
   }
   
   .info-label {
-    font-size: 0.7rem;
-    color: #6B7280;
+    font-size: $market-font-mini;
+    color: $market-text-tertiary;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
   
   .info-value {
-    font-size: 0.875rem;
-    color: #374151;
+    font-size: $market-font-body;
+    color: $market-text-primary;
+    font-weight: 500;
   }
 }
 
@@ -738,25 +789,42 @@ onUnmounted(() => {
 }
 
 // 相关内容
+.contents-card {
+  .card-title {
+    font-size: $market-font-h2;
+    font-weight: 700;
+  }
+}
+
 .sort-tabs {
   display: flex;
-  gap: 4px;
+  gap: $market-space-2;
+  background: rgba(0, 0, 0, 0.02);
+  padding: 4px;
+  border-radius: $market-radius-segmented;
 }
 
 .sort-btn {
-  padding: 3px 10px;
-  border-radius: 5px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  padding: 6px 16px;
+  border-radius: $market-radius-segmented-item;
+  border: none;
   background: transparent;
-  color: #6B7280;
-  font-size: 0.75rem;
+  color: $market-text-secondary;
+  font-size: $market-font-caption;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.04);
+    color: $market-text-primary;
+  }
 
   &.active {
-    background: rgba(29, 78, 216, 0.10);
-    border-color: rgba(29, 78, 216, 0.18);
-    color: #3B82F6;
+    background: $market-bg-soft;
+    color: $market-accent;
+    font-weight: 600;
+    box-shadow: $market-shadow-sm;
   }
 }
 
@@ -767,56 +835,70 @@ onUnmounted(() => {
 }
 
 .content-item {
-  padding: 1rem 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  padding: $market-space-4 0;
+  border-bottom: 1px solid $apple-border-light;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   
   &:last-child {
     border-bottom: none;
   }
 
   &:hover {
-    background: #F9FAFB;
-    margin: 0 -1.5rem;
-    padding: 1rem 1.5rem;
-    border-radius: 8px;
+    background: rgba(0, 113, 227, 0.02);
+    margin: 0 (-$market-space-6);
+    padding: $market-space-4 $market-space-6;
+    border-radius: $market-radius-md;
   }
 }
 
 .content-item-main {
   .content-title {
-    font-size: 0.9rem;
+    font-size: $market-font-body;
     font-weight: 600;
-    color: #1F2937;
-    margin: 0 0 4px;
-    line-height: 1.4;
+    color: $market-text-primary;
+    margin: 0 0 $market-space-2;
+    line-height: 1.5;
   }
   
   .content-excerpt {
-    font-size: 0.8rem;
-    color: #6B7280;
+    font-size: $market-font-caption;
+    color: $market-text-secondary;
     margin: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    line-height: 1.5;
   }
 }
 
 .content-item-meta {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 6px;
-  font-size: 0.75rem;
-  color: #9CA3AF;
+  gap: $market-space-2;
+  margin-top: $market-space-2;
+  font-size: $market-font-mini;
+  color: $market-text-tertiary;
   
-  .dot { opacity: 0.5; }
+  .author-clickable {
+    color: $market-accent;
+    cursor: pointer;
+    transition: color 0.2s;
+
+    &:hover {
+      color: $market-text-primary;
+      text-decoration: underline;
+    }
+  }
+  
+  .dot { 
+    opacity: 0.4; 
+  }
   
   .like-count {
     display: flex;
     align-items: center;
-    gap: 2px;
+    gap: 4px;
     
     svg {
       width: 12px;
@@ -833,33 +915,55 @@ onUnmounted(() => {
 
 .view-more {
   text-align: center;
-  padding-top: 0.75rem;
+  padding-top: $market-space-4;
   
   .view-more-link {
-    font-size: 0.85rem;
-    color: #3B82F6;
+    font-size: $market-font-caption;
+    color: $market-accent;
     text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s;
     
     &:hover {
+      color: $market-text-primary;
       text-decoration: underline;
     }
   }
 }
 
 // 快速发帖
+.quick-post-card {
+  .card-title {
+    font-size: $market-font-h2;
+    font-weight: 700;
+    margin-bottom: $market-space-4;
+  }
+}
+
 .quick-post-form {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: $market-space-4;
   
   .quick-title-input, .quick-content-input {
     :deep(.el-input__wrapper), :deep(.el-textarea__inner) {
-      background: #FFFFFF;
-      border-color: rgba(0, 0, 0, 0.1);
-      color: #1F2937;
+      background: $apple-input-bg;
+      border: 1px solid $apple-input-border;
+      border-radius: $market-radius-input;
+      color: $market-text-primary;
+      transition: $transition-all;
+      
+      &:hover {
+        border-color: $market-accent;
+      }
+
+      &:focus {
+        border-color: $market-accent;
+        box-shadow: 0 0 0 3px $market-accent-soft;
+      }
       
       &::placeholder {
-        color: #9CA3AF;
+        color: $market-text-tertiary;
       }
     }
   }
@@ -869,20 +973,30 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+
+  :deep(.el-tag) {
+    background: $market-accent-soft;
+    border-color: $market-accent;
+    color: $market-accent;
+    font-weight: 500;
+    border-radius: $market-radius-sm;
+  }
 }
 
 // 免责声明
 .disclaimer {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.75rem;
-  color: #6B7280;
-  padding: 0.75rem 1rem;
-  background: #FFFFFF;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 8px;
+  gap: $market-space-2;
+  font-size: $market-font-mini;
+  color: $market-text-tertiary;
+  padding: $market-space-3 $market-space-4;
+  background: $market-bg-panel;
+  border: 1px solid $apple-border-light;
+  border-radius: $market-radius-md;
   font-style: italic;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .loading-wrapper {

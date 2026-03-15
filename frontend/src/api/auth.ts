@@ -10,7 +10,17 @@ export interface RegisterParams {
   phone?: string
 }
 
-export const register = (params: RegisterParams): Promise<LoginResponse> => {
+// 注册接口返回的原始格式（扁平化）
+export interface RegisterResponse {
+  id: number
+  username: string
+  displayName: string
+  role: 'USER' | 'MODERATOR' | 'ADMIN'
+  access: string
+  refresh: string
+}
+
+export const register = (params: RegisterParams): Promise<RegisterResponse> => {
   return post('/auth/register/', params)
 }
 

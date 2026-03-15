@@ -1,16 +1,33 @@
 <template>
   <div class="portfolios">
     <div class="portfolios-header">
-      <h2 class="page-title">投资组合</h2>
-      <el-button 
-        type="primary" 
-        size="large"
-        @click="showCreatePortfolio = true"
-        :icon="Plus"
-        class="create-btn"
-      >
-        创建我的组合
-      </el-button>
+      <div class="header-content">
+        <div class="header-text">
+          <h2 class="page-title">投资组合</h2>
+          <p class="page-subtitle">探索社区中的策略组合与资产配置思路</p>
+        </div>
+        <el-button 
+          type="primary" 
+          size="large"
+          @click="showCreatePortfolio = true"
+          :icon="Plus"
+          class="create-btn"
+        >
+          创建我的组合
+        </el-button>
+      </div>
+      <div class="filter-tabs">
+        <button
+          v-for="filter in filterOptions"
+          :key="filter.value"
+          type="button"
+          class="filter-tab"
+          :class="{ active: currentFilter === filter.value }"
+          @click="handleFilterChange(filter.value)"
+        >
+          {{ filter.label }}
+        </button>
+      </div>
     </div>
 
     <!-- 创建组合对话框-->
@@ -261,45 +278,50 @@
         class="portfolio-card"
         @click="$router.push(`/portfolios/${portfolio.id}`)"
       >
+        <!-- 第一层：组合名称 + 风险标签 -->
         <div class="portfolio-header">
           <h3 class="portfolio-title">{{ portfolio.title }}</h3>
           <el-tag
             :type="getRiskLevelType(portfolio.riskLevel)"
             size="small"
             class="risk-tag"
+            :class="`risk-${portfolio.riskLevel.toLowerCase()}`"
           >
-            {{ portfolio.riskLevel }} 风险
+            {{ portfolio.riskLevel === 'Low' ? '低风险' : portfolio.riskLevel === 'Medium' ? '中等风险' : '高风险' }}
           </el-tag>
         </div>
 
-        <p class="portfolio-description">{{ portfolio.description }}</p>
-
-        <!-- 资产配置图表 -->
-        <div class="chart-container">
-          <v-chart 
-            class="pie-chart" 
-            :option="getPieChartOption(portfolio.assets)"
-            v-if="portfolio.assets?.length"
-          />
+        <!-- 第二层：收益表现（前置并突出） -->
+        <div class="portfolio-return-section">
+          <div class="return-value" :class="pnlClass(getPortfolioReturn(portfolio) ?? portfolio.returnsYTD)">
+            {{ fmtRate(getPortfolioReturn(portfolio) ?? portfolio.returnsYTD) || '--' }}
+          </div>
+          <div class="return-label">收益率</div>
         </div>
 
-        <div class="portfolio-stats">
-          <div class="stat-row">
-            <span class="stat-label">主要配置</span>
-            <span class="stat-label">收益</span>
+        <!-- 第三层：配置可视化 -->
+        <div class="chart-section">
+          <div class="chart-container">
+            <v-chart 
+              class="pie-chart" 
+              :option="getPieChartOption(portfolio.assets)"
+              v-if="portfolio.assets?.length"
+            />
           </div>
-          <div class="stat-row">
-            <span class="stat-value">{{ portfolio.assets[0]?.symbol || 'N/A' }}</span>
-            <span class="stat-value" :class="pnlClass(getPortfolioReturn(portfolio) ?? portfolio.returnsYTD)">
-              {{ fmtRate(getPortfolioReturn(portfolio) ?? portfolio.returnsYTD) || '--' }}
+          <div class="chart-meta">
+            <span class="meta-item">{{ portfolio.assets?.length || 0 }} Assets</span>
+            <span class="meta-item" v-if="portfolio.assets?.[0]">
+              主要持仓 {{ portfolio.assets[0].symbol }}
             </span>
+            <span class="meta-item" v-if="portfolio.isPublic">公开组合</span>
           </div>
         </div>
 
+        <!-- 第四层：创建者信息（轻量展示） -->
         <div class="portfolio-footer">
           <div class="portfolio-author">
             <el-avatar
-              :size="32"
+              :size="28"
               :src="getAvatarUrl(portfolio.id)"
               class="author-clickable"
               @click.stop="$router.push({ name: 'UserProfile', params: { userId: portfolio.userId } })"
@@ -376,6 +398,16 @@ const showCreatePortfolio = ref(false)
 const creating = ref(false)
 const currentPage = ref(1)
 const pageSize = ref(12)
+const currentFilter = ref<string>('all')
+
+// 筛选选项
+const filterOptions = [
+  { label: '全部', value: 'all' },
+  { label: '稳健', value: 'Low' },
+  { label: '均衡', value: 'Medium' },
+  { label: '激进', value: 'High' },
+  { label: '热门', value: 'hot' }
+]
 
 // 添加模式：manual 手动 | import 从持仓导入
 const addMode = ref<'manual' | 'import'>('manual')
@@ -645,13 +677,26 @@ const handlePageChange = (page: number) => {
   fetchPortfolios()
 }
 
+const handleFilterChange = (filter: string) => {
+  currentFilter.value = filter
+  currentPage.value = 1
+  fetchPortfolios()
+}
+
 const fetchPortfolios = async () => {
   try {
-    await portfoliosStore.fetchPortfolios({
+    const params: any = {
       page: currentPage.value,
       pageSize: pageSize.value,
-      sortBy: 'returnsYTD'
-    })
+      sortBy: currentFilter.value === 'hot' ? 'likes' : 'returnsYTD'
+    }
+    
+    // 根据筛选条件添加风险等级过滤
+    if (currentFilter.value !== 'all' && currentFilter.value !== 'hot') {
+      // 这里需要后端支持，暂时在前端过滤
+    }
+    
+    await portfoliosStore.fetchPortfolios(params)
     // 获取持仓收益（如果已登录）
     fetchHoldingPerf()
   } catch (error) {
@@ -806,24 +851,69 @@ onMounted(() => {
 }
 
 .portfolios-header {
+  margin-bottom: $portfolio-space-8;
+}
+
+.header-content {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
+  align-items: flex-start;
+  margin-bottom: $portfolio-space-6;
 
   @media (max-width: 640px) {
     flex-direction: column;
-    gap: 1rem;
+    gap: $portfolio-space-4;
     align-items: stretch;
   }
 }
 
+.header-text {
+  flex: 1;
+}
+
 .page-title {
-  font-size: 1.5rem;
+  font-size: $portfolio-section-title;
   font-weight: 700;
-  color: $text-primary;
+  color: $portfolio-text-primary;
+  margin: 0 0 $portfolio-space-2 0;
+  letter-spacing: -0.01em;
+}
+
+.page-subtitle {
+  font-size: $portfolio-body;
+  color: $portfolio-text-secondary;
   margin: 0;
-  letter-spacing: -0.025em;
+  line-height: 1.5;
+}
+
+.filter-tabs {
+  display: flex;
+  gap: $portfolio-space-2;
+  flex-wrap: wrap;
+}
+
+.filter-tab {
+  font-size: $portfolio-caption;
+  font-weight: 500;
+  padding: $portfolio-space-2 $portfolio-space-4;
+  border: 1px solid $border-subtle;
+  border-radius: $apple-radius-sm;
+  background: $bg-card;
+  color: $text-secondary;
+  cursor: pointer;
+  transition: $transition-all;
+
+  &:hover {
+    border-color: $border-default;
+    color: $text-primary;
+  }
+
+  &.active {
+    background: $primary-color;
+    color: #fff;
+    border-color: $primary-color;
+    box-shadow: $portfolio-card-shadow;
+  }
 }
 
 .create-btn {
@@ -1210,39 +1300,22 @@ onMounted(() => {
 }
 
 .portfolio-card {
-  background: #FFFFFF;
+  background: $bg-card;
   border: 1px solid $border-subtle;
-  border-radius: $border-radius;
-  padding: 1.375rem;
+  border-radius: $portfolio-card-radius;
+  padding: $portfolio-card-padding;
   cursor: pointer;
   transition: $transition-all;
   display: flex;
   flex-direction: column;
   position: relative;
   overflow: hidden;
-
-  // Card rank accent top-bar
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: $gradient-primary;
-    opacity: 0;
-    transition: opacity 0.25s ease;
-  }
+  box-shadow: $portfolio-card-shadow;
 
   &:hover {
-    border-color: rgba(29, 78, 216, 0.18);
-    background: linear-gradient(145deg, rgba(29, 78, 216, 0.05) 0%, rgba(255,255,255,0.02) 100%);
-    box-shadow: $shadow, 0 0 0 1px rgba(124, 58, 237, 0.1);
-    transform: translateY(-4px);
-
-    &::before {
-      opacity: 1;
-    }
+    border-color: $border-default;
+    box-shadow: $portfolio-card-shadow-hover;
+    transform: translateY(-2px);
   }
 }
 
@@ -1250,11 +1323,11 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 0.875rem;
+  margin-bottom: $portfolio-space-4;
 }
 
 .portfolio-title {
-  font-size: 1rem;
+  font-size: $portfolio-body;
   font-weight: 700;
   color: $text-primary;
   margin: 0;
@@ -1264,28 +1337,76 @@ onMounted(() => {
 }
 
 .risk-tag {
-  font-size: 0.7rem !important;
-  font-weight: 700 !important;
-  margin-left: 0.75rem !important;
-  border-radius: 6px !important;
-  letter-spacing: 0.04em !important;
+  font-size: $portfolio-mini !important;
+  font-weight: 600 !important;
+  margin-left: $portfolio-space-3 !important;
+  border-radius: $apple-radius-sm !important;
+  letter-spacing: 0.02em !important;
+  padding: 4px 10px !important;
+
+  &.risk-low {
+    background: $portfolio-risk-low-bg !important;
+    color: $portfolio-risk-low !important;
+    border-color: $portfolio-risk-low !important;
+  }
+
+  &.risk-medium {
+    background: $portfolio-risk-medium-bg !important;
+    color: $portfolio-risk-medium !important;
+    border-color: $portfolio-risk-medium !important;
+  }
+
+  &.risk-high {
+    background: $portfolio-risk-high-bg !important;
+    color: $portfolio-risk-high !important;
+    border-color: $portfolio-risk-high !important;
+  }
 }
 
-.portfolio-description {
-  font-size: 0.8125rem;
-  color: $text-secondary;
-  line-height: 1.55;
-  margin: 0 0 1rem 0;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
-  min-height: 38px;
+// 收益率区域（前置并突出）
+.portfolio-return-section {
+  text-align: center;
+  margin: $portfolio-space-4 0;
+  padding: $portfolio-space-4 0;
+  border-top: 1px solid $border-subtle;
+  border-bottom: 1px solid $border-subtle;
+}
+
+.return-value {
+  font-size: $portfolio-return-size;
+  font-weight: 700;
+  font-family: 'IBM Plex Mono', monospace;
+  line-height: 1.2;
+  margin-bottom: $portfolio-space-2;
+
+  &.pnl-up {
+    color: $portfolio-return-positive;
+  }
+
+  &.pnl-down {
+    color: $portfolio-return-negative;
+  }
+
+  &.pnl-zero {
+    color: $text-muted;
+  }
+}
+
+.return-label {
+  font-size: $portfolio-caption;
+  color: $text-muted;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+// 图表区域
+.chart-section {
+  margin: $portfolio-space-4 0;
 }
 
 .chart-container {
-  height: 160px;
-  margin-bottom: 1rem;
+  height: 180px;
+  margin-bottom: $portfolio-space-3;
 }
 
 .pie-chart {
@@ -1293,12 +1414,19 @@ onMounted(() => {
   height: 100%;
 }
 
-.portfolio-stats {
-  margin-bottom: 1rem;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid $border-subtle;
-  border-radius: 8px;
-  padding: 0.625rem 0.875rem;
+.chart-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $portfolio-space-3;
+  justify-content: center;
+  font-size: $portfolio-caption;
+  color: $text-muted;
+}
+
+.meta-item {
+  padding: 2px 8px;
+  background: rgba(15, 23, 42, 0.03);
+  border-radius: 4px;
 }
 
 .stat-row {
@@ -1347,7 +1475,7 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 0.875rem;
+  padding-top: $portfolio-space-4;
   border-top: 1px solid $border-subtle;
   margin-top: auto;
 }
@@ -1355,34 +1483,43 @@ onMounted(() => {
 .portfolio-author {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: $portfolio-space-2;
 }
 
 .author-name {
-  font-size: 0.8125rem;
-  color: $text-secondary;
-  font-weight: 500;
+  font-size: $portfolio-caption;
+  color: $text-muted;
+  font-weight: 400;
+}
+
+.author-clickable {
+  cursor: pointer;
+  transition: $transition-all;
+
+  &:hover {
+    opacity: 0.8;
+  }
 }
 
 .like-btn {
   display: flex !important;
   align-items: center !important;
-  gap: 0.375rem !important;
+  gap: $portfolio-space-2 !important;
   color: $text-muted !important;
-  font-size: 0.8125rem !important;
-  border-radius: 6px !important;
-  padding: 0.25rem 0.5rem !important;
+  font-size: $portfolio-caption !important;
+  border-radius: $apple-radius-sm !important;
+  padding: 4px 8px !important;
   transition: $transition-all !important;
   font-family: 'IBM Plex Mono', monospace !important;
 
   &:hover {
     color: $error-color !important;
-    background: rgba(239, 68, 68, 0.1) !important;
+    background: rgba(239, 68, 68, 0.08) !important;
   }
 
   &.liked {
     color: $error-color !important;
-    background: rgba(239, 68, 68, 0.08) !important;
+    background: rgba(239, 68, 68, 0.06) !important;
   }
 }
 

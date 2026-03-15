@@ -15,7 +15,7 @@
 
 // Root CSS Variables (for Element Plus overrides)
 :root {
-  --el-color-primary: #1D4ED8;
+  --el-color-primary: #0071e3; // Apple accent color
   --el-color-primary-light-3: #3B82F6;
   --el-color-primary-light-5: #60A5FA;
   --el-color-primary-light-7: #93C5FD;
@@ -44,12 +44,13 @@
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: $apple-font-family;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: $bg-dark;
-  color: $text-primary;
+  background-color: $apple-bg-page; // #f5f5f7
+  color: $apple-text-primary; // #1d1d1f
   min-height: 100vh;
+  font-size: $apple-font-body; // 16px
 }
 
 // ============================================
@@ -638,4 +639,72 @@ body {
   &:hover {
     background: $border-strong;
   }
+}
+
+// ============================================
+// Segmented Control (Apple Style)
+// ============================================
+.segmented-control {
+  display: inline-flex;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.02);
+  padding: 4px;
+  border-radius: 14px;
+  
+  .segmented-item {
+    padding: 6px 16px;
+    border-radius: 10px;
+    border: none;
+    background: transparent;
+    color: $apple-text-secondary;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    font-family: $apple-font-family;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.04);
+      color: $apple-text-primary;
+    }
+
+    &.active {
+      background: #ffffff;
+      color: $apple-accent;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+    }
+  }
+}
+
+// ============================================
+// Market Module Typography
+// ============================================
+.market-price-display {
+  font-size: 44px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-family: $apple-font-family;
+}
+
+.market-title-h1 {
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.2;
+  font-family: $apple-font-family;
+}
+
+.market-title-h2 {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.3;
+  font-family: $apple-font-family;
+}
+
+.market-title-h3 {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.4;
+  font-family: $apple-font-family;
 }

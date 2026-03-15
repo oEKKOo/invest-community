@@ -40,6 +40,7 @@
           <el-tag 
             :type="getStatusType(postsStore.currentPost.status)" 
             size="small"
+            class="status-tag"
           >
             {{ getStatusText(postsStore.currentPost.status) }}
           </el-tag>
@@ -125,7 +126,7 @@
             v-model="newComment"
             type="textarea"
             :rows="3"
-            placeholder="写下你的看法..."
+            placeholder="写下你的看法…"
             class="comment-input"
           />
           <div class="comment-actions">
@@ -363,7 +364,7 @@
                   v-model="replyText"
                   type="textarea"
                   :rows="2"
-                  placeholder="回复内容..."
+                  placeholder="分享你的补充判断…"
                 />
                 <div class="comment-edit-actions">
                   <el-button
@@ -792,22 +793,22 @@ onMounted(async () => {
 
 <style lang="scss" scoped>
 .post-detail {
-  max-width: 800px;
+  max-width: 880px;
   margin: 0 auto;
   animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .loading-container {
-  background: #FFFFFF;
-  border: 1px solid $border-subtle;
-  border-radius: $border-radius;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 20px;
   padding: 2rem;
 }
 
 .not-found {
-  background: #FFFFFF;
-  border: 1px solid $border-subtle;
-  border-radius: $border-radius;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 20px;
   padding: 2rem;
 }
 
@@ -818,21 +819,26 @@ onMounted(async () => {
 }
 
 .post-article {
-  background: #FFFFFF;
-  border: 1px solid $border-default;
-  border-radius: $border-radius;
-  padding: 2rem;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 20px;
+  padding: 2.5rem 3rem;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+
+  @media (max-width: 768px) {
+    padding: 1.75rem 1.5rem;
+  }
 }
 
 .post-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
   padding-bottom: 1.5rem;
-  border-bottom: 1px solid $border-subtle;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .author-info {
@@ -848,50 +854,82 @@ onMounted(async () => {
 }
 
 .author-name {
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   font-weight: 600;
-  color: $text-primary;
+  color: $apple-text-primary;
   margin: 0;
+  line-height: 1.4;
 }
 
 .post-meta {
-  font-size: 0.8rem;
-  color: $text-muted;
+  font-size: 0.75rem;
+  color: $apple-text-tertiary;
   margin: 0;
   font-family: 'IBM Plex Mono', monospace;
+  line-height: 1.4;
+}
+
+.status-tag {
+  font-size: 0.6875rem !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.02em !important;
+  padding: 0.25rem 0.625rem !important;
+  border-radius: 10px !important;
+  border: none !important;
+  
+  // 已发布：浅绿色
+  &.el-tag--success {
+    background: rgba(22, 163, 74, 0.12) !important;
+    color: rgba(22, 163, 74, 0.9) !important;
+  }
+  
+  // 审核中：浅橙色
+  &.el-tag--warning {
+    background: rgba(217, 119, 6, 0.12) !important;
+    color: rgba(217, 119, 6, 0.9) !important;
+  }
+  
+  // 草稿：浅灰蓝色
+  &.el-tag--info {
+    background: rgba(100, 116, 139, 0.12) !important;
+    color: rgba(100, 116, 139, 0.9) !important;
+  }
 }
 
 .post-title {
-  font-size: 1.625rem;
+  font-size: 1.875rem;
   font-weight: 700;
-  color: $text-primary;
+  color: $apple-text-primary;
   line-height: 1.35;
-  margin: 0 0 1.25rem 0;
-  letter-spacing: -0.025em;
+  margin: 0 0 1.5rem 0;
+  letter-spacing: -0.02em;
 }
 
 .post-content {
-  font-size: 0.9375rem;
-  color: $text-secondary;
-  line-height: 1.75;
-  margin-bottom: 1.5rem;
+  font-size: 1rem;
+  color: $apple-text-secondary;
+  line-height: 1.85;
+  margin-bottom: 2rem;
   white-space: pre-wrap;
+  font-weight: 400;
 }
 
 .post-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.375rem;
-  margin-bottom: 1.5rem;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
 }
 
 .tag-item {
-  background: rgba(124, 58, 237, 0.1) !important;
-  border: 1px solid rgba(29, 78, 216, 0.12) !important;
-  color: $primary-color !important;
-  border-radius: 6px !important;
-  font-size: 0.7rem !important;
-  font-weight: 600 !important;
+  background: rgba(100, 116, 139, 0.1) !important;
+  border: 1px solid rgba(100, 116, 139, 0.15) !important;
+  color: rgba(100, 116, 139, 0.9) !important;
+  border-radius: 10px !important;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+  padding: 0.25rem 0.625rem !important;
+  font-family: $apple-font-family !important;
 }
 
 .asset-chip-link {
@@ -899,92 +937,153 @@ onMounted(async () => {
 
   .asset-chip-tag {
     cursor: pointer;
-    font-weight: 600;
-    font-size: 0.8rem;
+    font-weight: 500;
+    font-size: 0.75rem;
+    border-radius: 10px !important;
+    padding: 0.25rem 0.625rem !important;
+    border: none !important;
+    font-family: $apple-font-family !important;
 
     .market-suffix {
-      font-size: 0.7rem;
-      opacity: 0.7;
-      margin-left: 2px;
+      font-size: 0.6875rem;
+      opacity: 0.75;
+      margin-left: 4px;
+    }
+
+    // 股票市场 - 淡红
+    &.el-tag--danger {
+      background: rgba(232, 93, 93, 0.12) !important;
+      color: rgba(232, 93, 93, 0.95) !important;
+    }
+
+    // 港股 - 淡橙
+    &.el-tag--warning {
+      background: rgba(217, 119, 6, 0.12) !important;
+      color: rgba(217, 119, 6, 0.95) !important;
+    }
+
+    // 美股 - 淡蓝
+    &.el-tag--primary {
+      background: rgba(0, 113, 227, 0.12) !important;
+      color: rgba(0, 113, 227, 0.95) !important;
+    }
+
+    // 其他 - 淡灰
+    &.el-tag--info {
+      background: rgba(100, 116, 139, 0.12) !important;
+      color: rgba(100, 116, 139, 0.95) !important;
     }
 
     &:hover {
-      opacity: 0.8;
+      opacity: 0.85;
+      transform: translateY(-1px);
     }
   }
 }
 
 .post-actions {
   display: flex;
-  gap: 1.25rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid $border-subtle;
+  gap: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  align-items: center;
 }
 
 .action-btn {
   display: flex !important;
   align-items: center !important;
   gap: 0.5rem !important;
-  color: $text-muted !important;
+  color: $apple-text-tertiary !important;
   font-size: 0.875rem !important;
-  border-radius: 8px !important;
-  padding: 0.375rem 0.75rem !important;
-  transition: $transition-all !important;
+  border-radius: 10px !important;
+  padding: 0.5rem 0.75rem !important;
+  transition: all 0.2s ease !important;
   cursor: pointer;
+  background: transparent !important;
+  border: none !important;
+  font-weight: 500 !important;
+
+  :deep(.el-icon) {
+    font-size: 1.125rem;
+  }
+
+  span {
+    font-size: 0.875rem;
+  }
 
   &:hover {
-    color: $primary-color !important;
-    background: rgba(124, 58, 237, 0.1) !important;
+    color: $apple-accent !important;
+    background: rgba(0, 113, 227, 0.08) !important;
   }
 
   &.liked {
-    color: $error-color !important;
-    background: rgba(239, 68, 68, 0.08) !important;
+    color: rgba(232, 93, 93, 0.9) !important;
+    
+    &:hover {
+      background: rgba(232, 93, 93, 0.1) !important;
+    }
   }
 
   &.favorited {
-    color: $warning-color !important;
-    background: rgba(245, 158, 11, 0.08) !important;
+    color: rgba(217, 119, 6, 0.9) !important;
+    
+    &:hover {
+      background: rgba(217, 119, 6, 0.1) !important;
+    }
   }
 }
 
 .comments-section {
-  background: #FFFFFF;
-  border: 1px solid $border-default;
-  border-radius: $border-radius;
-  padding: 1.75rem;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 20px;
+  padding: 2rem;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+
+  @media (max-width: 768px) {
+    padding: 1.5rem;
+  }
 }
 
 .comments-title {
-  font-size: 1rem;
+  font-size: 1.125rem;
   font-weight: 700;
-  color: $text-primary;
-  margin: 0 0 1.5rem 0;
+  color: $apple-text-primary;
+  margin: 0 0 1.75rem 0;
   letter-spacing: -0.01em;
 }
 
 .comment-form {
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .comment-input {
   margin-bottom: 1rem;
 
   :deep(.el-textarea__inner) {
-    background: rgba(15, 23, 42, 0.03) !important;
-    border: 1px solid $border-default !important;
-    border-radius: 10px !important;
-    color: $text-primary !important;
-    font-size: 0.9rem !important;
+    background: rgba(245, 245, 247, 0.9) !important;
+    border: 1px solid rgba(0, 0, 0, 0.06) !important;
+    border-radius: 14px !important;
+    color: $apple-text-primary !important;
+    font-size: 0.9375rem !important;
     line-height: 1.6 !important;
+    padding: 1rem 1.25rem !important;
+    font-family: $apple-font-family !important;
+    transition: all 0.2s ease !important;
 
     &:focus {
-      border-color: $primary-color !important;
-      box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12) !important;
+      border-color: $apple-accent !important;
+      box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.1) !important;
+      background: rgba(255, 255, 255, 0.95) !important;
     }
 
     &::placeholder {
-      color: $text-muted !important;
+      color: $apple-text-tertiary !important;
+      font-weight: 400 !important;
     }
   }
 }
@@ -992,40 +1091,69 @@ onMounted(async () => {
 .comment-actions {
   display: flex;
   justify-content: flex-end;
+
+  :deep(.el-button) {
+    border-radius: 10px !important;
+    font-weight: 500 !important;
+    padding: 0.625rem 1.25rem !important;
+  }
+
+  :deep(.el-button--primary) {
+    background: $apple-accent !important;
+    border-color: $apple-accent !important;
+
+    &:hover {
+      background: rgba(0, 113, 227, 0.9) !important;
+    }
+  }
 }
 
 .comments-list {
-  margin-top: 1.5rem;
+  margin-top: 0;
 }
 
 .comment-items {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.5rem;
 }
 
 .comment-item {
-  padding: 0.75rem 0;
-  border-bottom: 1px solid $border-subtle;
+  padding: 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  padding-bottom: 1.5rem;
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
 }
 
 .comment-header {
   display: flex;
   justify-content: space-between;
-  font-size: 0.8rem;
-  color: $text-muted;
-  margin-bottom: 0.25rem;
+  align-items: center;
+  font-size: 0.8125rem;
+  color: $apple-text-tertiary;
+  margin-bottom: 0.5rem;
 }
 
 .comment-author {
   font-weight: 600;
-  color: $text-primary;
+  color: $apple-text-primary;
+  cursor: pointer;
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: $apple-accent;
+  }
 }
 
 .comment-body {
-  font-size: 0.9rem;
-  color: $text-secondary;
-  line-height: 1.6;
+  font-size: 0.875rem;
+  color: $apple-text-secondary;
+  line-height: 1.65;
+  margin-bottom: 0.75rem;
 }
 
 .share-options {

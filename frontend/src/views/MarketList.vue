@@ -2,67 +2,91 @@
   <div class="market-list-page">
     <!-- 页头 -->
     <div class="page-header">
-      <div class="page-title-row">
-        <h2 class="page-title">行情列表</h2>
-        <router-link :to="{ name: 'MarketRankings' }" class="rankings-link">
-          <el-button size="small" type="primary" plain>
-            <el-icon style="margin-right:4px;">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6">
-                <path d="M8 4h8v3a4 4 0 0 1-4 4 4 4 0 0 1-4-4V4Z" />
-                <path d="M8 4H5a2 2 0 0 0-2 2v1a4 4 0 0 0 4 4" />
-                <path d="M16 4h3a2 2 0 0 1 2 2v1a4 4 0 0 1-4 4" />
-              </svg>
-            </el-icon>
-            涨跌幅榜
-          </el-button>
-        </router-link>
+      <div class="page-title-section">
+        <div class="page-title-row">
+          <div class="title-group">
+            <h2 class="page-title">行情列表</h2>
+            <p class="page-subtitle">浏览全球市场中的股票 / ETF / 基金</p>
+          </div>
+          <router-link :to="{ name: 'MarketRankings' }" class="rankings-link">
+            <el-button size="small" type="default" plain class="rankings-btn">
+              <el-icon style="margin-right:4px;">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6">
+                  <path d="M8 4h8v3a4 4 0 0 1-4 4 4 4 0 0 1-4-4V4Z" />
+                  <path d="M8 4H5a2 2 0 0 0-2 2v1a4 4 0 0 0 4 4" />
+                  <path d="M16 4h3a2 2 0 0 1 2 2v1a4 4 0 0 1-4 4" />
+                </svg>
+              </el-icon>
+              涨跌幅榜
+            </el-button>
+          </router-link>
+        </div>
+
+        <!-- 搜索 + 筛选-->
+        <div class="filter-row">
+          <el-input
+            v-model="searchQ"
+            placeholder="搜索代码或名称..."
+            clearable
+            class="search-input"
+            @input="handleSearchInput"
+            @clear="handleSearch"
+          >
+            <template #prefix>
+              <el-icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></el-icon>
+            </template>
+          </el-input>
+
+          <el-select
+            v-model="filterMarket"
+            placeholder="全部市场"
+            clearable
+            size="default"
+            @change="handleFilter"
+            class="filter-select"
+          >
+            <el-option label="全部市场" value="" />
+            <el-option label="A股沪市(SH)" value="SH" />
+            <el-option label="A股深市(SZ)" value="SZ" />
+            <el-option label="港股 (HK)" value="HK" />
+            <el-option label="美股 (US)" value="US" />
+          </el-select>
+
+          <el-select
+            v-model="filterType"
+            placeholder="全部类型"
+            clearable
+            size="default"
+            @change="handleFilter"
+            class="filter-select"
+          >
+            <el-option label="全部类型" value="" />
+            <el-option label="股票 STOCK" value="STOCK" />
+            <el-option label="基金 FUND" value="FUND" />
+            <el-option label="ETF" value="ETF" />
+            <el-option label="债券 BOND" value="BOND" />
+          </el-select>
+        </div>
       </div>
+    </div>
 
-      <!-- 搜索 + 筛选-->
-      <div class="filter-row">
-        <el-input
-          v-model="searchQ"
-          placeholder="搜索代码或名称..."
-          clearable
-          class="search-input"
-          @input="handleSearchInput"
-          @clear="handleSearch"
-        >
-          <template #prefix>
-            <el-icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></el-icon>
-          </template>
-        </el-input>
-
-        <el-select
-          v-model="filterMarket"
-          placeholder="全部市场"
-          clearable
-          size="default"
-          @change="handleFilter"
-          class="filter-select"
-        >
-          <el-option label="全部市场" value="" />
-          <el-option label="A股沪市(SH)" value="SH" />
-          <el-option label="A股深市(SZ)" value="SZ" />
-          <el-option label="港股 (HK)" value="HK" />
-          <el-option label="美股 (US)" value="US" />
-        </el-select>
-
-        <el-select
-          v-model="filterType"
-          placeholder="全部类型"
-          clearable
-          size="default"
-          @change="handleFilter"
-          class="filter-select"
-        >
-          <el-option label="全部类型" value="" />
-          <el-option label="股票 STOCK" value="STOCK" />
-          <el-option label="基金 FUND" value="FUND" />
-          <el-option label="ETF" value="ETF" />
-          <el-option label="债券 BOND" value="BOND" />
-        </el-select>
-      </div>
+    <!-- 市场摘要区 -->
+    <div class="market-summary" v-if="!loading && assets.length > 0">
+      <span class="summary-item">
+        <span class="summary-label">共</span>
+        <span class="summary-value">{{ total }}</span>
+        <span class="summary-label">支资产</span>
+      </span>
+      <span class="summary-divider">·</span>
+      <span class="summary-item" v-if="filterMarket || filterType">
+        <span class="summary-label">当前筛选：</span>
+        <span class="summary-value">{{ getFilterText() }}</span>
+      </span>
+      <span class="summary-divider">·</span>
+      <span class="summary-item">
+        <span class="summary-label">数据来源：</span>
+        <span class="summary-value">Finnhub</span>
+      </span>
     </div>
 
     <!-- 资产列表 -->
@@ -256,93 +280,236 @@ const getMarketTagType = (market?: string) => {
   return 'info'
 }
 
+const getFilterText = () => {
+  const parts: string[] = []
+  if (filterMarket.value) {
+    const marketMap: Record<string, string> = {
+      SH: 'A股沪市',
+      SZ: 'A股深市',
+      HK: '港股',
+      US: '美股'
+    }
+    parts.push(marketMap[filterMarket.value] || filterMarket.value)
+  }
+  if (filterType.value) {
+    const typeMap: Record<string, string> = {
+      STOCK: '股票',
+      FUND: '基金',
+      ETF: 'ETF',
+      BOND: '债券'
+    }
+    parts.push(typeMap[filterType.value] || filterType.value)
+  }
+  return parts.length > 0 ? parts.join(' / ') : '全部'
+}
+
 onMounted(() => {
   loadData()
 })
 </script>
 
 <style lang="scss" scoped>
+@use '@/styles/variables.scss' as *;
+
 .market-list-page {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: $market-space-5;
 }
 
 .page-header {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: $market-space-4;
+}
+
+.page-title-section {
+  display: flex;
+  flex-direction: column;
+  gap: $market-space-4;
 }
 
 .page-title-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: $market-space-4;
+
+  .title-group {
+    display: flex;
+    flex-direction: column;
+    gap: $market-space-2;
+  }
 
   .page-title {
-    font-size: 1.375rem;
+    font-size: $market-font-h1;
     font-weight: 700;
-      color: #1F2937;
+    color: $market-text-primary;
     margin: 0;
+    line-height: 1.2;
+  }
+
+  .page-subtitle {
+    font-size: $market-font-caption;
+    color: $market-text-secondary;
+    margin: 0;
+    line-height: 1.4;
   }
 
   .rankings-link {
     text-decoration: none;
+    flex-shrink: 0;
+  }
+
+  .rankings-btn {
+    :deep(.el-button) {
+      border-color: $apple-border-light;
+      color: $market-text-secondary;
+      font-weight: 500;
+      transition: $transition-colors;
+
+      &:hover {
+        border-color: $market-accent;
+        color: $market-accent;
+        background: $market-accent-soft;
+      }
+    }
   }
 }
 
 .filter-row {
   display: flex;
-  gap: 0.75rem;
+  gap: $market-space-3;
   flex-wrap: wrap;
+  align-items: center;
 
   .search-input {
     flex: 1;
-    min-width: 200px;
+    min-width: 280px;
 
     :deep(.el-input__wrapper) {
-      background: #FFFFFF;
-      border-color: rgba(0, 0, 0, 0.12);
+      background: $apple-input-bg;
+      border: 1px solid $apple-input-border;
+      border-radius: $market-radius-input;
+      height: 48px;
+      box-shadow: $market-shadow-sm;
+      transition: $transition-all;
+
+      &:hover {
+        border-color: $market-accent;
+        box-shadow: $market-shadow-md;
+      }
+
+      &.is-focus {
+        border-color: $market-accent;
+        box-shadow: 0 0 0 3px $market-accent-soft;
+      }
     }
 
     :deep(.el-input__inner) {
-      color: #1F2937;
-      &::placeholder { color: #9CA3AF; }
+      color: $market-text-primary;
+      font-size: $market-font-body;
+      &::placeholder { 
+        color: $market-text-tertiary; 
+      }
+    }
+
+    :deep(.el-input__prefix) {
+      color: $market-text-tertiary;
     }
   }
 
   .filter-select {
     width: 160px;
+    height: 48px;
 
     :deep(.el-select__wrapper) {
-      background: #FFFFFF;
-      border-color: rgba(0, 0, 0, 0.12);
-      color: #111827;
+      background: $apple-input-bg;
+      border: 1px solid $apple-input-border;
+      border-radius: $market-radius-input;
+      height: 48px;
+      box-shadow: $market-shadow-sm;
+      transition: $transition-all;
+      color: $market-text-primary;
+
+      &:hover {
+        border-color: $market-accent;
+        box-shadow: $market-shadow-md;
+      }
+
+      &.is-focused {
+        border-color: $market-accent;
+        box-shadow: 0 0 0 3px $market-accent-soft;
+      }
     }
+
+    :deep(.el-select__placeholder) {
+      color: $market-text-tertiary;
+    }
+  }
+}
+
+// 市场摘要区
+.market-summary {
+  display: flex;
+  align-items: center;
+  gap: $market-space-3;
+  padding: $market-space-3 $market-space-4;
+  background: $market-bg-panel;
+  border: 1px solid $apple-border-light;
+  border-radius: $market-radius-md;
+  font-size: $market-font-caption;
+  color: $market-text-secondary;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
+  .summary-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .summary-label {
+    color: $market-text-tertiary;
+  }
+
+  .summary-value {
+    color: $market-text-primary;
+    font-weight: 600;
+  }
+
+  .summary-divider {
+    color: $market-text-tertiary;
+    opacity: 0.5;
   }
 }
 
 // 列表卡片
 .card {
-  background: #FFFFFF;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 14px;
+  background: $market-bg-soft;
+  border: 1px solid $apple-border-light;
+  border-radius: $market-radius-lg;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+  box-shadow: $market-shadow-sm;
+  transition: $transition-all;
+
+  &:hover {
+    box-shadow: $market-shadow-md;
+  }
 }
 
 .list-header {
   display: grid;
-  grid-template-columns: 2fr 80px 80px 100px 100px 100px 110px;
+  grid-template-columns: 2fr 100px 100px 120px 120px 120px 140px;
   gap: 0;
-  padding: 0.625rem 1.25rem;
-  background: #F9FAFB;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  font-size: 0.75rem;
-  color: #6B7A99;
+  padding: $market-space-4 $market-space-5;
+  background: transparent;
+  border-bottom: 1px solid $apple-border-light;
+  font-size: $market-font-mini;
+  color: $market-text-tertiary;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
 
   > div {
     display: flex;
@@ -356,27 +523,33 @@ onMounted(() => {
 
 .list-row {
   display: grid;
-  grid-template-columns: 2fr 80px 80px 100px 100px 100px 110px;
+  grid-template-columns: 2fr 100px 100px 120px 120px 120px 140px;
   gap: 0;
-  padding: 0.75rem 1.25rem;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  padding: $market-space-5 $market-space-5;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.02);
   text-decoration: none;
   color: inherit;
-  transition: background 0.15s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
+  min-height: 80px;
+  align-items: center;
 
   &:last-child {
     border-bottom: none;
   }
 
   &:hover {
-    background: #F9FAFB;
+    background: rgba(0, 113, 227, 0.03);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    border-radius: $market-radius-md;
+    margin: 0 $market-space-2;
   }
 
   > div {
     display: flex;
     align-items: center;
-    font-size: 0.875rem;
+    font-size: $market-font-body;
 
     &.col-price, &.col-volume, &.col-time {
       justify-content: flex-end;
@@ -392,72 +565,81 @@ onMounted(() => {
   display: flex !important;
   flex-direction: column !important;
   align-items: flex-start !important;
-  gap: 2px;
+  gap: $market-space-2;
 
   .asset-code {
     font-weight: 700;
-    color: #1F2937;
-    font-size: 0.875rem;
+    color: $market-text-primary;
+    font-size: $market-font-body;
+    letter-spacing: 0.02em;
   }
 
   .asset-name {
-    font-size: 0.75rem;
-    color: #6B7280;
+    font-size: $market-font-caption;
+    color: $market-text-secondary;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 160px;
+    max-width: 200px;
   }
 }
 
 .col-market {
   :deep(.el-tag) {
-    font-size: 0.7rem;
+    font-size: $market-font-mini;
+    border-radius: $market-radius-sm;
+    padding: 2px 8px;
+    font-weight: 500;
   }
 }
 
 .type-label {
-  font-size: 0.7rem;
-  color: #6B7280;
+  font-size: $market-font-mini;
+  color: $market-text-secondary;
+  padding: 2px 8px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: $market-radius-sm;
 }
 
 .col-price {
   font-weight: 700;
-  font-size: 0.9rem !important;
+  font-size: $market-font-h3 !important;
+  letter-spacing: -0.01em;
 
-  &.up { color: #f56c6c; }
-  &.down { color: #67c23a; }
-  &.flat { color: #A0AABF; }
+  &.up { color: $market-up; }
+  &.down { color: $market-down; }
+  &.flat { color: $market-neutral; }
 }
 
 .change-badge {
-  font-size: 0.8rem;
+  font-size: $market-font-caption;
   font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 4px 10px;
+  border-radius: $market-radius-sm;
 
   &.up {
-    color: #f56c6c;
-    background: rgba(245, 108, 108, 0.1);
+    color: $market-up;
+    background: rgba(232, 93, 93, 0.1);
   }
   &.down {
-    color: #67c23a;
-    background: rgba(103, 194, 58, 0.1);
+    color: $market-down;
+    background: rgba(22, 163, 74, 0.1);
   }
   &.flat {
-    color: #909399;
-    background: rgba(144, 147, 153, 0.1);
+    color: $market-neutral;
+    background: rgba(100, 116, 139, 0.1);
   }
 }
 
 .col-volume {
-  font-size: 0.8rem !important;
-  color: #6B7280;
+  font-size: $market-font-caption !important;
+  color: $market-text-secondary;
+  font-weight: 500;
 }
 
 .col-time {
-  font-size: 0.75rem !important;
-  color: #6B7280;
+  font-size: $market-font-mini !important;
+  color: $market-text-tertiary;
 }
 
 .skeleton-wrapper {
@@ -490,14 +672,16 @@ onMounted(() => {
 .disclaimer {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.75rem;
-  color: #6B7280;
-  padding: 0.75rem 1rem;
-  background: #FFFFFF;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 8px;
+  gap: $market-space-2;
+  font-size: $market-font-mini;
+  color: $market-text-tertiary;
+  padding: $market-space-3 $market-space-4;
+  background: $market-bg-panel;
+  border: 1px solid $apple-border-light;
+  border-radius: $market-radius-md;
   font-style: italic;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 </style>
 

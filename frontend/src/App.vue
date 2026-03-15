@@ -10,11 +10,14 @@
 </script>
 
 <style lang="scss">
+@use './styles/variables.scss' as *;
+
 #app {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
-    Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+  font-family: $apple-font-family;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-size: $apple-font-body;
+  color: $apple-text-primary;
 }
 
 * {
@@ -24,6 +27,9 @@
 }
 
 body {
-  background-color: #f9fafb;
+  background-color: $apple-bg-page;
+  font-family: $apple-font-family;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 </style>

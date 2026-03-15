@@ -539,17 +539,8 @@ const fetchModeratedUsers = async () => {
 const fetchAlerts = async () => {
   loadingAlerts.value = true
   try {
-    // 后端当前返回 { code, data: { items, ... } } 或简单数组，这里兼容处理
-    const res: any = await adminApi.getAlerts({ status: 'OPEN' })
-    if (Array.isArray(res)) {
-      alerts.value = res
-    } else if (Array.isArray(res.items)) {
-      alerts.value = res.items
-    } else if (Array.isArray(res.data?.items)) {
-      alerts.value = res.data.items
-    } else {
-      alerts.value = []
-    }
+    const res = await adminApi.getAlerts({ status: 'OPEN' })
+    alerts.value = res.items || []
   } catch (error) {
     ElMessage.error('获取告警数据失败')
   } finally {

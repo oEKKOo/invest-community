@@ -51,7 +51,6 @@ export const getAdminStats = (): Promise<AdminStats> => {
 export const getAlerts = (
   params?: { status?: 'OPEN' | 'RESOLVED' | 'IGNORED'; alertType?: string }
 ): Promise<PaginatedResponse<Alert>> => {
-  // 后端当前返回为简单列表，这里做一层兼容封装
   return get('/admin/alerts/', { params })
 }
 

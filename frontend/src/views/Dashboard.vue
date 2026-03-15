@@ -4,7 +4,7 @@
     <!-- ===== 免责声明===== -->
     <div class="disclaimer-bar">
       <el-icon><InfoFilled /></el-icon>
-      <span>行情数据来源：Finnhub Finance，仅供学习参考，不构成投资建议。请自行承担投资决策风险</span>
+      <span>行情数据来自 Finnhub Finance，仅供学习参考，不构成投资建议。</span>
     </div>
 
     <!-- ============================================================ -->
@@ -31,10 +31,10 @@
       </div>
 
       <div class="market-body">
-        <!-- 左：行情榜单卡片 (6项) -->
+        <!-- 左：行情榜单卡片 (4项精选) -->
         <div class="rankings-panel">
           <div v-if="marketLoading" class="loading-grid">
-            <div v-for="n in 6" :key="n" class="skeleton-card">
+            <div v-for="n in 4" :key="n" class="skeleton-card">
               <el-skeleton animated :rows="2" />
             </div>
           </div>
@@ -75,7 +75,7 @@
         <!-- 右：走势图-->
         <div class="chart-panel">
           <div class="chart-panel-header">
-            <span class="chart-panel-title">市场走势</span>
+            <span class="chart-panel-title">Market Trend</span>
             <div class="chart-tab-group">
               <button
                 v-for="tab in chartTabs"
@@ -112,21 +112,17 @@
       <!-- ===== 左主列：信息===== -->
       <section class="feed-section">
         <div class="feed-header">
-          <el-tabs v-model="activeFeedTab" @tab-change="onFeedTabChange" class="feed-tabs">
-            <el-tab-pane label="最新" name="new" />
-            <el-tab-pane label="热门" name="hot" />
-            <el-tab-pane
-              label="关注-帖子"
-              name="follow"
-              :disabled="!authStore.isLoggedIn"
-            />
-            <el-tab-pane
-              label="关注-组合"
-              name="followPortfolios"
-              :disabled="!authStore.isLoggedIn"
-            />
-            <el-tab-pane label="推荐" name="recommend" />
-          </el-tabs>
+          <div class="feed-segmented-control">
+            <button
+              v-for="tab in feedTabs"
+              :key="tab.name"
+              :class="['feed-segmented-item', { active: activeFeedTab === tab.name, disabled: tab.disabled }]"
+              :disabled="tab.disabled"
+              @click="!tab.disabled && onFeedTabChange(tab.name)"
+            >
+              {{ tab.label }}
+            </button>
+          </div>
           <router-link to="/community" class="to-community-btn">
             社区广场 
           </router-link>
@@ -314,7 +310,7 @@
               class="portfolio-rank-item"
               @click="$router.push(`/portfolios/${pf.id}`)"
             >
-              <span class="pf-medal">{{ MEDALS[idx] || `#${idx + 1}` }}</span>
+              <span class="pf-medal">#{{ idx + 1 }}</span>
               <div class="pf-info">
                 <span class="pf-title">{{ pf.title }}</span>
                 <div class="pf-meta">
@@ -504,30 +500,38 @@
 
           <!-- 快捷操作 -->
           <div class="quick-actions">
-            <el-button
+            <div
               v-if="!authStore.isLoggedIn"
-              type="primary"
-              size="small"
-              class="action-btn"
+              class="quick-action-item"
               @click="$router.push('/login')"
             >
-              加入社区
-            </el-button>
+              <span>加入社区</span>
+            </div>
             <template v-else>
-              <el-button
-                size="small"
-                class="action-btn"
+              <div
+                class="quick-action-item"
                 @click="$router.push('/community')"
               >
-                发帖讨论
-              </el-button>
-              <el-button
-                size="small"
-                class="action-btn"
+                <span>发布讨论</span>
+              </div>
+              <div
+                class="quick-action-item"
                 @click="$router.push('/holdings')"
               >
-                管理持仓
-              </el-button>
+                <span>管理持仓</span>
+              </div>
+              <div
+                class="quick-action-item"
+                @click="$router.push('/portfolios')"
+              >
+                <span>新建组合</span>
+              </div>
+              <div
+                class="quick-action-item"
+                @click="$router.push('/market')"
+              >
+                <span>查看行情</span>
+              </div>
             </template>
           </div>
         </div>
@@ -637,7 +641,7 @@ const fetchMarketRankings = async (type: string = activeRankType.value) => {
   marketLoading.value = true
   try {
     const items = await marketStore.fetchRankings(type)
-    displayedRankings.value = items.slice(0, 6)
+    displayedRankings.value = items.slice(0, 4)
   } catch (e) {
     console.error('获取市场榜单失败:', e)
     displayedRankings.value = []
@@ -705,6 +709,14 @@ const activeFeedTab = ref('new')
 const feedPosts = ref<Post[]>([])
 const followPortfoliosFeed = ref<Portfolio[]>([])
 const feedLoading = ref(false)
+
+const feedTabs = computed(() => [
+  { name: 'new', label: '最新', disabled: false },
+  { name: 'hot', label: '热门', disabled: false },
+  { name: 'follow', label: '关注-帖子', disabled: !authStore.isLoggedIn },
+  { name: 'followPortfolios', label: '关注-组合', disabled: !authStore.isLoggedIn },
+  { name: 'recommend', label: '推荐', disabled: false }
+])
 
 const fetchFeed = async (tab: string = activeFeedTab.value) => {
   feedLoading.value = true
@@ -945,23 +957,25 @@ onMounted(() => {
 }
 
 // ============================================================
-// 免责声明
+// 免责声明 - Apple Style 软提示条
 // ============================================================
 .disclaimer-bar {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: rgba(245, 158, 11, 0.08);
-  border: 1px solid rgba(245, 158, 11, 0.2);
-  border-radius: $border-radius;
-  margin-bottom: 1.25rem;
-  font-size: 0.75rem;
+  gap: $apple-space-3;
+  padding: $apple-space-3 $apple-space-4;
+  background: rgba(245, 158, 11, 0.06);
+  border: 1px solid rgba(245, 158, 11, 0.15);
+  border-radius: $apple-radius-sm;
+  margin-bottom: $apple-space-6;
+  font-size: $apple-font-caption;
   color: #D97706;
+  font-family: $apple-font-family;
 
   .el-icon {
     flex-shrink: 0;
-    color: #F59E0B;
+    color: #D97706;
+    font-size: 14px;
   }
 }
 
@@ -969,12 +983,14 @@ onMounted(() => {
 // 第一层：市场总览
 // ============================================================
 .market-section {
-  background: #FFFFFF;
-  border: 1px solid $border-subtle;
-  border-radius: $border-radius-lg;
-  padding: 1.5rem;
-  margin-bottom: 1.5rem;
-  box-shadow: $shadow-sm;
+  background: $apple-bg-elevated;
+  backdrop-filter: $apple-glass-blur;
+  -webkit-backdrop-filter: $apple-glass-blur;
+  border: 1px solid $apple-border-light;
+  border-radius: $apple-radius-xl; // Hero区使用更大的圆角
+  padding: $apple-space-6;
+  margin-bottom: $apple-space-6;
+  box-shadow: $apple-shadow-sm;
 }
 
 .market-section-header {
@@ -992,16 +1008,18 @@ onMounted(() => {
 
 .market-title-block {
   .market-main-title {
-    font-size: 1.0625rem;
-    font-weight: 700;
-    color: $text-primary;
-    margin: 0 0 0.25rem 0;
+    font-size: $apple-font-h3;
+    font-weight: 600;
+    color: $apple-text-primary;
+    margin: 0 0 $apple-space-2 0;
     letter-spacing: -0.01em;
+    font-family: $apple-font-family;
   }
   .market-subtitle {
-    font-size: 0.75rem;
-    color: $text-muted;
+    font-size: $apple-font-caption;
+    color: $apple-text-tertiary;
     margin: 0;
+    font-family: $apple-font-family;
   }
 }
 
@@ -1012,46 +1030,47 @@ onMounted(() => {
 }
 
 .rank-type-btns {
-  display: flex;
-  gap: 0.25rem;
-  background: $bg-surface;
-  border: 1px solid $border-subtle;
-  border-radius: 8px;
-  padding: 0.25rem;
+  display: inline-flex;
+  padding: 4px;
+  border-radius: $apple-radius-segmented;
+  background: rgba(0, 0, 0, 0.05);
+  gap: 4px;
 }
 
 .rank-type-btn {
-  padding: 0.3rem 0.75rem;
-  border-radius: 6px;
+  padding: 10px 16px;
+  border-radius: $apple-radius-segmented-item;
   border: none;
   cursor: pointer;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: $text-muted;
+  font-size: $apple-font-body;
+  font-weight: 400;
+  color: $apple-text-secondary;
   background: transparent;
-  transition: $transition-all;
+  transition: all 0.2s ease;
+  font-family: $apple-font-family;
+  white-space: nowrap;
 
   &:hover {
-    color: $text-secondary;
-    background: #FFFFFF;
+    color: $apple-text-primary;
   }
 
   &.active {
-    color: $primary-color;
-    background: #FFFFFF;
-    box-shadow: $shadow-sm;
-    box-shadow: 0 0 0 1px rgba(29, 78, 216, 0.18);
+    background: #fff;
+    color: $apple-text-primary;
+    font-weight: 500;
+    box-shadow: $apple-shadow-sm;
   }
 }
 
 .full-ranking-link {
-  font-size: 0.8125rem;
-  color: $primary-color;
+  font-size: $apple-font-body;
+  color: $apple-accent;
   text-decoration: none;
-  font-weight: 600;
+  font-weight: 500;
   transition: $transition-colors;
+  font-family: $apple-font-family;
 
-  &:hover { color: $primary-color; }
+  &:hover { color: $apple-accent; }
 }
 
 .market-body {
@@ -1064,51 +1083,53 @@ onMounted(() => {
   }
 }
 
-// Rankings Grid (6 cards)
+// Rankings Grid (4 cards)
 .rankings-panel {
   min-height: 220px;
 }
 
 .loading-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.75rem;
+  grid-template-columns: repeat(2, 1fr);
+  gap: $apple-space-4;
 }
 
 .skeleton-card {
-  background: $bg-surface;
-  border: 1px solid $border-subtle;
-  border-radius: $border-radius;
-  padding: 1rem;
+  background: $apple-bg-elevated;
+  border: 1px solid $apple-border-light;
+  border-radius: $apple-radius-md;
+  padding: $apple-space-6;
 }
 
 .rankings-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.75rem;
+  grid-template-columns: repeat(2, 1fr);
+  gap: $apple-space-4;
 
   @media (max-width: 600px) {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
   }
 }
 
 .rank-card {
-  background: #FFFFFF;
-  border: 1px solid $border-subtle;
-  border-radius: $border-radius;
-  padding: 0.875rem;
+  background: $apple-bg-elevated;
+  backdrop-filter: $apple-glass-blur;
+  -webkit-backdrop-filter: $apple-glass-blur;
+  border: 1px solid $apple-border-light;
+  border-radius: $apple-radius-md;
+  padding: $apple-space-6;
   cursor: pointer;
-  transition: $transition-all;
+  transition: all 0.25s ease;
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
-  box-shadow: $shadow-sm;
+  gap: $apple-space-3;
+  box-shadow: $apple-shadow-sm;
 
   &:hover {
-    border-color: rgba(29, 78, 216, 0.25);
-    background: linear-gradient(145deg, rgba(29, 78, 216, 0.04) 0%, #FFFFFF 100%);
+    border-color: rgba(0, 113, 227, 0.2);
+    background: rgba(255, 255, 255, 0.9);
     transform: translateY(-2px);
-    box-shadow: $shadow;
+    box-shadow: $apple-shadow-md;
   }
 }
 
@@ -1119,9 +1140,9 @@ onMounted(() => {
 }
 
 .rank-num {
-  font-size: 0.6875rem;
-  font-weight: 700;
-  color: $text-muted;
+  font-size: $apple-font-caption;
+  font-weight: 600;
+  color: $apple-text-tertiary;
   font-family: 'IBM Plex Mono', monospace;
 }
 
@@ -1140,43 +1161,44 @@ onMounted(() => {
 }
 
 .rank-code {
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: $text-primary;
+  font-size: $apple-font-body;
+  font-weight: 600;
+  color: $apple-text-primary;
   font-family: 'IBM Plex Mono', monospace;
 }
 
 .rank-name {
-  font-size: 0.6875rem;
-  color: $text-muted;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-family: $apple-font-family;
 }
 
 .rank-card-bottom {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 0.375rem;
-  border-top: 1px solid $border-subtle;
+  padding-top: $apple-space-3;
+  border-top: 1px solid $apple-border-light;
 }
 
 .rank-price {
-  font-size: 0.9375rem;
-  font-weight: 700;
-  color: $text-primary;
+  font-size: $apple-font-h3;
+  font-weight: 600;
+  color: $apple-text-primary;
   font-family: 'IBM Plex Mono', monospace;
 }
 
 .rank-pct {
-  font-size: 0.8125rem;
-  font-weight: 700;
+  font-size: $apple-font-body;
+  font-weight: 600;
   font-family: 'IBM Plex Mono', monospace;
 
-  &.up { color: #f56c6c; }
-  &.down { color: #67c23a; }
-  &.flat { color: $text-muted; }
+  &.up { color: #e85d5d; }
+  &.down { color: #16a34a; }
+  &.flat { color: $apple-text-tertiary; }
 }
 
 .rankings-empty {
@@ -1185,25 +1207,28 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 3rem 1rem;
-  color: $text-muted;
-  gap: 0.5rem;
+  padding: $apple-space-10 $apple-space-4;
+  color: $apple-text-tertiary;
+  gap: $apple-space-3;
   text-align: center;
+  font-family: $apple-font-family;
 
-  p { margin: 0; font-weight: 600; color: $text-secondary; }
-  span { font-size: 0.8125rem; }
+  p { margin: 0; font-weight: 600; color: $apple-text-secondary; font-family: $apple-font-family; }
+  span { font-size: $apple-font-body; font-family: $apple-font-family; }
 }
 
-// Chart Panel
+// Chart Panel - Apple Style
 .chart-panel {
-  background: #FFFFFF;
-  border: 1px solid $border-subtle;
-  border-radius: $border-radius;
-  padding: 1rem;
+  background: $apple-bg-elevated;
+  backdrop-filter: $apple-glass-blur;
+  -webkit-backdrop-filter: $apple-glass-blur;
+  border: 1px solid $apple-border-light;
+  border-radius: $apple-radius-md;
+  padding: $apple-space-6;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  box-shadow: $shadow-sm;
+  gap: $apple-space-4;
+  box-shadow: $apple-shadow-sm;
 }
 
 .chart-panel-header {
@@ -1213,32 +1238,38 @@ onMounted(() => {
 }
 
 .chart-panel-title {
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: $text-secondary;
+  font-size: $apple-font-body;
+  font-weight: 600;
+  color: $apple-text-primary;
+  font-family: $apple-font-family;
 }
 
 .chart-tab-group {
-  display: flex;
-  gap: 0.25rem;
+  display: inline-flex;
+  padding: 4px;
+  border-radius: $apple-radius-segmented;
+  background: rgba(0, 0, 0, 0.05);
+  gap: 4px;
 }
 
 .chart-tab-btn {
-  padding: 0.2rem 0.625rem;
-  border-radius: 6px;
-  border: 1px solid $border-subtle;
+  padding: 10px 16px;
+  border-radius: $apple-radius-segmented-item;
+  border: none;
   cursor: pointer;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: $text-muted;
+  font-size: $apple-font-caption;
+  font-weight: 400;
+  color: $apple-text-secondary;
   background: transparent;
-  transition: $transition-all;
+  transition: all 0.2s ease;
+  font-family: $apple-font-family;
 
-  &:hover { color: $text-secondary; border-color: $border-default; }
+  &:hover { color: $apple-text-primary; }
   &.active {
-    color: $primary-color;
-    background: rgba(29, 78, 216, 0.06);
-    border-color: rgba(29, 78, 216, 0.25);
+    background: #fff;
+    color: $apple-text-primary;
+    font-weight: 500;
+    box-shadow: $apple-shadow-sm;
   }
 }
 
@@ -1255,10 +1286,11 @@ onMounted(() => {
 .chart-skeleton { height: 180px; }
 
 .chart-data-source {
-  font-size: 0.6875rem;
-  color: $text-muted;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
   text-align: right;
   opacity: 0.7;
+  font-family: $apple-font-family;
 }
 
 // ============================================================
@@ -1286,81 +1318,110 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.25rem;
+  margin-bottom: $apple-space-6;
+  gap: $apple-space-4;
+}
 
-  .feed-tabs {
-    flex: 1;
+.feed-segmented-control {
+  display: inline-flex;
+  padding: 4px;
+  border-radius: $apple-radius-segmented;
+  background: rgba(0, 0, 0, 0.05);
+  gap: 4px;
+  flex: 1;
+}
 
-    :deep(.el-tabs__header) { margin-bottom: 0; }
-    :deep(.el-tabs__nav-wrap::after) { display: none; }
-    :deep(.el-tabs__item) {
-      color: $text-muted;
-      font-weight: 600;
-      font-size: 0.875rem;
-      &.is-active { color: $primary-color; }
-    }
-    :deep(.el-tabs__active-bar) { background: $primary-color; }
+.feed-segmented-item {
+  padding: 10px 16px;
+  border-radius: $apple-radius-segmented-item;
+  color: $apple-text-secondary;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: $apple-font-body;
+  font-weight: 400;
+  font-family: $apple-font-family;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  &:hover:not(.disabled) {
+    color: $apple-text-primary;
+  }
+
+  &.active {
+    background: #fff;
+    color: $apple-text-primary;
+    font-weight: 500;
+    box-shadow: $apple-shadow-sm;
+  }
+
+  &.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
   }
 }
 
 .to-community-btn {
-  font-size: 0.8125rem;
-  color: $primary-color;
+  font-size: $apple-font-body;
+  color: $apple-accent;
   text-decoration: none;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
-  margin-left: 1rem;
   transition: $transition-colors;
-  &:hover { color: $primary-color; }
+  font-family: $apple-font-family;
+  &:hover { color: $apple-accent; }
 }
 
 .login-hint {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 1.25rem;
-  background: rgba(29, 78, 216, 0.04);
-  border: 1px dashed rgba(29, 78, 216, 0.2);
-  border-radius: $border-radius;
-  color: $text-secondary;
-  font-size: 0.875rem;
-  margin-top: 0.75rem;
+  gap: $apple-space-3;
+  padding: $apple-space-6;
+  background: rgba(0, 113, 227, 0.04);
+  border: 1px dashed rgba(0, 113, 227, 0.15);
+  border-radius: $apple-radius-md;
+  color: $apple-text-secondary;
+  font-size: $apple-font-body;
+  margin-top: $apple-space-4;
+  font-family: $apple-font-family;
 }
 
 .feed-loading {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  margin-top: 0.75rem;
+  gap: $apple-space-4;
+  margin-top: $apple-space-4;
 }
 
 .post-skeleton {
-  background: $bg-surface;
-  border: 1px solid $border-subtle;
-  border-radius: $border-radius;
-  padding: 1.25rem;
+  background: $apple-bg-elevated;
+  border: 1px solid $apple-border-light;
+  border-radius: $apple-radius-md;
+  padding: $apple-space-6;
 }
 
 .portfolio-feed {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  margin-top: 0.75rem;
+  gap: $apple-space-4;
+  margin-top: $apple-space-4;
 }
 
 .portfolio-card-main {
-  border-radius: $border-radius;
-  border: 1px solid $border-subtle;
-  padding: 1rem 1.1rem;
-  background: #ffffff;
+  border-radius: $apple-radius-md;
+  border: 1px solid $apple-border-light;
+  padding: $apple-space-6;
+  background: $apple-bg-elevated;
+  backdrop-filter: $apple-glass-blur;
+  -webkit-backdrop-filter: $apple-glass-blur;
   cursor: pointer;
-  transition: $transition-all;
-  box-shadow: $shadow-sm;
+  transition: all 0.25s ease;
+  box-shadow: $apple-shadow-sm;
 
   &:hover {
-    border-color: rgba(29, 78, 216, 0.25);
-    background: linear-gradient(145deg, rgba(29, 78, 216, 0.03) 0%, #ffffff 100%);
-    box-shadow: $shadow;
+    border-color: rgba(0, 113, 227, 0.2);
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: $apple-shadow-md;
     transform: translateY(-1px);
   }
 }
@@ -1369,76 +1430,85 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.35rem;
+  margin-bottom: $apple-space-3;
 
   .portfolio-title {
-    font-size: 0.95rem;
+    font-size: $apple-font-body;
     font-weight: 600;
-    color: $text-primary;
+    color: $apple-text-primary;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-family: $apple-font-family;
   }
 
   .portfolio-return {
-    font-size: 0.9rem;
+    font-size: $apple-font-body;
     font-weight: 600;
+    font-family: 'IBM Plex Mono', monospace;
 
-    &.up { color: #f56c6c; }
-    &.down { color: #67c23a; }
+    &.up { color: #e85d5d; }
+    &.down { color: #16a34a; }
   }
 }
 
 .portfolio-meta {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  margin-bottom: 0.25rem;
+  gap: $apple-space-2;
+  margin-bottom: $apple-space-2;
 
   .portfolio-owner {
-    font-size: 0.8rem;
-    color: $text-secondary;
+    font-size: $apple-font-body;
+    color: $apple-text-secondary;
+    font-family: $apple-font-family;
   }
 
   .portfolio-risk-tag {
-    padding: 0 0.45rem;
-    font-size: 0.75rem;
+    padding: 2px 10px;
+    font-size: $apple-font-caption;
     border-radius: 999px;
-    background: #f3f4ff;
-    color: #4f46e5;
+    background: rgba(0, 0, 0, 0.04);
+    color: $apple-text-secondary;
+    font-family: $apple-font-family;
   }
 }
 
 .portfolio-desc {
-  font-size: 0.8rem;
-  color: $text-secondary;
-  margin: 0.1rem 0 0;
+  font-size: $apple-font-body;
+  color: $apple-text-secondary;
+  margin: $apple-space-2 0 0;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: $apple-font-family;
 }
 
 .posts-feed {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  margin-top: 0.75rem;
+  gap: $apple-space-4;
+  margin-top: $apple-space-4;
 }
 
 .post-card {
-  background: #FFFFFF;
-  border: 1px solid $border-subtle;
-  border-radius: $border-radius;
-  padding: 1.125rem 1.25rem;
+  background: $apple-bg-elevated;
+  backdrop-filter: $apple-glass-blur;
+  -webkit-backdrop-filter: $apple-glass-blur;
+  border: 1px solid $apple-border-light;
+  border-radius: $apple-radius-md;
+  padding: $apple-space-6;
   cursor: pointer;
-  transition: $transition-all;
-  box-shadow: $shadow-sm;
+  transition: all 0.25s ease;
+  box-shadow: $apple-shadow-sm;
 
   &:hover {
-    border-color: rgba(29, 78, 216, 0.25);
-    background: linear-gradient(145deg, rgba(29, 78, 216, 0.03) 0%, #FFFFFF 100%);
-    box-shadow: $shadow;
+    border-color: rgba(0, 113, 227, 0.2);
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: $apple-shadow-md;
     transform: translateY(-2px);
   }
 }
@@ -1446,14 +1516,14 @@ onMounted(() => {
 .post-card-header {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
+  gap: $apple-space-3;
+  margin-bottom: $apple-space-4;
 }
 
 .post-avatar {
   background: $gradient-primary !important;
-  font-size: 0.875rem !important;
-  font-weight: 700 !important;
+  font-size: $apple-font-body !important;
+  font-weight: 600 !important;
   flex-shrink: 0;
 }
 
@@ -1461,18 +1531,19 @@ onMounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.125rem;
+  gap: 2px;
 }
 
 .post-author-name {
-  font-size: 0.875rem;
+  font-size: $apple-font-body;
   font-weight: 600;
-  color: $text-primary;
+  color: $apple-text-primary;
+  font-family: $apple-font-family;
 }
 
 .post-date {
-  font-size: 0.6875rem;
-  color: $text-muted;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
   font-family: 'IBM Plex Mono', monospace;
 }
 
@@ -1481,71 +1552,77 @@ onMounted(() => {
 }
 
 .post-tag {
-  font-size: 0.6875rem !important;
-  font-weight: 700 !important;
-  text-transform: uppercase !important;
-  letter-spacing: 0.05em !important;
+  font-size: $apple-font-caption !important;
+  font-weight: 500 !important;
+  padding: 4px 10px !important;
+  border-radius: 999px !important;
+  background: rgba(0, 0, 0, 0.05) !important;
+  border: none !important;
+  color: $apple-text-secondary !important;
 }
 
 .post-title {
-  font-size: 0.9375rem;
-  font-weight: 700;
-  color: $text-primary;
-  margin: 0 0 0.5rem 0;
+  font-size: $apple-font-h3;
+  font-weight: 600;
+  color: $apple-text-primary;
+  margin: 0 0 $apple-space-3 0;
   line-height: 1.4;
   letter-spacing: -0.01em;
+  font-family: $apple-font-family;
 }
 
 .post-excerpt {
-  font-size: 0.8125rem;
-  color: $text-secondary;
+  font-size: $apple-font-body;
+  color: $apple-text-secondary;
   line-height: 1.6;
-  margin: 0 0 0.75rem 0;
+  margin: 0 0 $apple-space-4 0;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
   overflow: hidden;
+  font-family: $apple-font-family;
 }
 
 .post-assets {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
-  margin-bottom: 0.75rem;
+  gap: $apple-space-3;
+  margin-bottom: $apple-space-4;
   flex-wrap: wrap;
 }
 
 .assets-label {
-  font-size: 0.6875rem;
-  color: $text-muted;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
+  font-family: $apple-font-family;
 }
 
 .asset-chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.15rem 0.5rem;
-  background: rgba(29, 78, 216, 0.08);
-  border: 1px solid rgba(29, 78, 216, 0.15);
-  border-radius: 6px;
+  gap: $apple-space-2;
+  padding: 4px 10px;
+  background: rgba(0, 0, 0, 0.05);
+  border: none;
+  border-radius: 999px;
   cursor: pointer;
-  transition: $transition-all;
-  font-size: 0.6875rem;
+  transition: all 0.2s ease;
+  font-size: $apple-font-caption;
+  font-family: $apple-font-family;
 
   &:hover {
-    background: rgba(29, 78, 216, 0.14);
-    border-color: rgba(29, 78, 216, 0.28);
+    background: rgba(0, 0, 0, 0.08);
   }
 
   .asset-chip-code {
-    font-weight: 700;
-    color: $primary-color;
+    font-weight: 600;
+    color: $apple-text-primary;
     font-family: 'IBM Plex Mono', monospace;
   }
 
   .asset-chip-name {
-    color: $text-muted;
+    color: $apple-text-tertiary;
   }
 }
 
@@ -1553,34 +1630,36 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 0.625rem;
-  border-top: 1px solid $border-subtle;
+  padding-top: $apple-space-4;
+  border-top: 1px solid $apple-border-light;
 }
 
 .post-interactions {
   display: flex;
-  gap: 1.25rem;
+  gap: $apple-space-6;
 }
 
 .interaction-btn {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
-  font-size: 0.8125rem;
-  color: $text-muted;
+  gap: $apple-space-2;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
   cursor: pointer;
   transition: $transition-colors;
+  font-family: $apple-font-family;
 
-  &:hover { color: $primary-color; }
-  &.liked { color: #f56c6c; }
+  &:hover { color: $apple-accent; }
+  &.liked { color: #e85d5d; }
 }
 
 .favorited-badge {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  font-size: 0.75rem;
-  color: $accent-gold;
+  gap: $apple-space-2;
+  font-size: $apple-font-caption;
+  color: $warning-color;
+  font-family: $apple-font-family;
 }
 
 .feed-empty {
@@ -1594,10 +1673,11 @@ onMounted(() => {
 }
 
 .see-more-btn {
-  color: $text-muted !important;
-  font-size: 0.875rem !important;
-  font-weight: 600 !important;
-  &:hover { color: $primary-color !important; }
+  color: $apple-text-tertiary !important;
+  font-size: $apple-font-body !important;
+  font-weight: 500 !important;
+  font-family: $apple-font-family !important;
+  &:hover { color: $apple-accent !important; }
 }
 
 // ============================================================
@@ -1610,43 +1690,47 @@ onMounted(() => {
 }
 
 .sidebar-card {
-  background: #FFFFFF;
-  border: 1px solid $border-subtle;
-  border-radius: $border-radius;
-  padding: 1rem;
-  box-shadow: $shadow-sm;
+  background: $apple-bg-elevated;
+  backdrop-filter: $apple-glass-blur;
+  -webkit-backdrop-filter: $apple-glass-blur;
+  border: 1px solid $apple-border-light;
+  border-radius: $apple-radius-md;
+  padding: $apple-space-6;
+  box-shadow: $apple-shadow-sm;
 }
 
 .sidebar-card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.875rem;
+  margin-bottom: $apple-space-4;
 }
 
 .sidebar-card-title {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: $apple-space-3;
 
   .title-emoji { font-size: 1rem; }
 
   h3 {
-    font-size: 0.9375rem;
-    font-weight: 700;
-    color: $text-primary;
+    font-size: $apple-font-body;
+    font-weight: 600;
+    color: $apple-text-primary;
     margin: 0;
     letter-spacing: -0.01em;
+    font-family: $apple-font-family;
   }
 }
 
 .sidebar-more-link {
-  font-size: 0.8125rem;
-  color: $primary-color;
+  font-size: $apple-font-body;
+  color: $apple-accent;
   text-decoration: none;
-  font-weight: 600;
+  font-weight: 500;
   transition: $transition-colors;
-  &:hover { color: $primary-color; }
+  font-family: $apple-font-family;
+  &:hover { color: $apple-accent; }
 }
 
 .sidebar-skeleton { padding: 0.5rem 0; }
@@ -1667,23 +1751,25 @@ onMounted(() => {
 .portfolio-rank-item {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
-  padding: 0.625rem 0.5rem;
-  border-radius: 8px;
+  gap: $apple-space-3;
+  padding: $apple-space-4 $apple-space-3;
+  border-radius: $apple-radius-sm;
   cursor: pointer;
-  transition: $transition-all;
+  transition: all 0.2s ease;
 
   &:hover {
-    background: rgba(29, 78, 216, 0.05);
-    transform: translateX(2px);
+    background: rgba(0, 0, 0, 0.03);
   }
 }
 
 .pf-medal {
-  font-size: 1.125rem;
+  font-size: $apple-font-body;
+  font-weight: 600;
+  color: $apple-text-tertiary;
   flex-shrink: 0;
-  width: 24px;
+  width: 28px;
   text-align: center;
+  font-family: 'IBM Plex Mono', monospace;
 }
 
 .pf-info {
@@ -1692,112 +1778,115 @@ onMounted(() => {
 }
 
 .pf-title {
-  font-size: 0.8125rem;
+  font-size: $apple-font-body;
   font-weight: 600;
-  color: $text-primary;
+  color: $apple-text-primary;
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-family: $apple-font-family;
 }
 
 .pf-meta {
   display: flex;
   align-items: center;
-  gap: 0.375rem;
-  margin-top: 0.125rem;
+  gap: $apple-space-2;
+  margin-top: $apple-space-2;
 }
 
 .pf-avatar {
   background: $gradient-primary !important;
   font-size: 0.5625rem !important;
-  font-weight: 700 !important;
+  font-weight: 600 !important;
 }
 
 .pf-user {
-  font-size: 0.6875rem;
-  color: $text-muted;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
+  font-family: $apple-font-family;
 }
 
 .pf-risk {
-  font-size: 0.625rem;
-  color: $text-muted;
-  padding: 0.1rem 0.375rem;
-  background: $bg-surface;
-  border: 1px solid $border-subtle;
-  border-radius: 4px;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
+  padding: 2px 8px;
+  background: rgba(0, 0, 0, 0.04);
+  border: none;
+  border-radius: 999px;
+  font-family: $apple-font-family;
 }
 
 .pf-right {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 0.125rem;
+  gap: $apple-space-2;
   flex-shrink: 0;
 }
 
 .pf-return {
-  font-size: 0.875rem;
-  font-weight: 700;
+  font-size: $apple-font-body;
+  font-weight: 600;
   font-family: 'IBM Plex Mono', monospace;
 
-  &.up { color: #f56c6c; }
-  &.down { color: #67c23a; }
+  &.up { color: #e85d5d; }
+  &.down { color: #16a34a; }
 }
 
 .pf-likes {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  font-size: 0.6875rem;
-  color: $text-muted;
+  gap: $apple-space-2;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
+  font-family: $apple-font-family;
 }
 
 .sidebar-card-footer {
   display: flex;
-  gap: 0.5rem;
-  margin-top: 0.875rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid $border-subtle;
+  gap: $apple-space-3;
+  margin-top: $apple-space-4;
+  padding-top: $apple-space-4;
+  border-top: 1px solid $apple-border-light;
 }
 
 .sidebar-action-btn {
   flex: 1;
-  font-size: 0.75rem !important;
+  font-size: $apple-font-caption !important;
 }
 
 // ---- Hot Assets ----
 .hot-assets-list {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
+  gap: $apple-space-2;
 }
 
 .hot-asset-item {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
-  padding: 0.5rem 0.5rem;
-  border-radius: 8px;
+  gap: $apple-space-3;
+  padding: $apple-space-3;
+  border-radius: $apple-radius-sm;
   cursor: pointer;
-  transition: $transition-all;
+  transition: all 0.2s ease;
 
   &:hover {
-    background: $bg-surface;
-    transform: translateX(2px);
+    background: rgba(0, 0, 0, 0.03);
   }
 }
 
 .hot-rank-num {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: $text-muted;
-  width: 18px;
+  font-size: $apple-font-body;
+  font-weight: 600;
+  color: $apple-text-tertiary;
+  width: 24px;
   text-align: center;
   flex-shrink: 0;
   font-family: 'IBM Plex Mono', monospace;
 
-  &.hot-top3 { color: $accent-gold; }
+  &.hot-top3 { color: $warning-color; }
 }
 
 .hot-asset-info {
@@ -1805,103 +1894,108 @@ onMounted(() => {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.075rem;
+  gap: 2px;
 }
 
 .hot-code {
-  font-size: 0.8125rem;
-  font-weight: 700;
-  color: $text-primary;
+  font-size: $apple-font-body;
+  font-weight: 600;
+  color: $apple-text-primary;
   font-family: 'IBM Plex Mono', monospace;
 }
 
 .hot-name {
-  font-size: 0.6875rem;
-  color: $text-muted;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-family: $apple-font-family;
 }
 
 .hot-right {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 0.125rem;
+  gap: $apple-space-2;
   flex-shrink: 0;
 }
 
 .hot-pct {
-  font-size: 0.8125rem;
-  font-weight: 700;
+  font-size: $apple-font-body;
+  font-weight: 600;
   font-family: 'IBM Plex Mono', monospace;
 
-  &.up { color: #f56c6c; }
-  &.down { color: #67c23a; }
-  &.flat { color: $text-muted; }
+  &.up { color: #e85d5d; }
+  &.down { color: #16a34a; }
+  &.flat { color: $apple-text-tertiary; }
 }
 
 .hot-market {
-  font-size: 0.625rem;
-  color: $text-muted;
-  background: $bg-surface;
-  border: 1px solid $border-subtle;
-  padding: 0.1rem 0.375rem;
-  border-radius: 4px;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
+  background: rgba(0, 0, 0, 0.04);
+  border: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-family: $apple-font-family;
 }
 
 .full-ranking-btn {
-  color: $text-muted !important;
-  font-size: 0.8125rem !important;
-  margin-top: 0.5rem;
+  color: $apple-text-tertiary !important;
+  font-size: $apple-font-body !important;
+  margin-top: $apple-space-3;
   width: 100%;
-  &:hover { color: $primary-color !important; }
+  font-family: $apple-font-family !important;
+  &:hover { color: $apple-accent !important; }
 }
 
 // ---- Community Stats ----
 .community-stats-card {
-  .sidebar-card-title { margin-bottom: 0.875rem; }
+  .sidebar-card-title { margin-bottom: $apple-space-4; }
 }
 
 .community-stats-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
-  margin-bottom: 0.875rem;
+  gap: $apple-space-3;
+  margin-bottom: $apple-space-4;
 }
 
 .cs-stat {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
-  padding: 0.625rem;
-  background: $bg-surface;
-  border: 1px solid $border-subtle;
-  border-radius: 8px;
+  gap: $apple-space-3;
+  padding: $apple-space-3;
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid $apple-border-light;
+  border-radius: $apple-radius-sm;
 }
 
 .cs-icon {
   font-size: 1.125rem;
   flex-shrink: 0;
+  color: $apple-text-secondary;
 }
 
 .cs-content {
   display: flex;
   flex-direction: column;
-  gap: 0.125rem;
+  gap: 2px;
 }
 
 .cs-value {
-  font-size: 1rem;
-  font-weight: 700;
-  color: $text-primary;
+  font-size: $apple-font-body;
+  font-weight: 600;
+  color: $apple-text-primary;
   font-family: 'IBM Plex Mono', monospace;
   letter-spacing: -0.02em;
 }
 
 .cs-label {
-  font-size: 0.6875rem;
-  color: $text-muted;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
+  font-family: $apple-font-family;
 }
 
 .admin-value {
@@ -1911,21 +2005,22 @@ onMounted(() => {
 .admin-entry {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.625rem 0.75rem;
-  background: rgba(245, 158, 11, 0.08);
-  border: 1px solid rgba(245, 158, 11, 0.2);
-  border-radius: 8px;
+  gap: $apple-space-3;
+  padding: $apple-space-3 $apple-space-4;
+  background: rgba(245, 158, 11, 0.06);
+  border: 1px solid rgba(245, 158, 11, 0.15);
+  border-radius: $apple-radius-sm;
   cursor: pointer;
-  font-size: 0.8125rem;
-  font-weight: 600;
+  font-size: $apple-font-body;
+  font-weight: 500;
   color: #D97706;
-  margin-bottom: 0.75rem;
-  transition: $transition-all;
+  margin-bottom: $apple-space-4;
+  transition: all 0.2s ease;
+  font-family: $apple-font-family;
 
   &:hover {
-    background: rgba(245, 158, 11, 0.12);
-    border-color: rgba(245, 158, 11, 0.35);
+    background: rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.25);
   }
 
   span { flex: 1; }
@@ -1933,12 +2028,25 @@ onMounted(() => {
 
 .quick-actions {
   display: flex;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: $apple-space-2;
 }
 
-.action-btn {
-  flex: 1;
-  font-size: 0.75rem !important;
+.quick-action-item {
+  padding: $apple-space-3 $apple-space-4;
+  border-radius: $apple-radius-sm;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: $apple-font-body;
+  color: $apple-text-primary;
+  font-family: $apple-font-family;
+  border: none;
+  background: transparent;
+  text-align: left;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.03);
+  }
 }
 
 // ---- Recommend Card ----
@@ -1949,59 +2057,61 @@ onMounted(() => {
 .recommend-list {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
+  gap: $apple-space-2;
 }
 
 .recommend-item {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.625rem 0.5rem;
-  border-radius: 8px;
+  gap: $apple-space-3;
+  padding: $apple-space-3;
+  border-radius: $apple-radius-sm;
   cursor: pointer;
-  transition: $transition-all;
+  transition: all 0.2s ease;
 
   &:hover {
-    background: rgba(29, 78, 216, 0.05);
-    transform: translateX(2px);
+    background: rgba(0, 0, 0, 0.03);
   }
 }
 
 .rec-icon {
   font-size: 1.25rem;
   flex-shrink: 0;
+  color: $apple-text-secondary;
 }
 
 .rec-info {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.125rem;
+  gap: 2px;
 }
 
 .rec-title {
-  font-size: 0.875rem;
+  font-size: $apple-font-body;
   font-weight: 600;
-  color: $text-primary;
+  color: $apple-text-primary;
+  font-family: $apple-font-family;
 }
 
 .rec-desc {
-  font-size: 0.6875rem;
-  color: $text-muted;
+  font-size: $apple-font-caption;
+  color: $apple-text-tertiary;
+  font-family: $apple-font-family;
 }
 
 .rec-arrow {
-  color: $text-muted;
+  color: $apple-text-tertiary;
   flex-shrink: 0;
-  font-size: 0.75rem;
+  font-size: $apple-font-body;
 }
 
 // ============================================================
 // 全局变量
 // ============================================================
-.up { color: #f56c6c; }
-.down { color: #67c23a; }
-.flat { color: $text-muted; }
+.up { color: #e85d5d; }
+.down { color: #16a34a; }
+.flat { color: $apple-text-tertiary; }
 
 // ============================================================
 // 动画

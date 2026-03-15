@@ -8,7 +8,7 @@
       </el-button>
     </div>
 
-    <!-- 系统状态卡�?-->
+    <!-- 系统状态卡-->
     <div class="status-grid" v-if="!statusLoading && status">
       <div class="status-card card">
         <div class="status-icon">🔑</div>
@@ -16,7 +16,7 @@
           <div class="status-label">Finnhub Key</div>
           <div class="status-value">
             <el-tag :type="status.finnhubKeyConfigured ? 'success' : 'danger'" size="small">
-              {{ status.finnhubKeyConfigured ? '已配�? : '未配�? }}
+              {{ status.finnhubKeyConfigured ? '已配' : '未配' }}
             </el-tag>
           </div>
         </div>
@@ -41,7 +41,7 @@
       <div class="status-card card">
         <div class="status-icon">📈</div>
         <div class="status-info">
-          <div class="status-label">K线数�?/div>
+          <div class="status-label">K线数</div>
           <div class="status-value count">{{ status.klineCount?.toLocaleString() }}</div>
         </div>
       </div>
@@ -53,10 +53,10 @@
       </div>
     </div>
 
-    <!-- 最近任务状�?-->
+    <!-- 最近任务状态-->
     <div class="card recent-jobs-card" v-if="status?.recentJobs">
       <div class="card-header">
-        <h3 class="card-title">最近任务状�?/h3>
+        <h3 class="card-title">最近任务状态</h3>
       </div>
       <div class="jobs-grid">
         <div
@@ -67,10 +67,10 @@
           <div class="job-type">{{ jobType }}</div>
           <div class="job-info">
             <el-tag :type="getJobStatusTagType(jobData?.status)" size="small">
-              {{ jobData?.status || '�? }}
+              {{ jobData?.status || '--' }}
             </el-tag>
             <span class="job-rows" v-if="jobData?.affected_rows !== undefined">
-              {{ jobData.affected_rows }} �?
+              {{ jobData.affected_rows }} --
             </span>
             <span class="job-time" v-if="jobData?.started_at">
               {{ formatJobTime(jobData.started_at) }}
@@ -90,9 +90,9 @@
         <div class="form-row">
           <el-select v-model="triggerForm.jobType" placeholder="选择任务类型" size="default" class="trigger-select">
             <el-option label="SYMBOLS_SYNC - 同步资产符号" value="SYMBOLS_SYNC" />
-            <el-option label="KLINE_SYNC - 同步K线数�? value="KLINE_SYNC" />
+            <el-option label="KLINE_SYNC - 同步K线数" value="KLINE_SYNC" />
             <el-option label="QUOTE_REFRESH - 刷新行情快照" value="QUOTE_REFRESH" />
-            <el-option label="DQ_CHECK - 数据质量检�? value="DQ_CHECK" />
+            <el-option label="DQ_CHECK - 数据质量检查" value="DQ_CHECK" />
             <el-option label="CLEANUP - 清理过期数据" value="CLEANUP" />
           </el-select>
 
@@ -134,7 +134,7 @@
         <!-- 触发结果 -->
         <el-alert
           v-if="triggerResult"
-          :title="triggerResult.message || '任务已触�?"
+          :title="triggerResult.message || '任务已触发'"
           :type="triggerResult.success ? 'success' : 'error'"
           show-icon
           :closable="true"
@@ -167,13 +167,13 @@
 
           <el-select
             v-model="logFilter.status"
-            placeholder="全部状�?
+            placeholder="全部状态"
             clearable
             size="small"
             @change="loadJobs"
             style="width: 120px;"
           >
-            <el-option label="全部状�? value="" />
+            <el-option label="全部状态" value="" />
             <el-option label="SUCCESS" value="SUCCESS" />
             <el-option label="FAILED" value="FAILED" />
             <el-option label="RUNNING" value="RUNNING" />
@@ -193,9 +193,9 @@
         <div class="table-header">
           <div>ID</div>
           <div>任务类型</div>
-          <div>状�?/div>
+          <div>状态</div>
           <div>影响行数</div>
-          <div>开始时�?/div>
+          <div>开始时间</div>
           <div>耗时</div>
           <div>备注</div>
         </div>
@@ -210,10 +210,10 @@
           <div>
             <el-tag :type="getJobStatusTagType(job.status)" size="small">{{ job.status }}</el-tag>
           </div>
-          <div class="job-rows-col">{{ job.affectedRows ?? '�? }}</div>
+          <div class="job-rows-col">{{ job.affectedRows ?? '--' }}</div> 
           <div class="job-time-col">{{ formatJobTime(job.startedAt) }}</div>
-          <div class="job-duration">{{ job.durationSeconds ? `${job.durationSeconds.toFixed(1)}s` : '�? }}</div>
-          <div class="job-message" :title="job.message">{{ job.message || '�? }}</div>
+          <div class="job-duration">{{ job.durationSeconds ? `${job.durationSeconds.toFixed(1)}s` : '--' }}</div>
+          <div class="job-message" :title="job.message">{{ job.message || '--' }}</div>
         </div>
       </div>
 
@@ -332,7 +332,7 @@ const refreshAll = async () => {
   refreshing.value = true
   await Promise.all([loadStatus(), loadJobs()])
   refreshing.value = false
-  ElMessage.success('数据已刷�?)
+  ElMessage.success('数据已刷新')
 }
 
 const getJobStatusTagType = (status?: string) => {
@@ -343,7 +343,7 @@ const getJobStatusTagType = (status?: string) => {
 }
 
 const formatJobTime = (timeStr?: string) => {
-  if (!timeStr) return '�?
+  if (!timeStr) return '--';
   const d = new Date(timeStr)
   const mm = String(d.getMonth() + 1).padStart(2, '0')
   const dd = String(d.getDate()).padStart(2, '0')
@@ -399,7 +399,7 @@ onMounted(() => {
   margin: 0;
 }
 
-// 状态卡�?
+// 状态卡-->
 .status-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -438,7 +438,7 @@ onMounted(() => {
   }
 }
 
-// 最近任�?
+// 最近任务状态-->
 .recent-jobs-card {
   .jobs-grid {
     display: grid;
