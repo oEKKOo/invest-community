@@ -10,6 +10,7 @@ const AdminPanel = () => import('../views/AdminPanel.vue')
 const Profile = () => import('../views/Profile.vue')
 const SearchView = () => import('../views/Search.vue')
 const Login = () => import('../views/Login.vue')
+const OAuthCallback = () => import('../views/auth/OAuthCallback.vue')
 const PostDetail = () => import('../views/PostDetail.vue')
 const PortfolioDetail = () => import('../views/PortfolioDetail.vue')
 // 新增页面
@@ -19,12 +20,22 @@ const MarketRankings = () => import('../views/MarketRankings.vue')
 const DataMonitor = () => import('../views/admin/DataMonitor.vue')
 const MyHoldings = () => import('../views/MyHoldings.vue')
 const Messages = () => import('../views/Messages.vue')
+const VerifyChannel = () => import('../views/auth/VerifyChannel.vue')
+const RealNameAuth = () => import('../views/auth/RealNameAuth.vue')
+const ProfessionalAuth = () => import('../views/auth/ProfessionalAuth.vue')
+const RiskAssessment = () => import('../views/auth/RiskAssessment.vue')
 
 const routes: RouteRecordRaw[] = [
   {
     path: '/login',
     name: 'Login',
     component: Login,
+    meta: { requiresAuth: false }
+  },
+  {
+    path: '/auth/callback/:provider',
+    name: 'OAuthCallback',
+    component: OAuthCallback,
     meta: { requiresAuth: false }
   },
   {
@@ -113,6 +124,30 @@ const routes: RouteRecordRaw[] = [
         name: 'Messages',
         component: Messages,
         meta: { title: '私信会话', requiresAuth: true }
+      },
+      {
+        path: '/auth/verify',
+        name: 'VerifyChannel',
+        component: VerifyChannel,
+        meta: { title: '基础认证', requiresAuth: true }
+      },
+      {
+        path: '/auth/real-name',
+        name: 'RealNameAuth',
+        component: RealNameAuth,
+        meta: { title: '实名认证', requiresAuth: true }
+      },
+      {
+        path: '/auth/professional',
+        name: 'ProfessionalAuth',
+        component: ProfessionalAuth,
+        meta: { title: '专业认证', requiresAuth: true }
+      },
+      {
+        path: '/auth/risk',
+        name: 'RiskAssessment',
+        component: RiskAssessment,
+        meta: { title: '风险评估', requiresAuth: true }
       },
       // 新增路由
       {

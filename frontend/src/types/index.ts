@@ -5,10 +5,45 @@ export interface User {
   displayName: string
   avatar: string
   role: 'USER' | 'MODERATOR' | 'ADMIN'
+  phoneVerified?: boolean
+  emailVerified?: boolean
+  identityLevel?: 'UNVERIFIED' | 'BASIC' | 'REAL_NAME' | 'PROFESSIONAL'
+  realNameStatus?: 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED'
+  professionalStatus?: 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED'
+  riskAssessmentStatus?: 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED'
+  riskLevel?: 'R1' | 'R2' | 'R3' | 'R4' | 'R5' | null
+  vBadge?: boolean
   bio?: string
+  investmentExperience?: string
   followers: number
   following: number
   created_at?: string
+}
+
+export interface PrivacySettings {
+  profileVisibility: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE'
+  showInvestProfile: boolean
+  allowSearch: boolean
+  showEmail: boolean
+  showPhone: boolean
+  allowStrangerDm: boolean
+}
+
+export interface AchievementBadge {
+  code: string
+  name: string
+  description: string
+}
+
+export interface AchievementSummary {
+  postCount: number
+  featuredPostCount: number
+  portfolioCount: number
+  favoritesCount: number
+  likesCount: number
+  followersCount: number
+  influenceScore: number
+  badges: AchievementBadge[]
 }
 
 // 帖子状态枚举

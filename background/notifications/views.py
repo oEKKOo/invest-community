@@ -6,6 +6,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
 from rest_framework import generics
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -145,4 +146,8 @@ def notifications_stream(request):
 
     通知 SSE 长连接：用于前端 MainLayout 实时刷新未读数和通知列表。
     """
-    return _notification_stream(request)
+    # 暂时停用：避免前端依赖该长连接时触发错误/性能问题
+    return Response(
+        {'code': 0, 'message': '接口已暂时停用'},
+        status=status.HTTP_503_SERVICE_UNAVAILABLE,
+    )

@@ -1,5 +1,5 @@
-import { get, post, del } from './index'
-import type { Post, PaginatedResponse, Portfolio, User } from '@/types'
+import { del, get, patch, post } from './index'
+import type { AchievementSummary, PaginatedResponse, Portfolio, Post, PrivacySettings, User } from '@/types'
 
 // 关注流 / 社交 Feed：我关注的人发布的帖子
 export const getFollowingFeed = (params?: {
@@ -52,4 +52,16 @@ export const followUser = (userId: number): Promise<void> => {
 // 取消关注用户
 export const unfollowUser = (userId: number): Promise<void> => {
   return del(`/users/${userId}/follow/`)
+}
+
+export const getPrivacySettings = (): Promise<PrivacySettings> => {
+  return get('/users/me/privacy-settings/')
+}
+
+export const updatePrivacySettings = (params: Partial<PrivacySettings>): Promise<PrivacySettings> => {
+  return patch('/users/me/privacy-settings/', params)
+}
+
+export const getMyAchievements = (): Promise<AchievementSummary> => {
+  return get('/users/me/achievements/')
 }

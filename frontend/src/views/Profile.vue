@@ -26,6 +26,11 @@
           </div>
           <p class="hero-username">@{{ displayUser?.username || authStore.user?.username }}</p>
           <p class="hero-bio">{{ displayUser?.bio || authStore.user?.bio || '这个人很懒，还没有填写个人简介' }}</p>
+          <div v-if="displayUser?.investmentExperience || authStore.user?.investmentExperience" class="experience-tags">
+            <el-tag size="small" type="success">
+              投资经验：{{ displayUser?.investmentExperience || authStore.user?.investmentExperience }}
+            </el-tag>
+          </div>
           
           <!-- 核心指标 -->
           <div class="hero-stats">
@@ -67,6 +72,20 @@
                 size="large"
               >
                 复制邀请链接
+              </el-button>
+              <el-button
+                plain
+                @click="openInvestProfileDialog"
+                size="large"
+              >
+                投资偏好
+              </el-button>
+              <el-button
+                plain
+                @click="openPrivacyDialog"
+                size="large"
+              >
+                隐私设置
               </el-button>
             </template>
             <template v-else>
@@ -148,6 +167,50 @@
               </div>
               <el-icon class="overview-arrow"><ArrowRight /></el-icon>
             </div>
+          </div>
+
+          <div class="sidebar-card">
+            <h3 class="card-title">成就系统</h3>
+            <ul class="info-list">
+              <li class="info-item">
+                <span class="info-label">发帖数</span>
+                <span class="info-value">{{ achievements.postCount }}</span>
+              </li>
+              <li class="info-item">
+                <span class="info-label">精华帖</span>
+                <span class="info-value">{{ achievements.featuredPostCount }}</span>
+              </li>
+              <li class="info-item">
+                <span class="info-label">影响力值</span>
+                <span class="info-value">{{ achievements.influenceScore }}</span>
+              </li>
+            </ul>
+            <div class="achievement-badges" v-if="achievements.badges.length">
+              <el-tag
+                v-for="badge in achievements.badges"
+                :key="badge.code"
+                class="achievement-badge"
+                type="warning"
+                size="small"
+              >
+                {{ badge.name }}
+              </el-tag>
+            </div>
+            <el-empty v-else description="暂无荣誉勋章" :image-size="60" />
+          </div>
+
+          <div class="sidebar-card">
+            <h3 class="card-title">投资偏好</h3>
+            <ul class="info-list">
+              <li class="info-item">
+                <span class="info-label">风险偏好</span>
+                <span class="info-value">{{ riskLevelText }}</span>
+              </li>
+              <li class="info-item">
+                <span class="info-label">关注领域</span>
+                <span class="info-value">{{ investFocusText }}</span>
+              </li>
+            </ul>
           </div>
         </aside>
 
@@ -447,6 +510,12 @@
             show-word-limit
           />
         </el-form-item>
+        <el-form-item label="投资经验" prop="investmentExperience">
+          <el-input
+            v-model="editForm.investmentExperience"
+            placeholder="例如：3年股票投资经验"
+          />
+        </el-form-item>
         <el-form-item label="头像链接" prop="avatar">
           <el-input
             v-model="editForm.avatar"
@@ -464,6 +533,65 @@
           >
             保存
           </el-button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="showInvestProfileDialog"
+      title="投资偏好设置"
+      width="560px"
+      class="edit-profile-dialog"
+    >
+      <el-form label-width="100px">
+        <el-form-item label="关注领域">
+          <el-checkbox-group v-model="investProfileForm.focus_market">
+            <el-checkbox label="SH">A股</el-checkbox>
+            <el-checkbox label="HK">港股</el-checkbox>
+            <el-checkbox label="US">美股</el-checkbox>
+            <el-checkbox label="FUND">基金</el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
+        <el-form-item label="风险偏好">
+          <el-radio-group v-model="investProfileForm.risk_level">
+            <el-radio :value="1">低风险</el-radio>
+            <el-radio :value="2">中风险</el-radio>
+            <el-radio :value="3">高风险</el-radio>
+          </el-radio-group>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="showInvestProfileDialog = false">取消</el-button>
+          <el-button type="primary" :loading="investProfileSaving" @click="handleSaveInvestProfile">保存</el-button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="showPrivacyDialog"
+      title="隐私设置"
+      width="560px"
+      class="edit-profile-dialog"
+    >
+      <el-form label-width="140px">
+        <el-form-item label="主页可见性">
+          <el-select v-model="privacyForm.profileVisibility">
+            <el-option label="公开" value="PUBLIC" />
+            <el-option label="仅关注者可见" value="FOLLOWERS" />
+            <el-option label="仅自己可见" value="PRIVATE" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="展示投资偏好"><el-switch v-model="privacyForm.showInvestProfile" /></el-form-item>
+        <el-form-item label="允许被搜索"><el-switch v-model="privacyForm.allowSearch" /></el-form-item>
+        <el-form-item label="展示邮箱"><el-switch v-model="privacyForm.showEmail" /></el-form-item>
+        <el-form-item label="展示手机号"><el-switch v-model="privacyForm.showPhone" /></el-form-item>
+        <el-form-item label="允许陌生人私信"><el-switch v-model="privacyForm.allowStrangerDm" /></el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="showPrivacyDialog = false">取消</el-button>
+          <el-button type="primary" :loading="privacySaving" @click="handleSavePrivacy">保存</el-button>
         </div>
       </template>
     </el-dialog>
@@ -681,8 +809,16 @@ import dayjs from 'dayjs'
 import { getMyLikes } from '@/api/likes'
 import { getMyFavorites } from '@/api/posts'
 import type { User } from '@/types'
-import { getUserFollowers, getUserFollowing, unfollowUser, type UserFollowItem } from '@/api/users'
-import { updateCurrentUser } from '@/api/auth'
+import {
+  getMyAchievements,
+  getPrivacySettings,
+  getUserFollowers,
+  getUserFollowing,
+  unfollowUser,
+  updatePrivacySettings,
+  type UserFollowItem
+} from '@/api/users'
+import { getInvestProfile, getKycStatus, updateCurrentUser, updateInvestProfile } from '@/api/auth'
 import { getPortfolios } from '@/api/portfolios'
 
 const router = useRouter()
@@ -694,20 +830,49 @@ const portfoliosStore = usePortfoliosStore()
 // ──────────── 基础状态 ────────────
 const loading = ref(false)
 const showEditProfile = ref(false)
+const showInvestProfileDialog = ref(false)
+const showPrivacyDialog = ref(false)
 const updating = ref(false)
 const activeTab = ref('overview')
 const overviewLoading = ref(false)
 const portfoliosLoading = ref(false)
+const investProfileSaving = ref(false)
+const privacySaving = ref(false)
 
 const editFormRef = ref<FormInstance>()
-const editForm = ref({ displayName: '', bio: '', avatar: '' })
+const editForm = ref({ displayName: '', bio: '', avatar: '', investmentExperience: '' })
+const investProfileForm = ref({
+  risk_level: 2 as 1 | 2 | 3,
+  horizon: 2 as 1 | 2 | 3,
+  focus_market: [] as string[],
+  preferred_assets: ['stock']
+})
+const privacyForm = ref({
+  profileVisibility: 'PUBLIC',
+  showInvestProfile: true,
+  allowSearch: true,
+  showEmail: false,
+  showPhone: false,
+  allowStrangerDm: true
+})
+const achievements = ref({
+  postCount: 0,
+  featuredPostCount: 0,
+  portfolioCount: 0,
+  favoritesCount: 0,
+  likesCount: 0,
+  followersCount: 0,
+  influenceScore: 0,
+  badges: [] as Array<{ code: string; name: string; description: string }>
+})
 
 const editRules: FormRules = {
   displayName: [
     { required: true, message: '请输入显示昵称', trigger: 'blur' },
     { min: 2, max: 50, message: '昵称长度应在2-50字符之间', trigger: 'blur' }
   ],
-  bio: [{ max: 200, message: '个人简介不能超过200字符', trigger: 'blur' }]
+  bio: [{ max: 200, message: '个人简介不能超过200字符', trigger: 'blur' }],
+  investmentExperience: [{ max: 32, message: '投资经验标签不能超过32字符', trigger: 'blur' }]
 }
 
 // ──────────── 点赞记录 ────────────
@@ -854,6 +1019,7 @@ const fetchDisplayUser = async () => {
         avatar: d.avatar_url,
         role: (d.role || 'USER') as User['role'],
         bio: d.bio,
+        investmentExperience: d.investment_experience || d.investmentExperience || '',
         followers: d.followers_count,
         following: d.following_count,
         created_at: d.created_at
@@ -1102,6 +1268,16 @@ const avgEngagement = computed(() => {
   const avg = (totalLikes.value + totalComments.value) / total
   return avg.toFixed(1)
 })
+const riskLevelText = computed(() => {
+  const level = authStore.user?.riskLevel
+  if (!level) return '未评估'
+  return level
+})
+const investFocusText = computed(() => {
+  if (!investProfileForm.value.focus_market.length) return '未设置'
+  const map: Record<string, string> = { SH: 'A股', HK: '港股', US: '美股', FUND: '基金' }
+  return investProfileForm.value.focus_market.map((item) => map[item] || item).join(' / ')
+})
 
 const handleActivityClick = (activity: any) => {
   if (activity.type === 'post' && activity.targetId) {
@@ -1164,7 +1340,8 @@ const handleUpdateProfile = async () => {
     await updateCurrentUser({
       displayName: editForm.value.displayName,
       bio: editForm.value.bio,
-      avatar: editForm.value.avatar
+      avatar: editForm.value.avatar,
+      investmentExperience: editForm.value.investmentExperience
     })
 
     await authStore.fetchCurrentUser()
@@ -1179,6 +1356,71 @@ const handleUpdateProfile = async () => {
     ElMessage.error(error?.response?.data?.message || '更新失败，请稍后重试')
   } finally {
     updating.value = false
+  }
+}
+
+const fetchAchievements = async () => {
+  if (!isSelf.value) return
+  try {
+    achievements.value = await getMyAchievements()
+  } catch {
+    // 静默失败
+  }
+}
+
+const fetchPrivacySettings = async () => {
+  if (!isSelf.value) return
+  try {
+    privacyForm.value = await getPrivacySettings()
+  } catch {
+    // 静默失败
+  }
+}
+
+const openPrivacyDialog = async () => {
+  await fetchPrivacySettings()
+  showPrivacyDialog.value = true
+}
+
+const handleSavePrivacy = async () => {
+  try {
+    privacySaving.value = true
+    privacyForm.value = await updatePrivacySettings(privacyForm.value)
+    ElMessage.success('隐私设置已保存')
+    showPrivacyDialog.value = false
+  } catch {
+    ElMessage.error('保存隐私设置失败')
+  } finally {
+    privacySaving.value = false
+  }
+}
+
+const fetchInvestProfile = async () => {
+  if (!isSelf.value) return
+  try {
+    investProfileForm.value = await getInvestProfile()
+  } catch {
+    // 静默失败
+  }
+}
+
+const openInvestProfileDialog = async () => {
+  await fetchInvestProfile()
+  showInvestProfileDialog.value = true
+}
+
+const handleSaveInvestProfile = async () => {
+  try {
+    investProfileSaving.value = true
+    investProfileForm.value = await updateInvestProfile(investProfileForm.value)
+    await getKycStatus().catch(() => undefined)
+    await authStore.fetchCurrentUser().catch(() => undefined)
+    ElMessage.success('投资偏好已保存')
+    showInvestProfileDialog.value = false
+  } catch {
+    ElMessage.error('保存投资偏好失败')
+  } finally {
+    investProfileSaving.value = false
   }
 }
 
@@ -1300,6 +1542,9 @@ onMounted(() => {
   if (isSelf.value) {
     fetchLikesPreview()
     fetchFavoritesPreview()
+    fetchAchievements()
+    fetchPrivacySettings()
+    fetchInvestProfile()
   }
 })
 
@@ -1315,7 +1560,8 @@ watch(showEditProfile, (val) => {
     editForm.value = {
       displayName: authStore.user.displayName || '',
       bio: authStore.user.bio || '',
-      avatar: authStore.user.avatar || ''
+      avatar: authStore.user.avatar || '',
+      investmentExperience: authStore.user.investmentExperience || ''
     }
   }
 })
@@ -1417,6 +1663,10 @@ watch(showEditProfile, (val) => {
   font-family: $apple-font-family;
 }
 
+.experience-tags {
+  margin-bottom: $apple-space-4;
+}
+
 .hero-stats {
   display: flex;
   gap: $apple-space-8;
@@ -1480,6 +1730,10 @@ watch(showEditProfile, (val) => {
     width: 100%;
     margin-top: $apple-space-4;
   }
+}
+
+.hero-actions :deep(.el-button) {
+  border-radius: $apple-radius-md;
 }
 
 // ──────────── 主体内容区 ────────────
@@ -1638,6 +1892,13 @@ watch(showEditProfile, (val) => {
   height: 1px;
   background: $apple-border-light;
   margin: $apple-space-2 0;
+}
+
+.achievement-badges {
+  margin-top: $apple-space-3;
+  display: flex;
+  flex-wrap: wrap;
+  gap: $apple-space-2;
 }
 
 // ──────────── 主内容区 ────────────

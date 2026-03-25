@@ -222,6 +222,15 @@ SIMPLE_JWT = {
     'JTI_CLAIM': 'jti',
 }
 
+# OAuth providers (微信/微博)
+WECHAT_APP_ID = os.environ.get('WECHAT_APP_ID', '')
+WECHAT_APP_SECRET = os.environ.get('WECHAT_APP_SECRET', '')
+WECHAT_REDIRECT_URI = os.environ.get('WECHAT_REDIRECT_URI', '')
+
+WEIBO_CLIENT_ID = os.environ.get('WEIBO_CLIENT_ID', '')
+WEIBO_CLIENT_SECRET = os.environ.get('WEIBO_CLIENT_SECRET', '')
+WEIBO_REDIRECT_URI = os.environ.get('WEIBO_REDIRECT_URI', '')
+
 # CORS settings for frontend
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
@@ -231,6 +240,31 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+
+# Email (QQ SMTP / other providers)
+EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.qq.com')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 465))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'false').lower() == 'true'
+EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'true').lower() == 'true'
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+EMAIL_FROM = os.environ.get('EMAIL_FROM', DEFAULT_FROM_EMAIL)
+EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', 10))
+
+# SMS provider
+# SMS_PROVIDER=MOCK | TWILIO | HTTP
+SMS_PROVIDER = os.environ.get('SMS_PROVIDER', 'MOCK')
+
+# Twilio settings (SMS_PROVIDER=TWILIO)
+TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', '')
+TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '')
+TWILIO_FROM_PHONE = os.environ.get('TWILIO_FROM_PHONE', '')
+
+# Generic HTTP SMS gateway settings (SMS_PROVIDER=HTTP)
+SMS_HTTP_URL = os.environ.get('SMS_HTTP_URL', '')
+SMS_HTTP_TOKEN = os.environ.get('SMS_HTTP_TOKEN', '')
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Finnhub 行情数据接入配置（美股 / 港股）

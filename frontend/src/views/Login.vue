@@ -17,6 +17,14 @@
       <el-card class="login-card">
         <el-tabs v-model="activeTab" class="login-tabs">
           <el-tab-pane label="登录" name="login">
+            <el-segmented
+              v-model="loginMode"
+              :options="[
+                { label: '密码登录', value: 'password' },
+                { label: '验证码登录', value: 'sms' }
+              ]"
+              style="margin-bottom: 12px;"
+            />
             <el-form
               ref="loginFormRef"
               :model="loginForm"
@@ -26,8 +34,8 @@
             >
               <el-form-item prop="username">
                 <el-input
-                  v-model="loginForm.username"
-                  placeholder="用户名/ 邮箱"
+                  v-model="loginForm.identifier"
+                  :placeholder="loginMode === 'password' ? '用户名/邮箱/手机号' : '手机号'"
                   size="large"
                   clearable
                 >
@@ -37,7 +45,7 @@
                 </el-input>
               </el-form-item>
 
-              <el-form-item prop="password">
+              <el-form-item prop="password" v-if="loginMode === 'password'">
                 <el-input
                   v-model="loginForm.password"
                   type="password"
@@ -48,6 +56,22 @@
                 >
                   <template #prefix>
                     <el-icon><Lock /></el-icon>
+                  </template>
+                </el-input>
+              </el-form-item>
+
+              <el-form-item prop="smsCode" v-else>
+                <el-input
+                  v-model="loginForm.smsCode"
+                  placeholder="短信验证码"
+                  size="large"
+                  @keyup.enter="handleLogin"
+                >
+                  <template #prefix>
+                    <el-icon><Lock /></el-icon>
+                  </template>
+                  <template #append>
+                    <el-button @click="sendLoginCode">发送验证码</el-button>
                   </template>
                 </el-input>
               </el-form-item>
@@ -64,9 +88,25 @@
                 </el-button>
               </el-form-item>
             </el-form>
+
+            <div v-if="showThirdPartyLogin" class="oauth-login-wrap">
+              <el-divider>第三方登录</el-divider>
+              <div class="oauth-btns">
+                <el-button @click="handleOAuthLogin('wechat')">微信登录</el-button>
+                <el-button @click="handleOAuthLogin('weibo')">微博登录</el-button>
+              </div>
+            </div>
           </el-tab-pane>
 
           <el-tab-pane label="注册" name="register">
+            <el-segmented
+              v-model="registerMode"
+              :options="[
+                { label: '邮箱注册', value: 'email' },
+                { label: '手机注册', value: 'phone' }
+              ]"
+              style="margin-bottom: 12px;"
+            />
             <el-form
               ref="registerFormRef"
               :model="registerForm"
@@ -87,7 +127,7 @@
                 </el-input>
               </el-form-item>
 
-              <el-form-item prop="email">
+              <el-form-item prop="email" v-if="registerMode === 'email'">
                 <el-input
                   v-model="registerForm.email"
                   placeholder="邮箱地址"
@@ -100,15 +140,31 @@
                 </el-input>
               </el-form-item>
 
-              <el-form-item prop="phone">
+              <el-form-item prop="emailCode" v-if="registerMode === 'email'">
+                <el-input v-model="registerForm.emailCode" placeholder="邮箱验证码" size="large">
+                  <template #append>
+                    <el-button @click="sendRegisterEmailCode">发送验证码</el-button>
+                  </template>
+                </el-input>
+              </el-form-item>
+
+              <el-form-item prop="phone" v-if="registerMode === 'phone'">
                 <el-input
                   v-model="registerForm.phone"
-                  placeholder="手机号（可选）"
+                  placeholder="手机号"
                   size="large"
                   clearable
                 >
                   <template #prefix>
                     <el-icon><Phone /></el-icon>
+                  </template>
+                </el-input>
+              </el-form-item>
+
+              <el-form-item prop="phoneCode" v-if="registerMode === 'phone'">
+                <el-input v-model="registerForm.phoneCode" placeholder="短信验证码" size="large">
+                  <template #append>
+                    <el-button @click="sendRegisterPhoneCode">发送验证码</el-button>
                   </template>
                 </el-input>
               </el-form-item>
@@ -171,6 +227,7 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import * as authApi from '../api/auth'
 import {
   User,
   Lock,
@@ -187,6 +244,9 @@ if (!authStore) {
 }
 
 const activeTab = ref('login')
+const loginMode = ref<'password' | 'sms'>('password')
+const registerMode = ref<'email' | 'phone'>('email')
+const showThirdPartyLogin = false
 const loading = ref(false)
 
 // 表单引用
@@ -195,8 +255,9 @@ const registerFormRef = ref<FormInstance>()
 
 // 登录表单
 const loginForm = reactive({
-  username: '',
-  password: ''
+  identifier: '',
+  password: '',
+  smsCode: ''
 })
 
 // 注册表单
@@ -204,18 +265,22 @@ const registerForm = reactive({
   username: '',
   email: '',
   phone: '',
+  emailCode: '',
+  phoneCode: '',
   password: '',
   password_confirm: ''
 })
 
 // 登录表单验证规则
 const loginRules: FormRules = {
-  username: [
-    { required: true, message: '请输入用户名或邮箱', trigger: 'blur' }
+  identifier: [
+    { required: true, message: '请输入登录标识', trigger: 'blur' }
   ],
   password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, message: '密码长度至少6位', trigger: 'blur' }
+    { required: loginMode.value === 'password', message: '请输入密码', trigger: 'blur' },
+  ],
+  smsCode: [
+    { required: loginMode.value === 'sms', message: '请输入验证码', trigger: 'blur' }
   ]
 }
 
@@ -224,6 +289,12 @@ const registerRules: FormRules = {
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
     { min: 3, max: 150, message: '用户名长度3-150字符', trigger: 'blur' }
+  ],
+  emailCode: [
+    { required: registerMode.value === 'email', message: '请输入邮箱验证码', trigger: 'blur' }
+  ],
+  phoneCode: [
+    { required: registerMode.value === 'phone', message: '请输入短信验证码', trigger: 'blur' }
   ],
   email: [
     { required: true, message: '请输入邮箱地址', trigger: 'blur' },
@@ -256,7 +327,17 @@ const handleLogin = async () => {
     await loginFormRef.value.validate()
     loading.value = true
     
-    await authStore.login(loginForm)
+    if (loginMode.value === 'password') {
+      await authStore.loginWithPassword({
+        identifier: loginForm.identifier,
+        password: loginForm.password
+      })
+    } else {
+      await authStore.loginWithSms({
+        phone: loginForm.identifier,
+        code: loginForm.smsCode
+      })
+    }
     
     ElMessage.success('登录成功')
     router.push('/')
@@ -298,7 +379,23 @@ const handleRegister = async () => {
       return
     }
     
-    await authStore.register(registerForm)
+    if (registerMode.value === 'email') {
+      await authStore.registerByEmail({
+        username: registerForm.username,
+        email: registerForm.email,
+        password: registerForm.password,
+        password_confirm: registerForm.password_confirm,
+        email_code: registerForm.emailCode
+      })
+    } else {
+      await authStore.registerByPhone({
+        username: registerForm.username,
+        phone: registerForm.phone,
+        password: registerForm.password,
+        password_confirm: registerForm.password_confirm,
+        phone_code: registerForm.phoneCode
+      })
+    }
     
     ElMessage.success('注册成功！欢迎加入InvestHub')
     
@@ -316,6 +413,50 @@ const handleRegister = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const sendLoginCode = async () => {
+  if (!loginForm.identifier) {
+    ElMessage.warning('请先输入手机号')
+    return
+  }
+  await authApi.sendVerificationCode({
+    channel: 'PHONE',
+    target: loginForm.identifier,
+    purpose: 'LOGIN'
+  })
+  ElMessage.success('验证码已发送')
+}
+
+const sendRegisterEmailCode = async () => {
+  if (!registerForm.email) {
+    ElMessage.warning('请先输入邮箱')
+    return
+  }
+  await authApi.sendVerificationCode({
+    channel: 'EMAIL',
+    target: registerForm.email,
+    purpose: 'REGISTER'
+  })
+  ElMessage.success('验证码已发送')
+}
+
+const sendRegisterPhoneCode = async () => {
+  if (!registerForm.phone) {
+    ElMessage.warning('请先输入手机号')
+    return
+  }
+  await authApi.sendVerificationCode({
+    channel: 'PHONE',
+    target: registerForm.phone,
+    purpose: 'REGISTER'
+  })
+  ElMessage.success('验证码已发送')
+}
+
+const handleOAuthLogin = async (provider: 'wechat' | 'weibo') => {
+  const data = await authApi.getOAuthStartUrl(provider)
+  window.location.href = data.authorizeUrl
 }
 </script>
 
@@ -449,6 +590,23 @@ const handleRegister = async () => {
   }
 }
 
+/* 统一登录/注册模式切换 segmented 圆角 */
+:deep(.el-segmented) {
+  border-radius: 10px !important;
+}
+
+:deep(.el-segmented__group) {
+  border-radius: 10px !important;
+}
+
+:deep(.el-segmented__item) {
+  border-radius: 10px !important;
+}
+
+:deep(.el-segmented__item-selected) {
+  border-radius: 10px !important;
+}
+
 .login-form,
 .register-form {
   :deep(.el-form-item) {
@@ -496,6 +654,26 @@ const handleRegister = async () => {
 
   :deep(.el-input__suffix) {
     color: $text-secondary !important;
+  }
+
+  /* 修复验证码输入框 append 区域左侧分割线丢失 */
+  :deep(.el-input-group__append) {
+    border: 1px solid $border-default !important;
+    border-left: 1px solid $border-default !important;
+    box-shadow: none !important;
+    background: $bg-surface !important;
+    border-radius: 10px !important;
+    overflow: hidden;
+  }
+
+  :deep(.el-input-group__append .el-button) {
+    border-left: 0 !important;
+    border-color: transparent !important;
+    color: $text-secondary !important;
+    background: transparent !important;
+    border-radius: 10px !important;
+    height: 44px !important;
+    padding: 0 1rem !important;
   }
 }
 

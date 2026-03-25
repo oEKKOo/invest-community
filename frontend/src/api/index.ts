@@ -4,6 +4,16 @@ import type { ApiResponse } from '../types'
 // import { useAuthStore } from '@/stores/auth'
 import { ElMessage } from 'element-plus'
 
+const TOKEN_KEY = 'investhub_token'
+const REFRESH_TOKEN_KEY = 'investhub_refresh_token'
+const USER_KEY = 'investhub_user'
+
+const clearAuthStorage = () => {
+  localStorage.removeItem(TOKEN_KEY)
+  localStorage.removeItem(REFRESH_TOKEN_KEY)
+  localStorage.removeItem(USER_KEY)
+}
+
 // 创建axios实例
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
@@ -46,7 +56,7 @@ api.interceptors.response.use(
     
     if (response?.status === 401) {
       // token过期，尝试刷新
-      const refreshToken = localStorage.getItem('investhub_refresh_token')
+      const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
       if (refreshToken) {
         try {
           // 动态导入避免循环依赖
@@ -57,12 +67,12 @@ api.interceptors.response.use(
           return api.request(error.config)
         } catch (refreshError) {
           // 刷新失败，清除token并跳转登录
-          localStorage.clear()
+          clearAuthStorage()
           window.location.href = '/login'
           return Promise.reject(refreshError)
         }
       } else {
-        localStorage.clear()
+        clearAuthStorage()
         window.location.href = '/login'
       }
     } else if (response?.status >= 500) {

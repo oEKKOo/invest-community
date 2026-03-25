@@ -3,27 +3,53 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from django.shortcuts import get_object_or_404
 from django.db import transaction
 from django.contrib.auth import get_user_model
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.utils import timezone
+from django.conf import settings
+from django.core.cache import cache
+from datetime import timedelta
+import hashlib
+import random
+import uuid
 
 from content.models import Content
 from content.serializers import ContentListSerializer
 from portfolios.models import Portfolio
 from portfolios.serializers import PortfolioListSerializer
 
-from .models import User, UserInvestProfile, UserFollow, UserModerationLog
+from .models import (
+    User, UserInvestProfile, UserFollow, UserModerationLog,
+    UserSocialAccount, UserVerificationCode, UserRealNameVerification,
+    UserProfessionalVerification, RiskQuestionnaireTemplate, RiskQuestionnaireSubmission,
+    UserPrivacySettings
+)
 from .serializers import (
     UserRegistrationSerializer,
     UserLoginSerializer,
+    PasswordLoginSerializer,
+    EmailRegisterSerializer,
+    PhoneRegisterSerializer,
+    VerificationSendSerializer,
+    VerificationConfirmSerializer,
+    SmsLoginSerializer,
     UserProfileSerializer,
     UserInvestProfileSerializer,
     UserPublicSerializer,
     UserFollowSerializer,
+    UserKycStatusSerializer,
+    RealNameSubmitSerializer,
+    ProfessionalSubmitSerializer,
+    RiskQuestionnaireSubmitSerializer,
+    UserPrivacySettingsSerializer,
 )
 from notifications.events import publish_event
+from .oauth.wechat_client import WeChatOAuthClient
+from .oauth.weibo_client import WeiboOAuthClient
+from .message_service import send_email_verification_code, send_sms_verification_code
 
 User = get_user_model()
 
@@ -35,6 +61,95 @@ def get_tokens_for_user(user):
         'refresh': str(refresh),
         'access': str(refresh.access_token),
     }
+
+
+def _auth_user_payload(user):
+    return {
+        'id': user.id,
+        'username': user.username,
+        'displayName': user.display_name,
+        'role': user.role,
+        'phoneVerified': user.phone_verified,
+        'emailVerified': user.email_verified,
+        'identityLevel': user.identity_level,
+        'realNameStatus': user.real_name_status,
+        'professionalStatus': user.professional_status,
+        'riskAssessmentStatus': user.risk_assessment_status,
+        'riskLevel': user.risk_level,
+        'vBadge': user.v_badge,
+    }
+
+
+def _mask_id_card(id_card_no: str) -> str:
+    text = id_card_no.strip()
+    if len(text) <= 8:
+        return '*' * len(text)
+    return f"{text[:4]}{'*' * (len(text) - 8)}{text[-4:]}"
+
+
+def _hash_id_card(id_card_no: str) -> str:
+    return hashlib.sha256(id_card_no.strip().encode('utf-8')).hexdigest()
+
+
+def _calc_risk_level(score: int) -> str:
+    if score <= 20:
+        return 'R1'
+    if score <= 40:
+        return 'R2'
+    if score <= 60:
+        return 'R3'
+    if score <= 80:
+        return 'R4'
+    return 'R5'
+
+
+def _ensure_social_provider(provider: str) -> str:
+    p = (provider or '').upper()
+    if p not in ['WECHAT', 'WEIBO']:
+        raise ValueError('不支持的OAuth提供方')
+    return p
+
+
+def _create_or_bind_social_user(provider: str, social_info: dict, token_data: dict):
+    provider_uid = str(social_info.get('unionid') or social_info.get('openid') or social_info.get('id') or token_data.get('uid') or '')
+    if not provider_uid:
+        raise ValueError('无法识别第三方账号ID')
+
+    social = UserSocialAccount.objects.filter(provider=provider, provider_uid=provider_uid).select_related('user').first()
+    if social:
+        user = social.user
+    else:
+        base_name = social_info.get('nickname') or social_info.get('screen_name') or f'{provider.lower()}_user'
+        username = base_name
+        suffix = 1
+        while User.objects.filter(username=username).exists():
+            suffix += 1
+            username = f"{base_name}_{suffix}"
+
+        email = social_info.get('email') or f'{provider.lower()}_{provider_uid[:12]}@oauth.local'
+        if User.objects.filter(email=email).exists():
+            email = f'{provider.lower()}_{uuid.uuid4().hex[:12]}@oauth.local'
+
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=uuid.uuid4().hex,
+            display_name=social_info.get('nickname') or social_info.get('screen_name') or username
+        )
+        social = UserSocialAccount(user=user, provider=provider, provider_uid=provider_uid)
+
+    social.unionid = social_info.get('unionid') or social.unionid
+    social.openid = social_info.get('openid') or social.openid
+    social.access_token = token_data.get('access_token', '') or social.access_token
+    social.refresh_token = token_data.get('refresh_token', '') or social.refresh_token
+    expires_in = token_data.get('expires_in')
+    if expires_in:
+        try:
+            social.expires_at = timezone.now() + timedelta(seconds=int(expires_in))
+        except (ValueError, TypeError):
+            pass
+    social.save()
+    return user, social
 
 
 @api_view(['POST'])
@@ -52,6 +167,9 @@ def register(request):
                 'username': user.username,
                 'displayName': user.display_name,
                 'role': user.role,
+                'phoneVerified': user.phone_verified,
+                'emailVerified': user.email_verified,
+                'identityLevel': user.identity_level,
                 **tokens
             }
         }, status=status.HTTP_201_CREATED)
@@ -82,12 +200,7 @@ def login(request):
             'data': {
                 'access': tokens['access'],
                 'refresh': tokens['refresh'],
-                'user': {
-                    'id': user.id,
-                    'username': user.username,
-                    'displayName': user.display_name,
-                    'role': user.role
-                }
+                'user': _auth_user_payload(user)
             }
         })
     return Response({
@@ -95,6 +208,395 @@ def login(request):
         'message': '登录失败',
         'errors': serializer.errors
     }, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def token_refresh(request):
+    serializer = TokenRefreshSerializer(data=request.data)
+    if serializer.is_valid():
+        return Response({'code': 0, 'data': serializer.validated_data})
+    return Response({
+        'code': 4001,
+        'message': '刷新令牌失败',
+        'errors': serializer.errors
+    }, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def register_email(request):
+    serializer = EmailRegisterSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response({'code': 4001, 'message': '注册失败', 'errors': serializer.errors}, status=400)
+
+    confirm = VerificationConfirmSerializer(data={
+        'channel': 'EMAIL',
+        'target': serializer.validated_data['email'],
+        'purpose': 'REGISTER',
+        'code': serializer.validated_data['email_code'],
+    })
+    if not confirm.is_valid():
+        return Response({'code': 4001, 'message': '邮箱验证码校验失败', 'errors': confirm.errors}, status=400)
+
+    with transaction.atomic():
+        data = serializer.validated_data
+        user = User.objects.create_user(
+            username=data['username'],
+            email=data['email'],
+            password=data['password'],
+            display_name=data['username'],
+            email_verified=True,
+            phone_verified=False,
+            identity_level='BASIC',
+        )
+        rec = confirm.validated_data['record']
+        rec.status = 'VERIFIED'
+        rec.verified_at = timezone.now()
+        rec.user = user
+        rec.save(update_fields=['status', 'verified_at', 'user'])
+    tokens = get_tokens_for_user(user)
+    return Response({
+        'code': 0,
+        'data': {'access': tokens['access'], 'refresh': tokens['refresh'], 'user': _auth_user_payload(user)}
+    }, status=201)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def register_phone(request):
+    serializer = PhoneRegisterSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response({'code': 4001, 'message': '注册失败', 'errors': serializer.errors}, status=400)
+    confirm = VerificationConfirmSerializer(data={
+        'channel': 'PHONE',
+        'target': serializer.validated_data['phone'],
+        'purpose': 'REGISTER',
+        'code': serializer.validated_data['phone_code'],
+    })
+    if not confirm.is_valid():
+        return Response({'code': 4001, 'message': '手机验证码校验失败', 'errors': confirm.errors}, status=400)
+
+    with transaction.atomic():
+        data = serializer.validated_data
+        email = data.get('email') or f"phone_{data['phone']}@local.investhub"
+        user = User.objects.create_user(
+            username=data['username'],
+            email=email,
+            phone=data['phone'],
+            password=data['password'],
+            display_name=data['username'],
+            phone_verified=True,
+            email_verified=bool(data.get('email')),
+            identity_level='BASIC',
+        )
+        rec = confirm.validated_data['record']
+        rec.status = 'VERIFIED'
+        rec.verified_at = timezone.now()
+        rec.user = user
+        rec.save(update_fields=['status', 'verified_at', 'user'])
+    tokens = get_tokens_for_user(user)
+    return Response({
+        'code': 0,
+        'data': {'access': tokens['access'], 'refresh': tokens['refresh'], 'user': _auth_user_payload(user)}
+    }, status=201)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def login_password(request):
+    serializer = PasswordLoginSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response({'code': 4001, 'message': '登录失败', 'errors': serializer.errors}, status=400)
+    user = serializer.validated_data['user']
+    tokens = get_tokens_for_user(user)
+    return Response({
+        'code': 0,
+        'data': {'access': tokens['access'], 'refresh': tokens['refresh'], 'user': _auth_user_payload(user)}
+    })
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def login_sms(request):
+    serializer = SmsLoginSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response({'code': 4001, 'message': '登录失败', 'errors': serializer.errors}, status=400)
+    user = serializer.validated_data['user']
+    rec = serializer.validated_data['record']
+    rec.status = 'VERIFIED'
+    rec.verified_at = timezone.now()
+    rec.user = user
+    rec.save(update_fields=['status', 'verified_at', 'user'])
+    tokens = get_tokens_for_user(user)
+    return Response({
+        'code': 0,
+        'data': {'access': tokens['access'], 'refresh': tokens['refresh'], 'user': _auth_user_payload(user)}
+    })
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def verification_send(request):
+    serializer = VerificationSendSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response({'code': 4001, 'message': '发送失败', 'errors': serializer.errors}, status=400)
+
+    code = str(random.randint(100000, 999999))
+    expires_at = timezone.now() + timedelta(minutes=10)
+    record = UserVerificationCode.objects.create(
+        channel=serializer.validated_data['channel'],
+        target=serializer.validated_data['target'],
+        purpose=serializer.validated_data['purpose'],
+        code=code,
+        expires_at=expires_at,
+        status='SENT',
+    )
+    try:
+        channel = serializer.validated_data['channel']
+        target = serializer.validated_data['target']
+        if channel == 'EMAIL':
+            send_email_verification_code(target, code, minutes=10)
+        elif channel == 'PHONE':
+            send_sms_verification_code(target, code, minutes=10)
+        else:
+            raise ValueError('不支持的验证码渠道')
+    except Exception as exc:
+        record.status = 'INVALID'
+        record.save(update_fields=['status'])
+        return Response({'code': 4001, 'message': f'验证码发送失败: {exc}'}, status=400)
+
+    payload = {'expiresAt': expires_at}
+    if settings.DEBUG:
+        payload['debugCode'] = code
+    return Response({'code': 0, 'data': payload, 'message': '验证码已发送'})
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def verification_confirm(request):
+    serializer = VerificationConfirmSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response({'code': 4001, 'message': '校验失败', 'errors': serializer.errors}, status=400)
+    rec = serializer.validated_data['record']
+    rec.status = 'VERIFIED'
+    rec.verified_at = timezone.now()
+    rec.save(update_fields=['status', 'verified_at'])
+    return Response({'code': 0, 'message': '验证码校验通过'})
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def oauth_start(request, provider):
+    try:
+        provider = _ensure_social_provider(provider)
+        state = uuid.uuid4().hex
+        cache.set(f"oauth_state:{state}", provider, timeout=600)
+        if provider == 'WECHAT':
+            client = WeChatOAuthClient(
+                getattr(settings, 'WECHAT_APP_ID', ''),
+                getattr(settings, 'WECHAT_APP_SECRET', ''),
+                getattr(settings, 'WECHAT_REDIRECT_URI', ''),
+            )
+        else:
+            client = WeiboOAuthClient(
+                getattr(settings, 'WEIBO_CLIENT_ID', ''),
+                getattr(settings, 'WEIBO_CLIENT_SECRET', ''),
+                getattr(settings, 'WEIBO_REDIRECT_URI', ''),
+            )
+        url = client.build_authorize_url(state)
+        return Response({'code': 0, 'data': {'authorizeUrl': url, 'state': state}})
+    except Exception as exc:
+        return Response({'code': 4001, 'message': str(exc)}, status=400)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def oauth_callback(request, provider):
+    code = request.query_params.get('code')
+    state = request.query_params.get('state')
+    try:
+        provider = _ensure_social_provider(provider)
+        if not code or not state:
+            return Response({'code': 4001, 'message': '缺少code/state参数'}, status=400)
+        cached = cache.get(f"oauth_state:{state}")
+        if cached != provider:
+            return Response({'code': 4001, 'message': 'state校验失败'}, status=400)
+
+        if provider == 'WECHAT':
+            client = WeChatOAuthClient(
+                getattr(settings, 'WECHAT_APP_ID', ''),
+                getattr(settings, 'WECHAT_APP_SECRET', ''),
+                getattr(settings, 'WECHAT_REDIRECT_URI', ''),
+            )
+            token_data = client.exchange_code(code)
+            social_info = client.fetch_userinfo(token_data['access_token'], token_data['openid'])
+        else:
+            client = WeiboOAuthClient(
+                getattr(settings, 'WEIBO_CLIENT_ID', ''),
+                getattr(settings, 'WEIBO_CLIENT_SECRET', ''),
+                getattr(settings, 'WEIBO_REDIRECT_URI', ''),
+            )
+            token_data = client.exchange_code(code)
+            social_info = client.fetch_userinfo(token_data['access_token'], token_data['uid'])
+
+        user, _social = _create_or_bind_social_user(provider, social_info, token_data)
+        tokens = get_tokens_for_user(user)
+        return Response({
+            'code': 0,
+            'data': {'access': tokens['access'], 'refresh': tokens['refresh'], 'user': _auth_user_payload(user)}
+        })
+    except Exception as exc:
+        return Response({'code': 4001, 'message': f'OAuth回调失败: {exc}'}, status=400)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def oauth_bind(request, provider):
+    provider = _ensure_social_provider(provider)
+    provider_uid = request.data.get('provider_uid')
+    if not provider_uid:
+        return Response({'code': 4001, 'message': '缺少provider_uid'}, status=400)
+    if UserSocialAccount.objects.filter(provider=provider, provider_uid=provider_uid).exclude(user=request.user).exists():
+        return Response({'code': 4090, 'message': '该第三方账号已绑定其他用户'}, status=409)
+    UserSocialAccount.objects.update_or_create(
+        user=request.user,
+        provider=provider,
+        provider_uid=provider_uid,
+        defaults={
+            'unionid': request.data.get('unionid') or '',
+            'openid': request.data.get('openid') or '',
+            'access_token': request.data.get('access_token') or '',
+            'refresh_token': request.data.get('refresh_token') or '',
+        }
+    )
+    return Response({'code': 0, 'message': '绑定成功'})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def submit_real_name(request):
+    serializer = RealNameSubmitSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response({'code': 4001, 'message': '提交失败', 'errors': serializer.errors}, status=400)
+    data = serializer.validated_data
+    rec = UserRealNameVerification.objects.create(
+        user=request.user,
+        real_name=data['real_name'],
+        id_card_no_masked=_mask_id_card(data['id_card_no']),
+        id_card_hash=_hash_id_card(data['id_card_no']),
+        face_score=data.get('face_score'),
+        ocr_passed=data.get('ocr_passed', True),
+        liveness_passed=data.get('liveness_passed', True),
+        status='PENDING',
+    )
+    request.user.real_name_status = 'PENDING'
+    request.user.save(update_fields=['real_name_status'])
+    return Response({'code': 0, 'data': {'id': rec.id}, 'message': '实名认证申请已提交'})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def submit_professional(request):
+    serializer = ProfessionalSubmitSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response({'code': 4001, 'message': '提交失败', 'errors': serializer.errors}, status=400)
+    if request.user.risk_assessment_status != 'APPROVED':
+        return Response({'code': 4001, 'message': '请先完成风险评估问卷'}, status=400)
+    rec = UserProfessionalVerification.objects.create(
+        user=request.user,
+        qualification_doc_url=serializer.validated_data.get('qualification_doc_url', ''),
+        education_doc_url=serializer.validated_data.get('education_doc_url', ''),
+        additional_doc_url=serializer.validated_data.get('additional_doc_url', ''),
+        status='PENDING',
+    )
+    request.user.professional_status = 'PENDING'
+    request.user.save(update_fields=['professional_status'])
+    return Response({'code': 0, 'data': {'id': rec.id}, 'message': '专业认证申请已提交'})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def kyc_status(request):
+    serializer = UserKycStatusSerializer(request.user)
+    return Response({'code': 0, 'data': serializer.data})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def risk_questionnaire(request):
+    template = RiskQuestionnaireTemplate.objects.filter(is_active=True).order_by('-created_at').first()
+    if not template:
+        default_questions = [
+            {'id': 1, 'text': '你可接受的最大回撤是？', 'options': [{'label': '5%', 'score': 10}, {'label': '10%', 'score': 20}, {'label': '20%', 'score': 30}, {'label': '30%+', 'score': 40}]},
+            {'id': 2, 'text': '你的投资经验年限？', 'options': [{'label': '0-1年', 'score': 10}, {'label': '1-3年', 'score': 20}, {'label': '3-5年', 'score': 30}, {'label': '5年以上', 'score': 40}]},
+            {'id': 3, 'text': '你更看重？', 'options': [{'label': '保本', 'score': 10}, {'label': '稳健增值', 'score': 20}, {'label': '成长收益', 'score': 30}, {'label': '高收益', 'score': 40}]},
+        ]
+        template = RiskQuestionnaireTemplate.objects.create(
+            version='v1',
+            title='投资者风险评估问卷',
+            description='用于评估投资者风险承受能力',
+            questions=default_questions,
+            is_active=True,
+        )
+    return Response({'code': 0, 'data': {'id': template.id, 'version': template.version, 'title': template.title, 'questions': template.questions}})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def submit_risk_questionnaire(request):
+    serializer = RiskQuestionnaireSubmitSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response({'code': 4001, 'message': '提交失败', 'errors': serializer.errors}, status=400)
+    template_id = serializer.validated_data.get('template_id')
+    answers = serializer.validated_data['answers'] or {}
+    if template_id:
+        template = get_object_or_404(RiskQuestionnaireTemplate, id=template_id)
+    else:
+        template = RiskQuestionnaireTemplate.objects.filter(is_active=True).order_by('-created_at').first()
+        if not template:
+            return Response({'code': 4001, 'message': '暂无可用问卷'}, status=400)
+
+    # 允许前端直接上传总分，也支持按题目分值汇总
+    score = answers.get('total_score')
+    if score is None:
+        score = 0
+        selected = answers.get('selected', {})
+        for _k, v in selected.items():
+            try:
+                score += int(v)
+            except (ValueError, TypeError):
+                pass
+    score = int(score)
+    risk_level = _calc_risk_level(score)
+
+    submission = RiskQuestionnaireSubmission.objects.create(
+        user=request.user, template=template, answers=answers, score=score, risk_level=risk_level
+    )
+    user = request.user
+    user.risk_assessment_status = 'APPROVED'
+    user.risk_level = risk_level
+    if user.identity_level in ['UNVERIFIED', 'BASIC', 'REAL_NAME']:
+        user.identity_level = 'BASIC' if user.identity_level == 'UNVERIFIED' else user.identity_level
+    user.save(update_fields=['risk_assessment_status', 'risk_level', 'identity_level'])
+    return Response({'code': 0, 'data': {'id': submission.id, 'score': score, 'riskLevel': risk_level}})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def risk_result(request):
+    latest = RiskQuestionnaireSubmission.objects.filter(user=request.user).order_by('-created_at').first()
+    if not latest:
+        return Response({'code': 4040, 'message': '尚未完成风险评估'}, status=404)
+    return Response({
+        'code': 0,
+        'data': {
+            'score': latest.score,
+            'riskLevel': latest.risk_level,
+            'templateVersion': latest.template.version,
+            'createdAt': latest.created_at,
+        }
+    })
 
 
 @api_view(['GET', 'PATCH'])
@@ -622,6 +1124,99 @@ def admin_moderated_users(request):
     })
 
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def admin_review_real_name(request, verification_id):
+    perm_error = _ensure_moderator(request)
+    if perm_error:
+        return perm_error
+    rec = get_object_or_404(UserRealNameVerification, id=verification_id)
+    action = request.data.get('action')
+    reason = request.data.get('reason', '')
+    if action not in ['APPROVE', 'REJECT']:
+        return Response({'code': 4001, 'message': '无效操作'}, status=400)
+    if action == 'APPROVE':
+        rec.status = 'APPROVED'
+        rec.reject_reason = ''
+        rec.user.real_name_status = 'APPROVED'
+        if rec.user.identity_level in ['UNVERIFIED', 'BASIC']:
+            rec.user.identity_level = 'REAL_NAME'
+        rec.user.save(update_fields=['real_name_status', 'identity_level'])
+    else:
+        rec.status = 'REJECTED'
+        rec.reject_reason = reason or '资料不通过'
+        rec.user.real_name_status = 'REJECTED'
+        rec.user.save(update_fields=['real_name_status'])
+    rec.reviewed_by = request.user
+    rec.reviewed_at = timezone.now()
+    rec.save(update_fields=['status', 'reject_reason', 'reviewed_by', 'reviewed_at'])
+    return Response({'code': 0, 'message': '审核完成'})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def admin_review_professional(request, verification_id):
+    perm_error = _ensure_moderator(request)
+    if perm_error:
+        return perm_error
+    rec = get_object_or_404(UserProfessionalVerification, id=verification_id)
+    action = request.data.get('action')
+    reason = request.data.get('reason', '')
+    user = rec.user
+    if action not in ['APPROVE', 'REJECT']:
+        return Response({'code': 4001, 'message': '无效操作'}, status=400)
+    if action == 'APPROVE':
+        if user.risk_assessment_status != 'APPROVED':
+            return Response({'code': 4001, 'message': '用户未完成风险评估，不能通过专业认证'}, status=400)
+        rec.status = 'APPROVED'
+        rec.reject_reason = ''
+        user.professional_status = 'APPROVED'
+        user.identity_level = 'PROFESSIONAL'
+        user.v_badge = True
+        user.save(update_fields=['professional_status', 'identity_level', 'v_badge'])
+    else:
+        rec.status = 'REJECTED'
+        rec.reject_reason = reason or '资料不通过'
+        user.professional_status = 'REJECTED'
+        user.v_badge = False
+        user.save(update_fields=['professional_status', 'v_badge'])
+    rec.reviewed_by = request.user
+    rec.reviewed_at = timezone.now()
+    rec.save(update_fields=['status', 'reject_reason', 'reviewed_by', 'reviewed_at'])
+    return Response({'code': 0, 'message': '审核完成'})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def admin_pending_verifications(request):
+    perm_error = _ensure_moderator(request)
+    if perm_error:
+        return perm_error
+
+    real_items = UserRealNameVerification.objects.filter(status='PENDING').select_related('user').order_by('-created_at')[:200]
+    pro_items = UserProfessionalVerification.objects.filter(status='PENDING').select_related('user').order_by('-created_at')[:200]
+    return Response({
+        'code': 0,
+        'data': {
+            'realName': [{
+                'id': x.id,
+                'userId': x.user_id,
+                'username': x.user.username,
+                'realName': x.real_name,
+                'createdAt': x.created_at,
+            } for x in real_items],
+            'professional': [{
+                'id': x.id,
+                'userId': x.user_id,
+                'username': x.user.username,
+                'qualificationDocUrl': x.qualification_doc_url,
+                'educationDocUrl': x.education_doc_url,
+                'createdAt': x.created_at,
+            } for x in pro_items]
+        }
+    })
+
+
 class UserFavoritesView(generics.ListAPIView):
     """用户收藏列表"""
     permission_classes = [IsAuthenticated]
@@ -727,3 +1322,84 @@ class UserLikesView(generics.ListAPIView):
                 'total': total,
             }
         })
+
+
+@api_view(['GET', 'PATCH'])
+@permission_classes([IsAuthenticated])
+def manage_privacy_settings(request):
+    """管理当前用户隐私设置"""
+    settings_obj, _ = UserPrivacySettings.objects.get_or_create(user=request.user)
+
+    if request.method == 'GET':
+        serializer = UserPrivacySettingsSerializer(settings_obj)
+        return Response({'code': 0, 'data': serializer.data})
+
+    serializer = UserPrivacySettingsSerializer(settings_obj, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response({'code': 0, 'data': serializer.data, 'message': '隐私设置已更新'})
+    return Response(
+        {'code': 4001, 'message': '更新失败', 'errors': serializer.errors},
+        status=status.HTTP_400_BAD_REQUEST
+    )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_achievements(request):
+    """我的成就概览（最小闭环实现）"""
+    from content.models import Content, Like, Favorite
+    from portfolios.models import Portfolio
+
+    user = request.user
+
+    posts_qs = Content.objects.filter(author=user)
+    published_posts_qs = posts_qs.filter(status='PUBLISHED')
+    post_count = posts_qs.count()
+
+    # 暂无真实“精华帖”字段，使用高赞阈值近似（后续可替换为真实字段）
+    featured_post_count = published_posts_qs.filter(like_count__gte=20).count()
+    post_likes = published_posts_qs.aggregate(total=Sum('like_count')).get('total') or 0
+    post_comments = published_posts_qs.aggregate(total=Sum('comment_count')).get('total') or 0
+
+    portfolios_qs = Portfolio.objects.filter(owner=user)
+    portfolio_count = portfolios_qs.count()
+    portfolio_likes = portfolios_qs.aggregate(total=Sum('like_count')).get('total') or 0
+
+    favorites_count = Favorite.objects.filter(user=user).count()
+    likes_count = Like.objects.filter(user=user).count()
+    followers_count = user.followers_count
+
+    # 统一影响力口径：内容质量 + 社交反馈 + 活跃度
+    influence_score = int(
+        post_likes * 2 +
+        post_comments * 3 +
+        portfolio_likes * 2 +
+        followers_count * 5 +
+        post_count * 2 +
+        portfolio_count * 3
+    )
+
+    badges = []
+    if user.v_badge:
+        badges.append({'code': 'VERIFIED_V', 'name': '认证V标识', 'description': '完成专业认证并获得V标识'})
+    if post_count >= 10:
+        badges.append({'code': 'CONTENT_CREATOR', 'name': '内容创作者', 'description': '累计发布10篇以上内容'})
+    if featured_post_count >= 1:
+        badges.append({'code': 'FEATURED_AUTHOR', 'name': '优质作者', 'description': '拥有高互动内容'})
+    if influence_score >= 300:
+        badges.append({'code': 'INFLUENCER', 'name': '社区影响力', 'description': '影响力值达到300+'})
+
+    return Response({
+        'code': 0,
+        'data': {
+            'postCount': post_count,
+            'featuredPostCount': featured_post_count,
+            'portfolioCount': portfolio_count,
+            'favoritesCount': favorites_count,
+            'likesCount': likes_count,
+            'followersCount': followers_count,
+            'influenceScore': influence_score,
+            'badges': badges,
+        }
+    })

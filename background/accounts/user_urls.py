@@ -4,6 +4,8 @@ from . import views
 urlpatterns = [
     # 用户资料
     path('me/', views.manage_current_user, name='manage_current_user'),
+    path('me/privacy-settings/', views.manage_privacy_settings, name='manage_privacy_settings'),
+    path('me/achievements/', views.my_achievements, name='my_achievements'),
     path('<int:user_id>/', views.get_user_profile, name='user_profile'),
     
     # 关注功能

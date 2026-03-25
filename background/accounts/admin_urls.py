@@ -10,5 +10,8 @@ urlpatterns = [
     path('users/<int:user_id>/unmute/', views.admin_unmute_user, name='admin_user_unmute'),
     path('users/<int:user_id>/unban/', views.admin_unban_user, name='admin_user_unban'),
     path('users/moderation/', views.admin_moderated_users, name='admin_moderated_users'),
+    path('verifications/pending/', views.admin_pending_verifications, name='admin_pending_verifications'),
+    path('verifications/real-name/<int:verification_id>/review/', views.admin_review_real_name, name='admin_review_real_name'),
+    path('verifications/professional/<int:verification_id>/review/', views.admin_review_professional, name='admin_review_professional'),
 ]
 

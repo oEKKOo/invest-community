@@ -1,0 +1,452 @@
+---
+alwaysApply: false
+---
+## 3. 前端结构分析
+
+### 3.1 页面与组件
+
+- 登录注册页：`frontend/src/views/Login.vue`
+  - 通过 `el-tabs` 区分登录/注册。
+  - `handleLogin()` 调用 `authStore.login()`。
+  - `handleRegister()` 调用 `authStore.register()`。
+  - 成功后 `router.push('/')`。
+
+### 3.2 表单校验逻辑
+
+- 登录规则：
+  - `username` 必填。
+  - `password` 必填且最少 6 位（前端规则）。
+- 注册规则：
+  - `username` 3-150 字符。
+  - `email` 必须邮箱格式。
+  - `password` 最少 8 位。
+  - `password_confirm` 必须与 `password` 一致（自定义 validator）。
+
+### 3.3 前端 API 封装
+
+- 认证 API：`frontend/src/api/auth.ts`
+  - `register()` -> `POST /auth/register/`
+  - `login()` -> `POST /auth/login/`
+  - `refreshToken()` -> `POST /auth/refresh/`
+  - `logout()` -> `POST /auth/logout/`
+  - `getCurrentUser()` -> `GET /users/me/`
+  - `updateCurrentUser()` -> `PATCH /users/me/`
+
+- 请求封装：`frontend/src/api/index.ts`
+  - baseURL: `VITE_API_BASE_URL || /api`
+  - 请求拦截器：从 `localStorage` 取 `investhub_token` 注入 Bearer Token。
+  - 响应拦截器：按统一格式 `code === 0` 解析业务成功，401 时尝试刷新。
+
+### 3.4 认证状态仓库（Pinia）
+
+- 文件：`frontend/src/stores/auth.ts`
+- 状态：
+  - `token`（`investhub_token`）
+  - `refreshToken`（`investhub_refresh_token`）
+  - `user`（`investhub_user`）
+- 计算属性：
+  - `isLoggedIn = !!token && !!user`
+  - `isAdmin = role in ['ADMIN', 'MODERATOR']`
+- 核心动作：
+  - `login()`: 调登录接口 + `setAuth()`
+  - `register()`: 调注册接口，手动转换返回结构后 `setAuth()`
+  - `logout()`: 调登出接口（失败也执行 `clearAuth()`）
+  - `refreshTokens()`: 用 refresh 换 access
+  - `fetchCurrentUser()`: 拉 `/users/me/` 并覆盖本地用户信息
+
+---
+
+## 4. 前端路由与守卫分析
+
+- 路由文件：`frontend/src/router/index.ts`
+- 登录路由：
+  - `/login`，`meta.requiresAuth = false`
+- 主框架路由 `/` 下默认 `meta.requiresAuth = true`，子路由未显式声明时继承受保护属性。
+- 管理员路由：
+  - `/admin`
+  - `/admin/data-monitor`
+  - 均 `meta.requiresAdmin = true`
+
+### 守卫逻辑（`beforeEach`）
+
+1. 若目标路由 `requiresAuth !== false` 且未登录 -> `next('/login')`
+2. 若 `requiresAdmin` 且非管理员 -> `next('/')`
+3. 已登录访问 `/login` -> 重定向首页
+
+### 关联菜单权限展示
+
+- `frontend/src/components/layout/MainLayout.vue`
+  - `authStore.isLoggedIn` 决定“我的持仓”菜单是否显示。
+  - `authStore.isAdmin` 决定“管理后台”菜单是否显示。
+  - `handleLogout()` 调 `authStore.logout()` 后跳转 `/login`。
+
+---
+
+## 5. 登录态存储与状态流转
+
+### 5.1 存储介质
+
+- 使用 `localStorage`，未使用 cookie/session storage。
+- Key：
+  - `investhub_token`
+  - `investhub_refresh_token`
+  - `investhub_user`
+
+### 5.2 状态流转
+
+1. 登录/注册成功 -> `setAuth()`
+2. `setAuth()` 同步写 Pinia + `localStorage`
+3. 页面刷新后 `auth store` 初始化时从 `localStorage` 回填状态
+4. 请求层自动携带 access token
+5. access 失效触发 401 -> 尝试 refresh
+6. refresh 成功 -> 重放原请求
+7. refresh 失败 -> 清空本地并跳转登录
+
+### 5.3 退出流程
+
+- 前端调用 `/auth/logout/`（后端目前为“可选实现”）。
+- 无论 API 成功与否，最终都会 `clearAuth()`，保证本地退出。
+
+---
+
+## 6. 后端结构分析
+
+### 6.1 入口与路由
+
+- 全局路由：`background/invest_backend/urls.py`
+  - `api/auth/` -> `accounts.urls`
+  - `api/users/` -> `accounts.user_urls`
+
+- 认证路由：`background/accounts/urls.py`
+  - `register/`
+  - `login/`
+  - `refresh/`（SimpleJWT 官方 `TokenRefreshView`）
+  - `logout/`
+
+### 6.2 模型层（认证相关）
+
+- 文件：`background/accounts/models.py`
+- `User` 继承 `AbstractBaseUser + PermissionsMixin`，是自定义用户模型（`AUTH_USER_MODEL = 'accounts.User'`）。
+- 关键字段：
+  - 账号：`username`（unique）
+  - 邮箱：`email`（unique）
+  - 手机：`phone`（可空）
+  - 展示：`display_name`、`avatar_url`、`bio`
+  - 权限角色：`role`（USER/MODERATOR/ADMIN）
+  - 治理状态：`status`（NORMAL/MUTED/BANNED）、`mute_until`
+  - 登录可用性：`is_active`
+  - Django 管理权限：`is_staff`、`is_superuser`
+
+### 6.3 序列化层
+
+- 文件：`background/accounts/serializers.py`
+- `UserRegistrationSerializer`
+  - 校验两次密码一致。
+  - `create()` 内部走 `User.objects.create_user(...)`。
+- `UserLoginSerializer`
+  - 使用 `authenticate(username, password)`。
+  - 校验 `is_active` 与 `status`。
+- `UserProfileSerializer`
+  - 做字段映射：`display_name -> displayName`，`avatar_url -> avatar`。
+  - 对外输出前端需要的驼峰字段。
+
+### 6.4 视图层
+
+- 文件：`background/accounts/views.py`
+- `register(request)`
+  - 成功返回 `{code:0,data:{id,username,displayName,role,access,refresh}}`
+- `login(request)`
+  - 成功返回 `{code:0,data:{access,refresh,user:{id,username,displayName,role}}}`
+- `manage_current_user(request)`
+  - `GET /users/me/` 获取当前用户资料
+  - `PATCH /users/me/` 更新资料
+- `logout(request)`
+  - 当前仅返回成功消息，未做 refresh 黑名单写入。
+
+---
+
+## 7. 认证相关接口清单
+
+### 7.1 登录注册核心
+
+- `POST /api/auth/register/`
+  - 入参：`username,email,password,password_confirm,phone?`
+  - 出参：扁平化 token + 基本用户字段（非 `user` 嵌套）
+
+- `POST /api/auth/login/`
+  - 入参：`username,password`
+  - 出参：`access,refresh,user`
+
+- `POST /api/auth/refresh/`
+  - 入参：`refresh`
+  - 出参：SimpleJWT 默认格式（通常 `{access: ...}`）
+
+- `POST /api/auth/logout/`
+  - 入参：无
+  - 出参：`{code:0,message:'登出成功'}`
+
+### 7.2 用户信息
+
+- `GET /api/users/me/`
+- `PATCH /api/users/me/`
+
+### 7.3 认证相关权限
+
+- 全局 DRF 默认需要认证（`IsAuthenticated`），认证接口通过 `AllowAny` 放开。
+- `users/me` 要求已登录。
+
+---
+
+## 8. 用户表与认证相关数据结构
+
+### 8.1 数据库表
+
+- 主表：`user`（自定义）
+- 迁移文件：
+  - `background/accounts/migrations/0001_initial.py`
+  - `background/accounts/migrations/0002_user_mute_until_usermoderationlog.py`
+
+### 8.2 与认证强相关字段
+
+- 账号主键：`id`
+- 凭证识别：`username`（当前登录仅识别该字段）
+- 联系方式：`email`、`phone`
+- 权限：`role`
+- 状态：`status`、`is_active`、`mute_until`
+- 审计/时间：`created_at`、`updated_at`
+
+### 8.3 前后端 User 字段对齐现状
+
+- 前端 `User` 类型：`frontend/src/types/index.ts`
+  - 使用 `displayName/avatar/followers/following`。
+- 后端通过 `UserProfileSerializer` 做了字段映射，基本兼容。
+- 但登录返回的 `user` 字段较精简（无 email/status/followers 等），完整信息需额外请求 `/users/me/`。
+
+---
+
+## 9. 登录/注册/退出/获取用户信息完整流程
+
+### 9.1 登录流程
+
+1. 用户在 `Login.vue` 输入账号密码，`loginFormRef.validate()` 校验。
+2. 调用 `authStore.login(loginForm)`。
+3. `authStore.login()` -> `authApi.login()` -> `POST /api/auth/login/`。
+4. 后端 `UserLoginSerializer.validate()` + `authenticate()`。
+5. 后端签发 JWT，返回 `access + refresh + user`。
+6. 前端 `setAuth()` 写入 Pinia 与 `localStorage`。
+7. 页面跳转首页，路由守卫放行。
+
+### 9.2 注册流程
+
+1. 用户填写注册信息并通过前端规则校验。
+2. 调 `authStore.register(registerForm)`。
+3. 后端创建用户并返回扁平结构数据。
+4. `authStore.register()` 将注册返回转换为 `LoginResponse` 再 `setAuth()`。
+5. 注册后直接登录态进入首页。
+
+### 9.3 退出流程
+
+1. 点击 `MainLayout.vue` 退出按钮。
+2. `authStore.logout()` 调 `/api/auth/logout/`。
+3. 无论结果如何执行 `clearAuth()`。
+4. 跳转 `/login`，受保护路由后续自动阻断。
+
+### 9.4 获取当前用户流程
+
+1. 调 `authStore.fetchCurrentUser()`。
+2. 请求 `GET /api/users/me/`。
+3. 后端 `UserProfileSerializer` 返回完整资料。
+4. 前端覆盖 `authStore.user` 并更新 `localStorage`。
+5. 若失败（例如 token 无效）直接 `clearAuth()`。
+
+---
+
+## 10. 核心代码解释
+
+### 10.1 登录态判定（前端）
+
+- `auth.ts` 中 `isLoggedIn = !!token && !!user`。
+- 这意味着只有 token 不足以算“已登录”，必须同时有 user 对象。
+- 若未来改为“只校验 token”，需同步评估守卫/菜单逻辑。
+
+### 10.2 自动刷新 Token（前端）
+
+- 位置：`frontend/src/api/index.ts` 响应拦截器。
+- 401 时：
+  - 取 `investhub_refresh_token`
+  - 调 `authStore.refreshTokens()`
+  - 成功后重发原请求。
+
+### 10.3 Token 签发（后端）
+
+- 位置：`background/accounts/views.py` -> `get_tokens_for_user(user)`。
+- 使用 `RefreshToken.for_user(user)` 生成 refresh/access。
+
+### 10.4 权限判断（前后端）
+
+- 前端：`isAdmin` 由 `user.role` 计算，用于菜单与路由跳转控制。
+- 后端：敏感接口（如治理）通过 `_ensure_moderator()` 再校验 `request.user.role`。
+- 安全上以后端为准，前端仅是体验层拦截。
+
+---
+
+## 11. 修改风险点
+
+1. `refresh` 接口响应格式与前端统一响应解析策略存在冲突风险  
+   - 前端 `api/index.ts` 约定成功响应需 `code===0` 且业务数据在 `data`。  
+   - 但 `/api/auth/refresh/` 使用 SimpleJWT 默认 `TokenRefreshView`，通常返回 `{access: ...}`。  
+   - 这会导致前端把刷新响应判为“业务错误”，自动刷新链路可能失效。
+
+2. `SIMPLE_JWT.BLACKLIST_AFTER_ROTATION=True` 但未见 `token_blacklist` app  
+   - `settings.py` 中开启了黑名单相关配置，但 `INSTALLED_APPS` 未看到 `rest_framework_simplejwt.token_blacklist`。  
+   - 可能导致刷新轮换/黑名单行为不符合预期（待确认运行期是否报错或被忽略）。
+
+3. 登录输入文案与实际能力不一致  
+   - 前端提示“用户名/邮箱”，后端 `authenticate()` 仅支持用户名登录。  
+   - 可能造成用户误解与支持成本。
+
+4. 注册后用户对象为前端“拼装对象”  
+   - `authStore.register()` 手工构造 `LoginResponse.user`，字段并非后端真实完整资料。  
+   - 未来若后端用户结构变更，存在字段漂移风险。
+
+5. `localStorage.clear()` 清理范围过大  
+   - 401 刷新失败时调用 `localStorage.clear()`，会误删非认证业务缓存。
+
+6. `Login.vue` 使用 `// @ts-nocheck`  
+   - 登录注册页失去类型约束，后续改造容易引入低级错误。
+
+---
+
+## 12. 后续扩展建议（验证码、找回密码、第三方登录等）
+
+### 12.1 增加验证码（登录/注册）
+
+- 前端改动点：
+  - `frontend/src/views/Login.vue`：增加验证码输入与获取按钮（图片/短信）。
+  - `frontend/src/api/auth.ts`：登录/注册参数加 `captcha_id/captcha_code` 或 `sms_code`。
+  - `frontend/src/stores/auth.ts`：透传新参数。
+- 后端改动点：
+  - `accounts/serializers.py` 登录/注册序列化器增加验证码校验逻辑。
+  - 新增验证码发放接口（建议 `POST /api/auth/captcha/` 或短信发送接口）。
+
+### 12.2 增加邮箱登录/手机号登录
+
+- 关键改造在后端鉴权：
+  - `UserLoginSerializer.validate()` 当前 `authenticate(username=...)`，需改为“账号类型识别 + 用户查询 + `check_password`”或自定义 AuthenticationBackend。
+- 前端：
+  - 登录表单增加 `loginType`（用户名/邮箱/手机号）或自动识别。
+  - 接口参数建议统一为 `identifier`。
+
+### 12.3 增加第三方登录
+
+- 前端：
+  - `Login.vue` 增加第三方按钮与回调处理页（如 `/auth/callback/:provider`）。
+- 后端：
+  - 新增 OAuth 授权发起与回调接口。
+  - 维护第三方账号绑定表（建议新增 `UserSocialAccount`）。
+- 鉴权：
+  - 回调成功后仍下发当前系统 JWT（保持前端现有体系不变）。
+
+### 12.4 增加记住我
+
+- 前端：
+  - `Login.vue` 增加 `rememberMe` 复选框。
+  - 不勾选：token 存 `sessionStorage`；勾选：存 `localStorage`。
+- 后端（可选）：
+  - 针对 rememberMe 切换更长 refresh 生命周期（可做多套策略）。
+
+### 12.5 增加找回密码
+
+- 前端：
+  - 登录页增加“忘记密码”入口与重置页面。
+- 后端：
+  - 新增“发送验证码/重置链接”与“确认重置”接口。
+  - 建议引入一次性 token 或验证码表，增加过期时间与频控。
+
+### 12.6 增加权限校验细化（RBAC）
+
+- 后端优先：
+  - 将 `_ensure_moderator` 扩展为可复用 Permission 类。
+  - 建立角色-权限映射常量，避免散落在视图函数中。
+- 前端：
+  - 增加 `hasPermission()`（不仅仅是 `isAdmin`）。
+
+---
+
+## 13. 快速修改指南（新增功能时该改哪里）
+
+### 场景 A：改登录参数（如改成 identifier + password）
+
+- 必改：
+  - `frontend/src/views/Login.vue`（表单字段）
+  - `frontend/src/api/auth.ts`（`LoginParams`）
+  - `frontend/src/stores/auth.ts`（`login` 入参类型）
+  - `background/accounts/serializers.py`（`UserLoginSerializer`）
+  - `background/accounts/views.py`（`login`）
+- 联调检查：
+  - 路由守卫是否仍正确判断 `isLoggedIn`
+  - 登录成功后 `user` 字段是否完整
+
+### 场景 B：改 Token 刷新策略
+
+- 必改：
+  - `background/invest_backend/settings.py`（`SIMPLE_JWT` 参数）
+  - `background/accounts/urls.py` / `views.py`（若改自定义 refresh 响应格式）
+  - `frontend/src/api/index.ts`（响应解析与 401 重试策略）
+  - `frontend/src/stores/auth.ts`（`refreshTokens`）
+- 建议：
+  - 统一 refresh 接口返回格式为 `{code:0,data:{access}}` 或前端对 refresh 做特判。
+
+### 场景 C：加找回密码
+
+- 前端新增页面与路由：
+  - `frontend/src/views/ForgotPassword.vue`（待新增）
+  - `frontend/src/router/index.ts`（新增公开路由）
+- 后端新增接口：
+  - `accounts/urls.py`（新增 `password-reset/*`）
+  - `accounts/views.py` + `serializers.py`（发码、校验、重置）
+
+### 场景 D：加第三方登录
+
+- 前端：
+  - `Login.vue` 新增按钮
+  - 新增回调处理 view
+- 后端：
+  - 新增 `oauth_urls.py` 或在 `accounts.urls` 扩展 provider 接口
+  - 新增社交账号绑定模型与迁移
+
+---
+
+## 14. 待确认问题
+
+1. `/api/auth/refresh/` 当前返回是否为 SimpleJWT 默认格式？前端现有统一响应解析是否已线上可用。  
+2. 是否计划启用 `rest_framework_simplejwt.token_blacklist`（与 `BLACKLIST_AFTER_ROTATION=True` 对齐）。  
+3. 登录是否正式支持邮箱/手机号？当前 UI 文案与后端行为不一致。  
+4. 是否需要“注册即登录”策略长期保留，还是改成“注册后跳登录并二次验证邮箱/手机”。  
+5. `localStorage.clear()` 是否可改为仅移除认证 key，避免误删业务缓存。  
+6. 是否要求前端启动时强制调用一次 `/users/me/` 以保证 `user` 信息与后端一致。  
+7. 是否需要将管理员权限从“角色判断”升级为“权限点判断”（如 `canReviewContent`、`canBanUser`）。  
+
+---
+
+## 附：关键文件索引（便于快速跳转）
+
+- 前端：
+  - `frontend/src/views/Login.vue`
+  - `frontend/src/stores/auth.ts`
+  - `frontend/src/api/auth.ts`
+  - `frontend/src/api/index.ts`
+  - `frontend/src/router/index.ts`
+  - `frontend/src/components/layout/MainLayout.vue`
+  - `frontend/src/types/index.ts`
+
+- 后端：
+  - `background/invest_backend/settings.py`
+  - `background/invest_backend/urls.py`
+  - `background/accounts/models.py`
+  - `background/accounts/serializers.py`
+  - `background/accounts/views.py`
+  - `background/accounts/urls.py`
+  - `background/accounts/user_urls.py`
+  - `background/accounts/migrations/0001_initial.py`
+  - `background/accounts/migrations/0002_user_mute_until_usermoderationlog.py`

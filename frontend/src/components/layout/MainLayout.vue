@@ -52,7 +52,10 @@
             {{ authStore.user?.displayName?.[0] || 'U' }}
           </el-avatar>
           <div class="user-details">
-            <p class="user-name">{{ authStore.user?.displayName || 'Unknown User' }}</p>
+            <p class="user-name">
+              {{ authStore.user?.displayName || 'Unknown User' }}
+              <span v-if="authStore.user?.vBadge" class="v-badge">V</span>
+            </p>
             <p class="user-username">@{{ authStore.user?.username || 'unknown' }}</p>
           </div>
           <button 
@@ -295,7 +298,8 @@ import {
   Setting,
   User,
   DataLine,
-  Coin
+  Coin,
+  Checked
 } from '@element-plus/icons-vue'
 import { globalSearch, type GlobalSearchResult } from '../../api/search'
 import { getNotificationsStreamUrl } from '../../api/notifications'
@@ -326,6 +330,7 @@ const menuItems = computed(() => [
   { name: 'Community', path: '/community', label: '社区论坛', icon: UserFilled },
   { name: 'Portfolios', path: '/portfolios', label: '投资组合', icon: TrendCharts },
   ...(authStore.isLoggedIn ? [{ name: 'MyHoldings', path: '/holdings', label: '我的持仓', icon: Coin }] : []),
+  ...(authStore.isLoggedIn ? [{ name: 'VerifyChannel', path: '/auth/verify', label: '认证中心', icon: Checked }] : []),
   ...(authStore.isAdmin ? [{ name: 'AdminPanel', path: '/admin', label: '管理后台', icon: Setting }] : []),
   { name: 'Profile', path: '/profile', label: '我的主页', icon: User }
 ])
@@ -831,6 +836,19 @@ watch(
   overflow: hidden;
   text-overflow: ellipsis;
   font-family: $apple-font-family;
+}
+
+.v-badge {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  margin-left: 6px;
+  border-radius: 50%;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #fff;
+  background: #f59e0b;
 }
 
 .user-username {

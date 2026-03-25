@@ -31,6 +31,14 @@ export const useAuthStore = defineStore('auth', () => {
   // Getters
   const isLoggedIn = computed(() => !!token.value && !!user.value)
   const isAdmin = computed(() => user.value?.role === 'ADMIN' || user.value?.role === 'MODERATOR')
+  const authCapabilities = computed(() => ({
+    basicVerified: !!(user.value?.phoneVerified || user.value?.emailVerified),
+    realNameVerified: user.value?.realNameStatus === 'APPROVED',
+    professionalVerified: user.value?.professionalStatus === 'APPROVED',
+    riskAssessed: user.value?.riskAssessmentStatus === 'APPROVED',
+    canUseProFeatures: user.value?.professionalStatus === 'APPROVED' && user.value?.riskAssessmentStatus === 'APPROVED',
+    vBadge: !!user.value?.vBadge
+  }))
 
   // Actions
   const setAuth = (authData: LoginResponse) => {
@@ -65,6 +73,18 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  const loginWithPassword = async (params: authApi.PasswordLoginParams) => {
+    const response = await authApi.loginWithPassword(params)
+    setAuth(response)
+    return response
+  }
+
+  const loginWithSms = async (params: authApi.SmsLoginParams) => {
+    const response = await authApi.loginWithSms(params)
+    setAuth(response)
+    return response
+  }
+
   const register = async (params: authApi.RegisterParams) => {
     try {
       const response = await authApi.register(params) as RegisterResponse
@@ -93,6 +113,18 @@ export const useAuthStore = defineStore('auth', () => {
     } catch (error) {
       throw error
     }
+  }
+
+  const registerByEmail = async (params: authApi.EmailRegisterParams) => {
+    const response = await authApi.registerEmail(params)
+    setAuth(response)
+    return response
+  }
+
+  const registerByPhone = async (params: authApi.PhoneRegisterParams) => {
+    const response = await authApi.registerPhone(params)
+    setAuth(response)
+    return response
   }
 
   const logout = async () => {
@@ -152,10 +184,15 @@ export const useAuthStore = defineStore('auth', () => {
     // Getters
     isLoggedIn,
     isAdmin,
+    authCapabilities,
     
     // Actions
     login,
+    loginWithPassword,
+    loginWithSms,
     register,
+    registerByEmail,
+    registerByPhone,
     logout,
     refreshTokens,
     fetchCurrentUser,

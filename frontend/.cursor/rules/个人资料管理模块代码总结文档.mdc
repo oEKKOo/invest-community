@@ -1,0 +1,335 @@
+# 《个人资料管理模块代码总结文档》
+
+## 开始分析前先做这三步
+
+### 第一步：识别已提供资料类型
+
+- 前端页面：`frontend/src/views/Profile.vue`
+- 前端布局组件：`frontend/src/components/layout/MainLayout.vue`
+- 前端路由：`frontend/src/router/index.ts`
+- 前端状态管理：`frontend/src/stores/auth.ts`、`frontend/src/stores/posts.ts`、`frontend/src/stores/portfolios.ts`
+- 前端 API 封装：`frontend/src/api/auth.ts`、`frontend/src/api/users.ts`、`frontend/src/api/posts.ts`、`frontend/src/api/likes.ts`、`frontend/src/api/portfolios.ts`、`frontend/src/api/index.ts`
+- 前端类型定义：`frontend/src/types/index.ts`
+- 后端路由：`background/invest_backend/urls.py`、`background/accounts/urls.py`、`background/accounts/user_urls.py`、`background/content/urls.py`、`background/portfolios/urls.py`
+- 后端视图：`background/accounts/views.py`、`background/content/views.py`
+- 后端序列化器：`background/accounts/serializers.py`
+- 后端模型：`background/accounts/models.py`、`background/content/models.py`、`background/portfolios/models.py`
+- 权限与认证配置：`background/accounts/permissions.py`、`background/invest_backend/settings.py`
+
+### 第二步：范围确认
+
+**已确认可分析内容**
+
+- 个人主页（本人/他人）展示、编辑资料、关注关系、点赞记录、收藏记录、我的帖子、我的组合等主链路。
+- 全局登录态、路由守卫、401 刷新 token 与失效跳转逻辑。
+- 前后端字段映射（`displayName/display_name`、`avatar/avatar_url`、`followers/followers_count` 等）。
+- 涉及的数据表与关联关系（用户、关注、内容、收藏、点赞、组合）。
+
+**缺失但建议补充内容**
+
+- 专门的“修改密码”接口与页面（当前仅见验证码用途枚举，未形成完整流程）。
+- 头像文件上传能力（当前是“头像 URL 输入”模式，不是文件上传）。
+- 用户行为聚合中的“我的评论/我的投资组合订阅/私信统计”等统一接口。
+- 用户页 `isFollowing` 初始状态查询接口（页面中存在 `toggleFollow`，但未看到明确初始化是否已关注）。
+
+**当前已足够分析范围**
+
+- 可完整覆盖“个人资料管理模块”现有实现、前后端联动和主要风险点。
+- 对缺失或不确定环节统一标注 **待确认**。
+
+### 第三步：正式输出完整文档
+
+---
+
+## 1. 模块定位
+
+个人资料管理模块承担“用户身份展示 + 自助资料维护 + 个人内容聚合 + 社交关系管理”的核心职能，连接认证体系（JWT/登录态）、社区内容（帖子/评论/点赞/收藏）与投资组合（Portfolio）两大业务域。
+
+在当前项目中，该模块不仅是“我的主页”，也复用了同一页面承载“他人主页”访问（`/users/:userId`），是用户中心与社交关系入口。
+
+## 2. 功能概述
+
+已实现功能（可确认）：
+
+- 查看本人资料：昵称、头像、简介、角色、粉丝数、关注数。
+- 查看他人公开资料：通过 `GET /api/users/{id}/`。
+- 编辑本人资料：昵称、简介、头像链接（URL）。
+- 关注/取关用户：`POST/DELETE /api/users/{id}/follow/`。
+- 查看粉丝/关注列表：`/followers/`、`/following/`。
+- 我的帖子聚合：按作者 ID 过滤帖子。
+- 我的投资组合聚合：按 `userId` 过滤组合列表。
+- 我的收藏记录：`GET /api/users/me/favorites/`。
+- 我的点赞记录（含目标摘要）：`GET /api/users/me/likes/`。
+- token 过期自动刷新与失效回登录页。
+
+未确认/未形成闭环：
+
+- 修改密码流程：**待确认**（未发现完整前后端实现）。
+- 头像文件上传：**待确认**（当前实现为头像 URL 文本输入）。
+- 我的评论聚合：**待确认**（个人页未提供评论列表能力）。
+- 我的投资组合订阅/点赞总览聚合接口：**待确认**（仅有局部数据拼装）。
+
+## 3. 前端结构分析
+
+### 页面/组件
+
+- 核心页面：`frontend/src/views/Profile.vue`
+  - 同时支持本人主页 `/profile` 与他人主页 `/users/:userId`。
+  - 主要分区：Hero 信息区、Tab 主内容区、编辑资料弹窗、点赞/收藏抽屉、粉丝/关注抽屉。
+- 关联布局：`frontend/src/components/layout/MainLayout.vue`
+  - 侧边栏展示当前用户头像、昵称、V 标识。
+  - 菜单入口包含“我的主页”。
+
+### 路由配置
+
+文件：`frontend/src/router/index.ts`
+
+- `name: 'Profile'` -> `/profile`
+- `name: 'UserProfile'` -> `/users/:userId`
+- 全局守卫：
+  - 默认需要登录（`to.meta.requiresAuth !== false`）。
+  - 未登录访问受保护路由跳转 `/login`。
+  - 管理员路由检查 `authStore.isAdmin`。
+
+### 状态管理
+
+- `frontend/src/stores/auth.ts`
+  - 维护 `token`、`refreshToken`、`user`，并持久化到 `localStorage`。
+  - `fetchCurrentUser()` 拉取 `/users/me/`，失败时清理本地登录态。
+- `frontend/src/stores/posts.ts`
+  - `fetchPosts({ authorId })` 获取作者帖子，用于个人页帖子 Tab。
+- `frontend/src/stores/portfolios.ts`
+  - 个人页本身直接调用 API 获取组合，store 作为其他页面共享状态来源。
+
+### 交互流程
+
+页面初始化（`Profile.vue`）：
+
+1. `onMounted -> initProfilePage()`
+2. `fetchDisplayUser()`：
+   - 本人页：`authStore.fetchCurrentUser()` 并赋值 `displayUser`。
+   - 他人页：直接 `fetch('/api/users/{id}/')` 拉公开资料。
+3. 按当前 Tab 拉取对应数据（总览默认并行拉帖子 + 组合）。
+4. 若本人页额外预加载点赞/收藏预览（各 5 条）。
+
+编辑资料：
+
+- 打开弹窗时由 `watch(showEditProfile)` 回填 `editForm`。
+- 表单校验后调用 `updateCurrentUser()` -> `PATCH /api/users/me/`。
+- 成功后执行 `authStore.fetchCurrentUser()`，并同步 `displayUser`。
+
+## 4. 后端结构分析
+
+### 核心文件
+
+- 路由入口：
+  - `background/invest_backend/urls.py`
+  - `background/accounts/user_urls.py`
+- 核心视图：
+  - `background/accounts/views.py`
+    - `manage_current_user`（GET/PATCH）
+    - `get_user_profile`
+    - `manage_follow`
+    - `UserFollowersView` / `UserFollowingView`
+    - `UserFavoritesView` / `UserLikesView`
+- 序列化器：
+  - `background/accounts/serializers.py`
+    - `UserProfileSerializer`
+    - `UserPublicSerializer`
+    - `UserFollowSerializer`
+- 相关模型：
+  - `background/accounts/models.py`（`User`、`UserFollow`）
+  - `background/content/models.py`（`Content`、`Like`、`Favorite`）
+  - `background/portfolios/models.py`（`Portfolio`）
+
+### 接口与路由映射
+
+- `GET /api/users/me/` -> `manage_current_user`（读取当前用户完整资料）
+- `PATCH /api/users/me/` -> `manage_current_user`（更新资料）
+- `GET /api/users/{user_id}/` -> `get_user_profile`（公开资料）
+- `POST /api/users/{user_id}/follow/` -> `manage_follow`（关注）
+- `DELETE /api/users/{user_id}/follow/` -> `manage_follow`（取关）
+- `GET /api/users/{user_id}/followers/` -> `UserFollowersView`
+- `GET /api/users/{user_id}/following/` -> `UserFollowingView`
+- `GET /api/users/me/favorites/` -> `UserFavoritesView`
+- `GET /api/users/me/likes/` -> `UserLikesView`
+
+### 数据模型
+
+主表与关键字段：
+
+- `accounts_user`（模型 `User`）
+  - 资料字段：`display_name`、`avatar_url`、`bio`
+  - 权限字段：`role`、`status`、`is_active`
+  - 计数字段：`followers_count`、`following_count`
+  - 认证字段：`phone_verified`、`email_verified`、`identity_level` 等
+- `user_follow`（模型 `UserFollow`）
+  - `follower` -> `User`
+  - `followee` -> `User`
+  - `unique_together(follower, followee)`
+- `content`（帖子）通过 `author` 关联 `User`
+- `favorite`（收藏）通过 `user + content` 关联
+- `like`（点赞）通过 `user + target_type + target_id` 关联
+- `portfolio`（组合）通过 `owner` 关联 `User`
+
+### 业务流程
+
+- 资料查询：使用 `UserProfileSerializer`（本人）/`UserPublicSerializer`（他人）。
+- 资料更新：`UserProfileSerializer(partial=True)` 保存。
+- 关注操作：`manage_follow` 中事务更新 `following_count` 与 `followers_count`。
+- 点赞记录聚合：`UserLikesView` 按 `target_type` 动态拼接目标摘要。
+
+## 5. 前后端联动流程
+
+### 查看资料流程
+
+1. 前端进入 `/profile` 或 `/users/:userId`。
+2. 本人：`authStore.fetchCurrentUser()` -> `GET /api/users/me/`。
+3. 他人：`fetch('/api/users/{id}/')`（当前实现未复用 `api/users.ts`）。
+4. 页面渲染头像、昵称、简介、关注统计等。
+
+### 编辑资料流程
+
+1. 点击“编辑资料”打开弹窗，回填 `authStore.user`。
+2. 前端校验（昵称必填、长度限制、简介长度限制）。
+3. `PATCH /api/users/me/` 提交。
+4. 成功后 `authStore.fetchCurrentUser()` 刷新全局用户信息。
+5. Profile 页 `displayUser` 同步更新，布局头像昵称也随 store 刷新。
+
+### 上传头像流程（若有）
+
+- 当前为“头像 URL 输入并保存到 `avatar_url`”。
+- 文件上传（`multipart`、存储服务、回传 URL）流程：**待确认**。
+
+### 修改密码流程（若有）
+
+- 前端个人资料页未发现入口。
+- 后端未见独立 `change_password` 接口；仅验证码用途枚举含 `PASSWORD_RESET`。
+- 完整流程：**待确认**。
+
+### 我的内容加载流程（若有）
+
+- 我的帖子：`postsStore.fetchPosts({ authorId })` -> `GET /api/posts/?authorId=...`
+- 我的组合：`getPortfolios({ userId })` -> `GET /api/portfolios/?userId=...`
+- 我的收藏：`getMyFavorites` -> `GET /api/users/me/favorites/`
+- 我的点赞：`getMyLikes` -> `GET /api/users/me/likes/`
+
+### 异常 / 权限 / token 失效流程
+
+- 前端 axios 响应拦截器（`api/index.ts`）：
+  - 401 时尝试 `refreshTokens()`。
+  - 刷新失败清理本地凭证并跳转 `/login`。
+- 路由守卫：
+  - 未登录拦截受保护路由。
+- 后端权限：
+  - 用户资料编辑要求 `IsAuthenticated`。
+  - 公开资料 `AllowAny`。
+
+## 6. 核心代码说明
+
+- `frontend/src/views/Profile.vue`
+  - `initProfilePage()`：页面初始化主入口
+  - `fetchDisplayUser()`：区分本人/他人资料获取
+  - `handleUpdateProfile()`：资料更新提交
+  - `fetchUserPosts()` / `fetchUserPortfolios()`：内容聚合
+  - `openDrawer()`、`fetchAllLikes()`、`fetchAllFavorites()`：点赞/收藏详情
+  - `openFollowDrawer()`、`fetchFollowList()`、`handleUnfollow()`：粉丝/关注抽屉
+  - `toggleFollow()`：关注/取关
+- `frontend/src/stores/auth.ts`
+  - `setAuth()`、`clearAuth()`、`fetchCurrentUser()`、`refreshTokens()`
+- `frontend/src/api/auth.ts`
+  - `getCurrentUser()`、`updateCurrentUser()`
+- `frontend/src/api/users.ts`
+  - `getUserFollowers()`、`getUserFollowing()`、`followUser()`、`unfollowUser()`
+- `frontend/src/api/index.ts`
+  - 请求/响应拦截器，统一 token 注入与 401 刷新
+- `background/accounts/views.py`
+  - `manage_current_user`、`get_user_profile`、`manage_follow`
+  - `UserFollowersView`、`UserFollowingView`、`UserFavoritesView`、`UserLikesView`
+- `background/accounts/serializers.py`
+  - `UserProfileSerializer`（字段映射与可写规则）
+  - `UserPublicSerializer`（公开资料裁剪）
+- `background/accounts/models.py`
+  - `User`、`UserFollow`
+
+## 7. 依赖关系与影响范围
+
+个人资料模块依赖：
+
+- 认证体系：`auth`（JWT、刷新 token、登录态持久化）。
+- 内容体系：`content`（帖子、评论、点赞、收藏）。
+- 组合体系：`portfolios`（我的组合、组合点赞）。
+- 通知/事件：关注等行为通过 `publish_event` 触发事件。
+
+影响范围：
+
+- 改 `UserProfileSerializer` 会影响 `Profile.vue`、`MainLayout.vue`、登录后用户信息展示。
+- 改 `User` 字段命名会影响多模块（帖子作者、评论作者、消息、通知、管理后台）。
+- 改 follow 逻辑会影响主页统计、关注流推荐、通知事件。
+
+## 8. 当前实现特点总结
+
+### 优点
+
+- 资料、社交、内容聚合在一个页面闭环，用户中心体验完整。
+- 前后端字段映射较明确（驼峰与下划线转换由 serializer/API 层承接）。
+- token 自动刷新和路由守卫齐全，认证链路可用。
+- 关注/取关对计数字段维护放在事务中，数据一致性较好。
+
+### 不足
+
+- `Profile.vue` 中同时混用封装 API 与原生 `fetch`，风格不统一。
+- `Profile.vue` 使用 `// @ts-nocheck`，类型约束失效。
+- 页面职责过重（展示、聚合、弹窗、抽屉、关注、举报全部在单文件）。
+- 缺少修改密码与头像文件上传等常见资料管理能力闭环。
+
+### 耦合点
+
+- `authStore.user` 与 `Profile.vue displayUser` 双状态并存，需手动同步。
+- `followers_count/following_count` 为冗余计数字段，依赖 follow 逻辑正确更新。
+- 点赞/收藏分页结构依赖后端返回字段固定（`items/page/pageSize/total`）。
+
+### 风险点
+
+- `toggleFollow` 未见明确“是否已关注”初始化流程，按钮初始态可能不准确（**待确认**）。
+- `UserLikesView` 对目标对象逐条查询，数据量大时存在 N+1 风险。
+- 资料更新若后端字段校验变化，前端仅部分规则覆盖，可能出现线上校验不一致。
+
+## 9. 后续开发建议
+
+- 拆分 `Profile.vue`：按“资料头部 / 内容聚合 / 社交抽屉 / 编辑弹窗”组件化。
+- 去掉 `@ts-nocheck`，为点赞/收藏/关注项补全类型。
+- 统一使用 API 封装层，避免页面内手写 `fetch`。
+- 增加“是否已关注”查询接口或在用户公开资料中返回该字段（仅对登录用户）。
+- 若新增头像上传，建议引入独立上传接口与媒体存储策略，并保留 URL 兼容。
+- 为个人中心关键接口补充 E2E 场景：token 过期、并发关注、资料更新回显一致性。
+
+## 10. 快速修改指南
+
+- 想改页面看哪些文件
+  - `frontend/src/views/Profile.vue`
+  - `frontend/src/components/layout/MainLayout.vue`
+  - `frontend/src/router/index.ts`
+- 想改表单看哪些文件
+  - `frontend/src/views/Profile.vue`（`editForm`、`editRules`、`handleUpdateProfile`）
+  - `background/accounts/serializers.py`（`UserProfileSerializer`）
+- 想改接口看哪些文件
+  - 前端：`frontend/src/api/auth.ts`、`frontend/src/api/users.ts`、`frontend/src/api/posts.ts`、`frontend/src/api/likes.ts`
+  - 后端：`background/accounts/user_urls.py`、`background/accounts/views.py`
+- 想改权限看哪些文件
+  - 前端守卫：`frontend/src/router/index.ts`
+  - 后端权限：`background/accounts/views.py`（`permission_classes`）、
+    `background/accounts/permissions.py`（扩展权限类）
+  - 全局认证：`background/invest_backend/settings.py`
+- 想改数据库看哪些表
+  - `user`、`user_follow`
+  - `content`、`favorite`、`like`
+  - `portfolio`
+
+## 11. 待确认问题
+
+- 修改密码、重置密码是否已有独立后端接口与前端页面入口（当前未发现闭环）。
+- 头像是否需要支持文件上传（当前仅 URL 字段）。
+- 访问他人主页时，`isFollowing` 初始状态是否有后端接口支持（当前代码未见显式初始化）。
+- 个人中心是否需要纳入“我的评论、我的私信统计、我的组合订阅”统一聚合。
+- 资料编辑是否需要审计日志（昵称/头像/简介历史变更追踪）能力。
