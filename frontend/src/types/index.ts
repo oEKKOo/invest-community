@@ -69,8 +69,67 @@ export interface Post {
   comments: number
   createdAt: string
   assets?: Asset[]
+  boards?: Board[]
+  contentType?: 'NORMAL' | 'LONGFORM' | 'POLL' | 'LIVE'
+  poll?: Poll | null
+  attachments?: Attachment[]
+  reposts?: number
   isLiked?: boolean
   isFavorited?: boolean
+}
+
+export interface Attachment {
+  id: number
+  original_name?: string
+  mime_type?: string
+  file_size?: number
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  reject_reason?: string
+  fileUrl?: string
+  created_at?: string
+}
+
+export interface CommentAttachment {
+  id: number
+  original_name?: string
+  mime_type?: string
+  file_size?: number
+  fileUrl?: string
+  created_at?: string
+}
+
+export interface PollOption {
+  id: number
+  text: string
+  sort_order?: number
+  vote_count: number
+}
+
+export interface Poll {
+  id: number
+  question: string
+  allow_multiple: boolean
+  expires_at?: string | null
+  is_closed: boolean
+  options: PollOption[]
+  totalVotes: number
+}
+
+export interface Board {
+  id: number
+  name: string
+  slug: string
+  board_type: 'MARKET' | 'THEME' | 'COMPANY_RESEARCH' | 'QA'
+  parentId?: number | null
+  description?: string
+  icon?: string
+  sort_order: number
+  status: 'ACTIVE' | 'INACTIVE'
+  is_builtin: boolean
+  market?: 'A_SHARE' | 'HK_STOCK' | 'US_STOCK' | 'FUTURES' | ''
+  industry_code?: string
+  stock_code?: string
+  children?: Board[]
 }
 
 // 评论类型
@@ -87,6 +146,7 @@ export interface Comment {
   createdAt: string
   isLiked?: boolean
   replies: Comment[]
+  attachments?: CommentAttachment[]
 }
 
 // 资产类型

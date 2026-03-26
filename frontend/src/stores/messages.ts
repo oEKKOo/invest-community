@@ -30,9 +30,9 @@ export const useMessagesStore = defineStore('messages', () => {
     }
   }
 
-  const sendMessage = async (content: string) => {
+  const sendMessage = async (content: string, attachmentIds?: number[]) => {
     if (!currentConversationId.value) return
-    const msg = await messagesApi.sendMessage(currentConversationId.value, content)
+    const msg = await messagesApi.sendMessage(currentConversationId.value, content, attachmentIds)
     messages.value.push(msg)
   }
 

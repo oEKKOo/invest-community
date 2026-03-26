@@ -13,5 +13,6 @@ urlpatterns = [
     ),
     # 标记消息已读
     path('messages/<int:pk>/read/', views.mark_message_read, name='mark_message_read'),
+    path('uploads/messages/', views.upload_message_attachment, name='upload_message_attachment'),
 ]
 

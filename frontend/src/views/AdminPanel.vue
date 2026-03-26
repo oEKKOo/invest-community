@@ -374,6 +374,119 @@
       </div>
     </div>
 
+    <!-- 板块管理 -->
+    <div class="moderation-section">
+      <div class="section-header">
+        <h3 class="section-title">板块管理</h3>
+        <p class="section-subtitle">动态新增、编辑、删除与查询板块</p>
+      </div>
+      <div class="moderation-container">
+        <div class="dialog-footer" style="margin-bottom: 12px; justify-content: space-between;">
+          <el-input
+            v-model="boardKeyword"
+            placeholder="搜索板块名称"
+            clearable
+            style="max-width: 240px"
+          />
+          <el-button type="primary" @click="openBoardDialog()">
+            新增板块
+          </el-button>
+        </div>
+        <el-skeleton v-if="loadingBoards" :rows="4" animated class="reports-skeleton" />
+        <el-empty v-else-if="!filteredBoards.length" description="暂无板块数据" />
+        <el-table
+          v-else
+          :data="filteredBoards"
+          border
+          size="small"
+          class="reports-table"
+        >
+          <el-table-column prop="id" label="ID" width="70" />
+          <el-table-column prop="name" label="名称" min-width="180" />
+          <el-table-column prop="board_type" label="类型" width="150" />
+          <el-table-column label="父板块" width="150">
+            <template #default="{ row }">
+              {{ getBoardName(row.parentId) || '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="sort_order" label="排序" width="80" />
+          <el-table-column prop="status" label="状态" width="100" />
+          <el-table-column label="操作" width="240" fixed="right">
+            <template #default="{ row }">
+              <el-button size="small" @click="openBoardDialog(row)">编辑</el-button>
+              <el-button size="small" type="danger" plain @click="handleDeleteBoard(row.id)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+    </div>
+
+    <el-dialog v-model="boardDialogVisible" :title="boardForm.id ? '编辑板块' : '新增板块'" width="520px">
+      <el-form :model="boardForm" label-width="92px">
+        <el-form-item label="名称">
+          <el-input v-model="boardForm.name" />
+        </el-form-item>
+        <el-form-item label="Slug">
+          <el-input v-model="boardForm.slug" />
+        </el-form-item>
+        <el-form-item label="类型">
+          <el-select v-model="boardForm.board_type" style="width: 100%">
+            <el-option label="市场讨论区" value="MARKET" />
+            <el-option label="主题专区" value="THEME" />
+            <el-option label="公司研究专区" value="COMPANY_RESEARCH" />
+            <el-option label="问答求助区" value="QA" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="父板块">
+          <el-select v-model="boardForm.parent" clearable style="width: 100%">
+            <el-option v-for="board in boards" :key="board.id" :label="board.name" :value="board.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="排序">
+          <el-input-number v-model="boardForm.sort_order" :min="0" :max="9999" />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="boardForm.status" style="width: 100%">
+            <el-option label="启用" value="ACTIVE" />
+            <el-option label="停用" value="INACTIVE" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="描述">
+          <el-input v-model="boardForm.description" type="textarea" :rows="3" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="boardDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="submitBoardForm">保存</el-button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <div class="moderation-section">
+      <div class="section-header">
+        <h3 class="section-title">附件审核</h3>
+        <p class="section-subtitle">审核帖子附件（PDF/Excel/图片）</p>
+      </div>
+      <div class="moderation-container">
+        <el-skeleton v-if="loadingAttachments" :rows="4" animated class="reports-skeleton" />
+        <el-empty v-else-if="!attachmentItems.length" description="暂无待审核附件" />
+        <el-table v-else :data="attachmentItems" border size="small" class="reports-table">
+          <el-table-column prop="id" label="ID" width="70" />
+          <el-table-column prop="original_name" label="文件名" min-width="180" />
+          <el-table-column prop="mime_type" label="类型" width="140" />
+          <el-table-column prop="status" label="状态" width="100" />
+          <el-table-column label="操作" width="280">
+            <template #default="{ row }">
+              <el-button size="small" @click="openAttachment(row)">查看</el-button>
+              <el-button size="small" type="success" @click="reviewAttachment(row.id, 'APPROVED')">通过</el-button>
+              <el-button size="small" type="danger" plain @click="reviewAttachment(row.id, 'REJECTED')">驳回</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+    </div>
+
     <!-- 告警中心（从静态改为真实数据） -->
     <div class="alerts-section">
       <div class="section-header">
@@ -435,10 +548,10 @@
 
 <script setup lang="ts">
 // @ts-nocheck
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import * as adminApi from '../api/admin'
-import type { Post, AdminStats, Report, Alert, ModeratedUser } from '../types'
+import type { Post, AdminStats, Report, Alert, ModeratedUser, Board } from '../types'
 import {
   Setting,
   Clock,
@@ -490,6 +603,28 @@ const moderationDialogVisible = ref(false)
 const moderationTargetUser = ref<ModeratedUser | null>(null)
 const moderationAction = ref<'MUTE' | 'BAN' | 'UNMUTE' | 'UNBAN' | null>(null)
 const moderationReason = ref('')
+const loadingAttachments = ref(false)
+const attachmentItems = ref<any[]>([])
+const loadingBoards = ref(false)
+const boards = ref<Board[]>([])
+const boardKeyword = ref('')
+const boardDialogVisible = ref(false)
+const boardForm = ref<any>({
+  id: null,
+  name: '',
+  slug: '',
+  board_type: 'MARKET',
+  parent: null,
+  sort_order: 0,
+  status: 'ACTIVE',
+  description: ''
+})
+
+const filteredBoards = computed(() => {
+  const keyword = boardKeyword.value.trim().toLowerCase()
+  if (!keyword) return boards.value
+  return boards.value.filter(b => b.name.toLowerCase().includes(keyword))
+})
 
 // 方法
 const fetchPendingPosts = async () => {
@@ -545,6 +680,30 @@ const fetchAlerts = async () => {
     ElMessage.error('获取告警数据失败')
   } finally {
     loadingAlerts.value = false
+  }
+}
+
+const fetchBoards = async () => {
+  loadingBoards.value = true
+  try {
+    const res = await adminApi.getAdminBoards()
+    boards.value = res.items || []
+  } catch (error: any) {
+    ElMessage.error(error?.message || '获取板块列表失败')
+  } finally {
+    loadingBoards.value = false
+  }
+}
+
+const fetchAttachments = async () => {
+  loadingAttachments.value = true
+  try {
+    const res = await adminApi.getAdminAttachments({ status: 'PENDING', page: 1, pageSize: 50 })
+    attachmentItems.value = res.items || []
+  } catch (error: any) {
+    ElMessage.error(error?.message || '获取附件审核列表失败')
+  } finally {
+    loadingAttachments.value = false
   }
 }
 
@@ -623,8 +782,103 @@ onMounted(() => {
   fetchAdminStats()
   fetchPendingReports()
   fetchModeratedUsers()
+  fetchBoards()
+  fetchAttachments()
   fetchAlerts()
 })
+
+const openAttachment = (row: any) => {
+  if (!row.fileUrl) {
+    ElMessage.warning('附件地址不可用')
+    return
+  }
+  window.open(row.fileUrl, '_blank')
+}
+
+const reviewAttachment = async (attachmentId: number, status: 'APPROVED' | 'REJECTED') => {
+  try {
+    await adminApi.reviewAttachment(attachmentId, {
+      status,
+      rejectReason: status === 'REJECTED' ? '内容不符合规范，请重新上传' : undefined
+    })
+    ElMessage.success(status === 'APPROVED' ? '已通过附件审核' : '已驳回附件')
+    fetchAttachments()
+  } catch (error: any) {
+    ElMessage.error(error?.message || '附件审核失败')
+  }
+}
+
+const getBoardName = (boardId?: number | null) => {
+  if (!boardId) return ''
+  const board = boards.value.find(b => b.id === boardId)
+  return board?.name || ''
+}
+
+const openBoardDialog = (board?: Board) => {
+  if (!board) {
+    boardForm.value = {
+      id: null,
+      name: '',
+      slug: '',
+      board_type: 'MARKET',
+      parent: null,
+      sort_order: 0,
+      status: 'ACTIVE',
+      description: ''
+    }
+  } else {
+    boardForm.value = {
+      id: board.id,
+      name: board.name,
+      slug: board.slug,
+      board_type: board.board_type,
+      parent: board.parentId || null,
+      sort_order: board.sort_order || 0,
+      status: board.status || 'ACTIVE',
+      description: board.description || ''
+    }
+  }
+  boardDialogVisible.value = true
+}
+
+const submitBoardForm = async () => {
+  if (!boardForm.value.name || !boardForm.value.slug) {
+    ElMessage.warning('请填写板块名称和 Slug')
+    return
+  }
+  const payload: any = {
+    name: boardForm.value.name,
+    slug: boardForm.value.slug,
+    board_type: boardForm.value.board_type,
+    parent: boardForm.value.parent,
+    sort_order: boardForm.value.sort_order,
+    status: boardForm.value.status,
+    description: boardForm.value.description
+  }
+  try {
+    if (boardForm.value.id) {
+      await adminApi.updateBoard(boardForm.value.id, payload)
+      ElMessage.success('板块更新成功')
+    } else {
+      await adminApi.createBoard(payload)
+      ElMessage.success('板块创建成功')
+    }
+    boardDialogVisible.value = false
+    fetchBoards()
+  } catch (error: any) {
+    ElMessage.error(error?.message || '保存板块失败')
+  }
+}
+
+const handleDeleteBoard = async (boardId: number) => {
+  try {
+    await adminApi.deleteBoard(boardId)
+    ElMessage.success('板块删除成功')
+    fetchBoards()
+  } catch (error: any) {
+    ElMessage.error(error?.message || '删除板块失败')
+  }
+}
 
 const handleResolveReport = async (report: Report, result: 'VALID' | 'INVALID') => {
   try {

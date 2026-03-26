@@ -29,6 +29,22 @@
       >
         {{ status.label }}
       </el-button>
+      <el-select
+        v-model="selectedBoardId"
+        clearable
+        filterable
+        placeholder="按板块筛选"
+        class="board-filter-select"
+        :loading="boardsLoading"
+        @change="handleBoardFilterChange"
+      >
+        <el-option
+          v-for="board in boardLeafOptions"
+          :key="board.id"
+          :label="board.name"
+          :value="board.id"
+        />
+      </el-select>
     </div>
 
     <!-- 创建帖子对话框 -->
@@ -63,6 +79,27 @@
           />
         </el-form-item>
 
+        <el-form-item prop="contentType">
+          <el-select v-model="createForm.contentType" style="width: 100%">
+            <el-option label="普通帖子" value="NORMAL" />
+            <el-option label="长文分析" value="LONGFORM" />
+            <el-option label="投票调研" value="POLL" />
+            <el-option label="实时讨论" value="LIVE" />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item v-if="createForm.contentType === 'POLL'">
+          <el-input v-model="createForm.poll.question" placeholder="投票问题，例如：你看好下周A股走势吗？" />
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <el-input v-for="(opt, idx) in createForm.poll.options" :key="idx" v-model="opt.text" :placeholder="`选项${idx + 1}`" />
+          </div>
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <el-button size="small" @click="addPollOption">添加选项</el-button>
+            <el-button size="small" @click="removePollOption" :disabled="createForm.poll.options.length <= 2">删除选项</el-button>
+            <el-switch v-model="createForm.poll.allowMultiple" active-text="允许多选" />
+          </div>
+        </el-form-item>
+
         <el-form-item prop="tags">
           <div class="tags-input-wrapper">
             <el-input
@@ -86,12 +123,49 @@
           </div>
         </el-form-item>
 
+        <el-form-item prop="boardIds">
+          <div class="asset-select-label">
+            <el-icon style="color:#8B5CF6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18M3 12h18M3 17h18"/></svg></el-icon>
+            选择板块（支持多选，叶子节点）
+          </div>
+          <el-select
+            v-model="createForm.boardIds"
+            multiple
+            filterable
+            clearable
+            placeholder="请选择讨论板块"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="board in boardLeafOptions"
+              :key="board.id"
+              :label="board.name"
+              :value="board.id"
+            />
+          </el-select>
+        </el-form-item>
+
         <el-form-item>
           <div class="asset-select-label">
             <el-icon style="color:#3B82F6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></el-icon>
             关联标的（可选）
           </div>
           <AssetSelect v-model="createForm.assetIds" :max-count="5" />
+        </el-form-item>
+
+        <el-form-item>
+          <div class="asset-select-label">附件上传（PDF/Excel/图片，需审核）</div>
+          <el-upload
+            multiple
+            :auto-upload="false"
+            :show-file-list="true"
+            :on-change="handleAttachmentSelect"
+          >
+            <el-button>选择附件</el-button>
+          </el-upload>
+          <div v-if="createForm.attachmentIds.length" style="margin-top: 6px; color: #6b7280;">
+            已上传附件数：{{ createForm.attachmentIds.length }}
+          </div>
         </el-form-item>
       </el-form>
 
@@ -168,7 +242,16 @@
           <h3 class="post-title">{{ post.title }}</h3>
           <p class="post-content">{{ post.content }}</p>
 
-          <div class="post-tags" v-if="post.tags?.length || post.assets?.length">
+          <div class="post-tags" v-if="post.tags?.length || post.assets?.length || post.boards?.length">
+            <el-tag
+              v-for="board in (post.boards || [])"
+              :key="`board-${board.id}`"
+              size="small"
+              type="warning"
+              class="post-tag"
+            >
+              {{ board.name }}
+            </el-tag>
             <el-tag 
               v-for="tag in post.tags" 
               :key="tag"
@@ -263,6 +346,7 @@ import { usePostsStore } from '../stores/posts'
 import { useAuthStore } from '../stores/auth'
 import { PostStatus } from '../types'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import * as postsApi from '@/api/posts'
 import {
   Plus,
   Star,
@@ -283,6 +367,10 @@ const creating = ref(false)
 const activeFilter = ref<string>('ALL')
 const currentPage = ref(1)
 const pageSize = ref(20)
+const selectedBoardId = ref<number | undefined>()
+const boardsLoading = ref(false)
+const boardTree = ref<any[]>([])
+const boardLeafOptions = ref<any[]>([])
 
 // 表单
 const createFormRef = ref<FormInstance>()
@@ -290,7 +378,15 @@ const createForm = ref({
   title: '',
   content: '',
   tagsInput: '',
-  assetIds: [] as number[]
+  assetIds: [] as number[],
+  boardIds: [] as number[],
+  contentType: 'NORMAL' as 'NORMAL' | 'LONGFORM' | 'POLL' | 'LIVE',
+  attachmentIds: [] as number[],
+  poll: {
+    question: '',
+    allowMultiple: false,
+    options: [{ text: '' }, { text: '' }] as Array<{ text: string }>
+  }
 })
 
 const createRules: FormRules = {
@@ -324,12 +420,21 @@ const filteredParams = computed(() => {
     params.status = activeFilter.value
   }
 
+  if (selectedBoardId.value) {
+    params.boardId = selectedBoardId.value
+  }
+
   return params
 })
 
 // 方法
 const handleFilterChange = (filter: string) => {
   activeFilter.value = filter
+  currentPage.value = 1
+  fetchPosts()
+}
+
+const handleBoardFilterChange = () => {
   currentPage.value = 1
   fetchPosts()
 }
@@ -344,6 +449,52 @@ const fetchPosts = async () => {
     await postsStore.fetchPosts(filteredParams.value)
   } catch (error) {
     ElMessage.error('获取帖子列表失败')
+  }
+}
+
+const collectBoardLeaves = (nodes: any[] = [], result: any[] = []) => {
+  for (const node of nodes) {
+    const children = node.children || []
+    if (!children.length) {
+      result.push(node)
+    } else {
+      collectBoardLeaves(children, result)
+    }
+  }
+  return result
+}
+
+const fetchBoards = async () => {
+  boardsLoading.value = true
+  try {
+    const res = await postsApi.getBoards()
+    boardTree.value = res.items || []
+    boardLeafOptions.value = collectBoardLeaves(boardTree.value, [])
+  } catch (error) {
+    ElMessage.error('获取板块列表失败')
+  } finally {
+    boardsLoading.value = false
+  }
+}
+
+const addPollOption = () => {
+  createForm.value.poll.options.push({ text: '' })
+}
+
+const removePollOption = () => {
+  if (createForm.value.poll.options.length > 2) {
+    createForm.value.poll.options.pop()
+  }
+}
+
+const handleAttachmentSelect = async (uploadFile: any) => {
+  if (!uploadFile?.raw) return
+  try {
+    const attachment = await postsApi.uploadContentAttachment(uploadFile.raw as File)
+    createForm.value.attachmentIds.push(attachment.id)
+    ElMessage.success(`附件 ${attachment.original_name || uploadFile.name} 上传成功`)
+  } catch (e) {
+    ElMessage.error('附件上传失败')
   }
 }
 
@@ -364,7 +515,14 @@ const handleCreatePost = async () => {
       content: createForm.value.content,
       tags,
       status: PostStatus.PENDING_REVIEW,
-      assetIds: createForm.value.assetIds.length > 0 ? createForm.value.assetIds : undefined
+      assetIds: createForm.value.assetIds.length > 0 ? createForm.value.assetIds : undefined,
+      boardIds: createForm.value.boardIds.length > 0 ? createForm.value.boardIds : undefined,
+      contentType: createForm.value.contentType,
+      formatType: createForm.value.contentType === 'LONGFORM' ? 'RICH_TEXT' : 'PLAIN',
+      poll: createForm.value.contentType === 'POLL'
+        ? { question: createForm.value.poll.question, allowMultiple: createForm.value.poll.allowMultiple, options: createForm.value.poll.options }
+        : undefined,
+      attachmentIds: createForm.value.attachmentIds.length ? createForm.value.attachmentIds : undefined
     })
 
     ElMessage.success('帖子已提交审核')
@@ -396,7 +554,14 @@ const handleCreateDraft = async () => {
       content: createForm.value.content,
       tags,
       status: PostStatus.DRAFT,
-      assetIds: createForm.value.assetIds.length > 0 ? createForm.value.assetIds : undefined
+      assetIds: createForm.value.assetIds.length > 0 ? createForm.value.assetIds : undefined,
+      boardIds: createForm.value.boardIds.length > 0 ? createForm.value.boardIds : undefined,
+      contentType: createForm.value.contentType,
+      formatType: createForm.value.contentType === 'LONGFORM' ? 'RICH_TEXT' : 'PLAIN',
+      poll: createForm.value.contentType === 'POLL'
+        ? { question: createForm.value.poll.question, allowMultiple: createForm.value.poll.allowMultiple, options: createForm.value.poll.options }
+        : undefined,
+      attachmentIds: createForm.value.attachmentIds.length ? createForm.value.attachmentIds : undefined
     })
 
     ElMessage.success('草稿已保存')
@@ -416,7 +581,15 @@ const resetCreateForm = () => {
     title: '',
     content: '',
     tagsInput: '',
-    assetIds: []
+    assetIds: [],
+    boardIds: [],
+    contentType: 'NORMAL',
+    attachmentIds: [],
+    poll: {
+      question: '',
+      allowMultiple: false,
+      options: [{ text: '' }, { text: '' }]
+    }
   }
   createFormRef.value?.clearValidate()
 }
@@ -515,6 +688,7 @@ const getAssetMarketTagType = (market?: string) => {
 }
 
 onMounted(() => {
+  fetchBoards()
   fetchPosts()
 })
 </script>
@@ -583,6 +757,10 @@ onMounted(() => {
   padding-bottom: 1rem;
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   flex-wrap: wrap;
+}
+
+.board-filter-select {
+  min-width: 220px;
 }
 
 .filter-tab {
@@ -918,6 +1096,7 @@ onMounted(() => {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   overflow: hidden;
 }
 

@@ -51,6 +51,7 @@ declare module 'vue' {
     ElTag: typeof import('element-plus/es')['ElTag']
     ElText: typeof import('element-plus/es')['ElText']
     ElTooltip: typeof import('element-plus/es')['ElTooltip']
+    ElTreeSelect: typeof import('element-plus/es')['ElTreeSelect']
     ElUpload: typeof import('element-plus/es')['ElUpload']
     IntradayChart: typeof import('./src/components/market/IntradayChart.vue')['default']
     KlineChart: typeof import('./src/components/market/KlineChart.vue')['default']

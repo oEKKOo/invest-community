@@ -539,7 +539,8 @@ onMounted(async () => {
       const base = (window.__VITE_API_BASE_URL__ as string | undefined) || '/api'
       const url =
         (base.startsWith('http') ? base : `${window.location.origin}${base}`) +
-        getNotificationsStreamUrl()
+        getNotificationsStreamUrl() +
+        `?token=${encodeURIComponent(localStorage.getItem('investhub_token') || '')}`
 
       notificationEventSource = new EventSource(url)
       notificationEventSource.onmessage = (event) => {
@@ -582,7 +583,8 @@ watch(
         const base = (window.__VITE_API_BASE_URL__ as string | undefined) || '/api'
         const url =
           (base.startsWith('http') ? base : `${window.location.origin}${base}`) +
-          getNotificationsStreamUrl()
+          getNotificationsStreamUrl() +
+          `?token=${encodeURIComponent(localStorage.getItem('investhub_token') || '')}`
 
           notificationEventSource = new EventSource(url)
           notificationEventSource.onmessage = (event) => {

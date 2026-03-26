@@ -244,3 +244,68 @@ subscribe("comment.created", _handle_comment_created)
 subscribe("follow.created", _handle_follow_created)
 subscribe("content.reviewed", _handle_content_reviewed)
 
+
+def _handle_mention_created(event: DomainEvent) -> None:
+    from_user = event.payload.get("from_user")
+    to_user = event.payload.get("to_user")
+    source_type = event.payload.get("source_type")
+    source_id = event.payload.get("source_id")
+    if not from_user or not to_user or from_user == to_user:
+        return
+    Notification.objects.create(
+        user=to_user,
+        notification_type="MENTION",
+        title="有人提及了你",
+        content=f'用户「{getattr(from_user, "display_name", from_user.username)}」在{source_type}中提及了你。',
+        related_object_type=source_type,
+        related_object_id=source_id,
+    )
+
+
+def _handle_poll_voted(event: DomainEvent) -> None:
+    poll = event.payload.get("poll")
+    user = event.payload.get("user")
+    content = event.payload.get("content")
+    if not poll or not user or not content:
+        return
+    author = getattr(content, "author", None)
+    if not author or author == user:
+        return
+    Notification.objects.create(
+        user=author,
+        notification_type="POLL_VOTED",
+        title="你的投票有新参与",
+        content=f'用户「{getattr(user, "display_name", user.username)}」参与了你的投票《{content.title}》。',
+        related_object_type="POST",
+        related_object_id=getattr(content, "id", None),
+    )
+
+
+def _handle_attachment_reviewed(event: DomainEvent) -> None:
+    attachment = event.payload.get("attachment")
+    new_status = event.payload.get("new_status")
+    if not attachment or not new_status:
+        return
+    uploader = getattr(attachment, "uploaded_by", None)
+    if not uploader:
+        return
+    title = "附件审核结果更新"
+    if new_status == "APPROVED":
+        msg = f'你上传的附件「{attachment.original_name}」已通过审核。'
+    else:
+        reason = attachment.reject_reason or "请修改后重新上传"
+        msg = f'你上传的附件「{attachment.original_name}」未通过审核。原因：{reason}'
+    Notification.objects.create(
+        user=uploader,
+        notification_type="ATTACHMENT_REVIEWED",
+        title=title,
+        content=msg,
+        related_object_type="ATTACHMENT",
+        related_object_id=getattr(attachment, "id", None),
+    )
+
+
+subscribe("mention.created", _handle_mention_created)
+subscribe("poll.voted", _handle_poll_voted)
+subscribe("attachment.reviewed", _handle_attachment_reviewed)
+

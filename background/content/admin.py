@@ -1,5 +1,8 @@
 from django.contrib import admin
-from .models import Asset, Content, ContentAsset, Comment, Like, Favorite
+from .models import (
+    Asset, Board, Content, ContentAsset, ContentBoard, Comment, Like, Favorite,
+    ContentMeta, Poll, PollOption, PollVote, Repost, Mention, ContentAttachment, CommentAttachment
+)
 
 
 @admin.register(Asset)
@@ -31,6 +34,16 @@ class AssetAdmin(admin.ModelAdmin):
     )
 
 
+@admin.register(Board)
+class BoardAdmin(admin.ModelAdmin):
+    """板块管理"""
+    list_display = ['id', 'name', 'board_type', 'parent', 'status', 'sort_order', 'is_builtin', 'created_at']
+    list_filter = ['board_type', 'status', 'is_builtin']
+    search_fields = ['name', 'slug', 'industry_code', 'stock_code']
+    ordering = ['board_type', 'sort_order', 'id']
+    readonly_fields = ['created_at', 'updated_at']
+
+
 @admin.register(Content)
 class ContentAdmin(admin.ModelAdmin):
     """内容管理"""
@@ -59,6 +72,59 @@ class ContentAssetAdmin(admin.ModelAdmin):
     list_display = ['content', 'asset', 'created_at']
     list_filter = ['created_at']
     search_fields = ['content__title', 'asset__code', 'asset__name']
+
+
+@admin.register(ContentBoard)
+class ContentBoardAdmin(admin.ModelAdmin):
+    """内容板块关联管理"""
+    list_display = ['content', 'board', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['content__title', 'board__name', 'board__slug']
+
+
+@admin.register(ContentAttachment)
+class ContentAttachmentAdmin(admin.ModelAdmin):
+    list_display = ['id', 'original_name', 'uploaded_by', 'status', 'created_at']
+    list_filter = ['status', 'created_at']
+    search_fields = ['original_name', 'uploaded_by__username']
+
+
+@admin.register(CommentAttachment)
+class CommentAttachmentAdmin(admin.ModelAdmin):
+    list_display = ['id', 'original_name', 'uploaded_by', 'comment', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['original_name', 'uploaded_by__username']
+
+
+@admin.register(ContentMeta)
+class ContentMetaAdmin(admin.ModelAdmin):
+    list_display = ['content', 'content_type', 'format_type', 'repost_count', 'forward_count']
+    list_filter = ['content_type', 'format_type']
+
+
+@admin.register(Poll)
+class PollAdmin(admin.ModelAdmin):
+    list_display = ['content', 'question', 'allow_multiple', 'expires_at', 'is_closed']
+
+
+@admin.register(PollOption)
+class PollOptionAdmin(admin.ModelAdmin):
+    list_display = ['poll', 'text', 'vote_count', 'sort_order']
+
+
+@admin.register(PollVote)
+class PollVoteAdmin(admin.ModelAdmin):
+    list_display = ['poll', 'option', 'user', 'created_at']
+
+
+@admin.register(Repost)
+class RepostAdmin(admin.ModelAdmin):
+    list_display = ['user', 'content', 'created_at']
+
+
+@admin.register(Mention)
+class MentionAdmin(admin.ModelAdmin):
+    list_display = ['source_type', 'source_id', 'from_user', 'to_user', 'created_at']
 
 
 @admin.register(Comment)

@@ -516,11 +516,22 @@
             placeholder="例如：3年股票投资经验"
           />
         </el-form-item>
-        <el-form-item label="头像链接" prop="avatar">
-          <el-input
-            v-model="editForm.avatar"
-            placeholder="请输入头像URL（需为可访问的网络图片地址）"
-          />
+        <el-form-item label="头像" prop="avatar">
+          <div class="avatar-upload-field">
+            <el-upload
+              :show-file-list="false"
+              :auto-upload="false"
+              :disabled="avatarUploading"
+              :on-change="handleAvatarUpload"
+            >
+              <el-button :loading="avatarUploading">上传头像</el-button>
+            </el-upload>
+            <el-input
+              v-model="editForm.avatar"
+              readonly
+              placeholder="上传后将自动填充头像地址"
+            />
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -807,7 +818,7 @@ import {
 import ReportDialog from '@/components/ReportDialog.vue'
 import dayjs from 'dayjs'
 import { getMyLikes } from '@/api/likes'
-import { getMyFavorites } from '@/api/posts'
+import { getMyFavorites, uploadContentAttachment } from '@/api/posts'
 import type { User } from '@/types'
 import {
   getMyAchievements,
@@ -833,6 +844,7 @@ const showEditProfile = ref(false)
 const showInvestProfileDialog = ref(false)
 const showPrivacyDialog = ref(false)
 const updating = ref(false)
+const avatarUploading = ref(false)
 const activeTab = ref('overview')
 const overviewLoading = ref(false)
 const portfoliosLoading = ref(false)
@@ -873,6 +885,24 @@ const editRules: FormRules = {
   ],
   bio: [{ max: 200, message: '个人简介不能超过200字符', trigger: 'blur' }],
   investmentExperience: [{ max: 32, message: '投资经验标签不能超过32字符', trigger: 'blur' }]
+}
+
+const handleAvatarUpload = async (uploadFile: any) => {
+  if (!uploadFile?.raw) return
+  avatarUploading.value = true
+  try {
+    const uploaded = await uploadContentAttachment(uploadFile.raw as File)
+    if (uploaded?.fileUrl) {
+      editForm.value.avatar = uploaded.fileUrl
+      ElMessage.success('头像上传成功')
+    } else {
+      ElMessage.error('上传成功但未返回文件地址')
+    }
+  } catch {
+    ElMessage.error('头像上传失败')
+  } finally {
+    avatarUploading.value = false
+  }
 }
 
 // ──────────── 点赞记录 ────────────
@@ -2707,6 +2737,13 @@ watch(showEditProfile, (val) => {
   padding-top: $apple-space-4;
   margin-top: $apple-space-4;
   border-top: 1px solid $apple-border-light;
+}
+
+.avatar-upload-field {
+  display: flex;
+  flex-direction: column;
+  gap: $apple-space-3;
+  width: 100%;
 }
 
 @keyframes fadeIn {

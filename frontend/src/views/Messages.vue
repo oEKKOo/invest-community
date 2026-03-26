@@ -60,6 +60,17 @@
                 <div class="msg-content">
                   {{ m.content }}
                 </div>
+                <div v-if="m.attachments?.length" class="msg-attachments">
+                  <a
+                    v-for="att in m.attachments"
+                    :key="att.id"
+                    :href="att.url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {{ att.name || `附件#${att.id}` }}
+                  </a>
+                </div>
               </div>
             </div>
           </div>
@@ -73,6 +84,14 @@
               placeholder="输入私信内容，按 Enter 发送"
               @keydown.enter.prevent="handleSend"
             />
+            <el-upload
+              :auto-upload="false"
+              :show-file-list="false"
+              accept="image/*"
+              :on-change="handleMessageImageSelect"
+            >
+              <el-button size="small">图片</el-button>
+            </el-upload>
             <el-button type="primary" size="small" class="send-btn" @click="handleSend">
               发送
             </el-button>
@@ -84,6 +103,7 @@
 </template>
 
 <script setup lang="ts">
+// @ts-nocheck
 import { onMounted, ref } from 'vue'
 import dayjs from 'dayjs'
 import { useMessagesStore } from '@/stores/messages'
@@ -93,6 +113,7 @@ import { ElMessage } from 'element-plus'
 const store = useMessagesStore()
 const authStore = useAuthStore()
 const draft = ref('')
+const messageAttachmentIds = ref<number[]>([])
 
 const formatTime = (iso: string) => {
   return dayjs(iso).format('MM-DD HH:mm')
@@ -104,12 +125,24 @@ const handleOpenConversation = async (id: number) => {
 
 const handleSend = async () => {
   const text = draft.value.trim()
-  if (!text) return
+  if (!text && !messageAttachmentIds.value.length) return
   try {
-    await store.sendMessage(text)
+    await store.sendMessage(text, messageAttachmentIds.value.length ? messageAttachmentIds.value : undefined)
     draft.value = ''
+    messageAttachmentIds.value = []
   } catch {
     ElMessage.error('发送失败')
+  }
+}
+
+const handleMessageImageSelect = async (uploadFile: any) => {
+  if (!uploadFile?.raw) return
+  try {
+    const res = await (await import('@/api/messages')).uploadMessageAttachment(uploadFile.raw as File)
+    messageAttachmentIds.value.push(res.id)
+    ElMessage.success('图片上传成功')
+  } catch {
+    ElMessage.error('图片上传失败')
   }
 }
 

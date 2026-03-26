@@ -1,4 +1,4 @@
-import { get, patch, post } from './index'
+import { get, patch, post, del } from './index'
 import type {
   Post,
   Report,
@@ -6,7 +6,8 @@ import type {
   AdminStats,
   PostStatus,
   Alert,
-  ModeratedUser
+  ModeratedUser,
+  Board
 } from '@/types'
 
 // 获取待审核帖子
@@ -98,4 +99,65 @@ export const unmuteUser = (userId: number, payload?: { reason?: string }): Promi
 // 用户治理：解除封禁
 export const unbanUser = (userId: number, payload?: { reason?: string }): Promise<void> => {
   return post(`/admin/users/${userId}/unban/`, payload || {})
+}
+
+export interface BoardPayload {
+  name: string
+  slug: string
+  board_type: 'MARKET' | 'THEME' | 'COMPANY_RESEARCH' | 'QA'
+  parent?: number | null
+  description?: string
+  icon?: string
+  sort_order?: number
+  status?: 'ACTIVE' | 'INACTIVE'
+  is_builtin?: boolean
+  market?: 'A_SHARE' | 'HK_STOCK' | 'US_STOCK' | 'FUTURES' | ''
+  industry_code?: string
+  stock_code?: string
+}
+
+export const getAdminBoards = (params?: {
+  type?: 'MARKET' | 'THEME' | 'COMPANY_RESEARCH' | 'QA'
+  parentId?: number
+  status?: 'ACTIVE' | 'INACTIVE'
+}): Promise<{ items: Board[]; total: number }> => {
+  return get('/admin/boards/', { params })
+}
+
+export const createBoard = (payload: BoardPayload): Promise<Board> => {
+  return post('/admin/boards/', payload)
+}
+
+export const updateBoard = (boardId: number, payload: Partial<BoardPayload>): Promise<Board> => {
+  return patch(`/admin/boards/${boardId}/`, payload)
+}
+
+export const deleteBoard = (boardId: number): Promise<void> => {
+  return del(`/admin/boards/${boardId}/`)
+}
+
+export interface AttachmentAuditItem {
+  id: number
+  original_name?: string
+  mime_type?: string
+  file_size?: number
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  reject_reason?: string
+  fileUrl?: string
+  created_at?: string
+}
+
+export const getAdminAttachments = (params?: {
+  status?: 'PENDING' | 'APPROVED' | 'REJECTED'
+  page?: number
+  pageSize?: number
+}): Promise<PaginatedResponse<AttachmentAuditItem>> => {
+  return get('/admin/attachments/', { params })
+}
+
+export const reviewAttachment = (
+  attachmentId: number,
+  payload: { status: 'APPROVED' | 'REJECTED'; rejectReason?: string }
+): Promise<void> => {
+  return patch(`/admin/attachments/${attachmentId}/status/`, payload)
 }

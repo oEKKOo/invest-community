@@ -16,15 +16,26 @@ urlpatterns = [
     
     # 点赞相关
     path('likes/', views.toggle_like, name='toggle_like'),
+    path('posts/<int:pk>/repost/', views.toggle_repost, name='toggle_repost'),
+    path('posts/<int:pk>/poll/vote/', views.post_poll_vote, name='post_poll_vote'),
+    path('posts/<int:pk>/poll/result/', views.post_poll_result, name='post_poll_result'),
     
     # 资产相关
     path('assets/', views.AssetListView.as_view(), name='asset_list'),
     path('assets/<int:pk>/', views.asset_detail, name='asset_detail'),
     path('assets/<int:pk>/posts/', views.asset_posts, name='asset_posts'),
+    path('boards/', views.BoardListView.as_view(), name='board_list'),
     
     # 管理员功能
     path('admin/posts/', views.AdminPostsView.as_view(), name='admin_posts'),
     path('admin/posts/<int:pk>/status/', views.admin_post_status, name='admin_post_status'),
+    path('admin/boards/', views.AdminBoardListCreateView.as_view(), name='admin_board_list_create'),
+    path('admin/boards/<int:pk>/', views.admin_board_detail, name='admin_board_detail'),
+    path('admin/attachments/', views.admin_attachment_list, name='admin_attachment_list'),
+    path('admin/attachments/<int:attachment_id>/status/', views.admin_attachment_status, name='admin_attachment_status'),
+    path('uploads/content/', views.upload_content_attachment, name='upload_content_attachment'),
+    path('uploads/comment/', views.upload_comment_attachment, name='upload_comment_attachment'),
+    path('attachments/<int:attachment_id>/download/', views.download_content_attachment, name='download_content_attachment'),
     
     # Dashboard 和搜索
     path('dashboard/overview/', views.dashboard_overview, name='dashboard_overview'),

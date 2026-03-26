@@ -1,9 +1,62 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from .models import Content, Comment, Asset, Like, Favorite, ContentAsset
+from django.db.models import Sum
+from .models import (
+    Content, Comment, Asset, Board, Like, Favorite, ContentAsset, ContentBoard,
+    ContentMeta, Poll, PollOption, PollVote, Repost, ContentAttachment, Mention, CommentAttachment
+)
 
 User = get_user_model()
+
+
+class PollOptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PollOption
+        fields = ['id', 'text', 'sort_order', 'vote_count']
+
+
+class PollSerializer(serializers.ModelSerializer):
+    options = PollOptionSerializer(many=True)
+    totalVotes = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Poll
+        fields = ['id', 'question', 'allow_multiple', 'expires_at', 'is_closed', 'options', 'totalVotes']
+
+    def get_totalVotes(self, obj):
+        return obj.options.aggregate(total=Sum('vote_count')).get('total') or 0
+
+
+class ContentAttachmentSerializer(serializers.ModelSerializer):
+    fileUrl = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ContentAttachment
+        fields = [
+            'id', 'original_name', 'mime_type', 'file_size',
+            'status', 'reject_reason', 'fileUrl', 'created_at'
+        ]
+
+    def get_fileUrl(self, obj):
+        request = self.context.get('request')
+        if request and obj.file:
+            return request.build_absolute_uri(obj.file.url)
+        return obj.file.url if obj.file else ''
+
+
+class CommentAttachmentSerializer(serializers.ModelSerializer):
+    fileUrl = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CommentAttachment
+        fields = ['id', 'original_name', 'mime_type', 'file_size', 'fileUrl', 'created_at']
+
+    def get_fileUrl(self, obj):
+        request = self.context.get('request')
+        if request and obj.file:
+            return request.build_absolute_uri(obj.file.url)
+        return obj.file.url if obj.file else ''
 
 
 class AssetSerializer(serializers.ModelSerializer):
@@ -28,6 +81,54 @@ class AssetSerializer(serializers.ModelSerializer):
         }
 
 
+class BoardSerializer(serializers.ModelSerializer):
+    """板块序列化器（支持树结构）"""
+    children = serializers.SerializerMethodField()
+    parentId = serializers.IntegerField(source='parent_id', read_only=True)
+
+    class Meta:
+        model = Board
+        fields = [
+            'id', 'name', 'slug', 'board_type', 'parentId',
+            'description', 'icon', 'sort_order', 'status',
+            'is_builtin', 'market', 'industry_code', 'stock_code',
+            'children'
+        ]
+
+    def get_children(self, obj):
+        request = self.context.get('request')
+        children = obj.children.order_by('sort_order', 'id')
+        if request and not (request.user.is_authenticated and request.user.role in ['MODERATOR', 'ADMIN']):
+            children = children.filter(status='ACTIVE')
+        return BoardSerializer(children, many=True, context=self.context).data
+
+
+class BoardCreateUpdateSerializer(serializers.ModelSerializer):
+    """板块创建与更新序列化器"""
+
+    class Meta:
+        model = Board
+        fields = [
+            'name', 'slug', 'board_type', 'parent',
+            'description', 'icon', 'sort_order', 'status', 'is_builtin',
+            'market', 'industry_code', 'stock_code',
+        ]
+
+    def validate_parent(self, parent):
+        if not parent:
+            return parent
+        if parent.parent and parent.parent.parent:
+            raise serializers.ValidationError('板块层级最多支持三级')
+        return parent
+
+    def validate(self, attrs):
+        parent = attrs.get('parent', getattr(self.instance, 'parent', None))
+        board_type = attrs.get('board_type', getattr(self.instance, 'board_type', None))
+        if parent and board_type and parent.board_type != board_type:
+            raise serializers.ValidationError({'board_type': '子板块类型必须与父板块一致'})
+        return attrs
+
+
 class ContentListSerializer(serializers.ModelSerializer):
     """内容列表序列化器"""
     authorName = serializers.CharField(source='author.display_name', read_only=True)
@@ -38,6 +139,11 @@ class ContentListSerializer(serializers.ModelSerializer):
     comments = serializers.IntegerField(source='comment_count', read_only=True)
     createdAt = serializers.DateTimeField(source='created_at', read_only=True)
     assets = AssetSerializer(many=True, read_only=True)
+    boards = BoardSerializer(many=True, read_only=True)
+    attachments = ContentAttachmentSerializer(many=True, read_only=True)
+    contentType = serializers.SerializerMethodField()
+    poll = serializers.SerializerMethodField()
+    reposts = serializers.SerializerMethodField()
     isLiked = serializers.SerializerMethodField()
     isFavorited = serializers.SerializerMethodField()
 
@@ -46,7 +152,8 @@ class ContentListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'authorName', 'authorAvatar',
             'title', 'content', 'status', 'tags',
-            'likes', 'comments', 'createdAt', 'assets',
+            'likes', 'comments', 'createdAt', 'assets', 'boards', 'attachments',
+            'contentType', 'poll', 'reposts',
             'isLiked', 'isFavorited'
         ]
 
@@ -68,6 +175,21 @@ class ContentListSerializer(serializers.ModelSerializer):
         if user.is_authenticated:
             return Favorite.objects.filter(user=user, content=obj).exists()
         return False
+
+    def get_contentType(self, obj):
+        if hasattr(obj, 'meta'):
+            return obj.meta.content_type
+        return 'NORMAL'
+
+    def get_poll(self, obj):
+        if hasattr(obj, 'poll'):
+            return PollSerializer(obj.poll).data
+        return None
+
+    def get_reposts(self, obj):
+        if hasattr(obj, 'meta'):
+            return obj.meta.repost_count
+        return obj.reposts.count()
 
 
 class ContentDetailSerializer(ContentListSerializer):
@@ -107,10 +229,38 @@ class ContentCreateSerializer(serializers.ModelSerializer):
         write_only=True,
         help_text='关联资产代码数组（如 ["000001", "AAPL"]）'
     )
+    boardIds = serializers.ListField(
+        child=serializers.IntegerField(),
+        required=False,
+        write_only=True,
+        source='board_ids',
+        help_text='关联板块ID数组（仅允许叶子节点）'
+    )
+    contentType = serializers.ChoiceField(
+        choices=['NORMAL', 'LONGFORM', 'POLL', 'LIVE'],
+        required=False,
+        default='NORMAL'
+    )
+    formatType = serializers.ChoiceField(
+        choices=['PLAIN', 'RICH_TEXT'],
+        required=False,
+        default='PLAIN'
+    )
+    poll = serializers.DictField(required=False, write_only=True)
+    attachmentIds = serializers.ListField(
+        child=serializers.IntegerField(),
+        required=False,
+        write_only=True,
+        help_text='预上传附件ID列表'
+    )
 
     class Meta:
         model = Content
-        fields = ['title', 'content', 'tags', 'status', 'assetIds', 'assetCodes']
+        fields = [
+            'title', 'content', 'tags', 'status',
+            'assetIds', 'assetCodes', 'boardIds',
+            'contentType', 'formatType', 'poll', 'attachmentIds'
+        ]
 
     def validate_status(self, value):
         if value not in ['DRAFT', 'PENDING_REVIEW']:
@@ -137,11 +287,43 @@ class ContentCreateSerializer(serializers.ModelSerializer):
                 # 不论前端传什么，只要命中风险词，一律改为待审核
                 attrs['status'] = 'PENDING_REVIEW'
 
+        board_ids = attrs.get('board_ids', [])
+        if board_ids:
+            boards = Board.objects.filter(id__in=board_ids, status='ACTIVE')
+            if boards.count() != len(set(board_ids)):
+                raise serializers.ValidationError({'boardIds': '部分板块不存在或已停用'})
+            non_leaf_exists = boards.filter(children__isnull=False).exists()
+            if non_leaf_exists:
+                raise serializers.ValidationError({'boardIds': '仅允许选择叶子板块'})
+
+        content_type = attrs.get('contentType', 'NORMAL')
+        poll_data = attrs.get('poll')
+        if content_type == 'POLL':
+            if not poll_data:
+                raise serializers.ValidationError({'poll': '投票类型内容必须提供 poll 数据'})
+            options = poll_data.get('options', [])
+            question = (poll_data.get('question') or '').strip()
+            if len(question) < 2:
+                raise serializers.ValidationError({'poll': '投票问题至少2个字符'})
+            if len(options) < 2:
+                raise serializers.ValidationError({'poll': '投票至少需要2个选项'})
+
+        attachment_ids = attrs.get('attachmentIds', [])
+        if attachment_ids:
+            qs = ContentAttachment.objects.filter(id__in=attachment_ids, content__isnull=True)
+            if qs.count() != len(set(attachment_ids)):
+                raise serializers.ValidationError({'attachmentIds': '存在无效附件或附件已被使用'})
+
         return attrs
 
     def create(self, validated_data):
         asset_ids = list(validated_data.pop('asset_ids', []))
         asset_codes = validated_data.pop('assetCodes', [])
+        board_ids = list(validated_data.pop('board_ids', []))
+        content_type = validated_data.pop('contentType', 'NORMAL')
+        format_type = validated_data.pop('formatType', 'PLAIN')
+        poll_data = validated_data.pop('poll', None)
+        attachment_ids = list(validated_data.pop('attachmentIds', []))
 
         content = Content.objects.create(**validated_data)
 
@@ -157,12 +339,106 @@ class ContentCreateSerializer(serializers.ModelSerializer):
             for asset in assets:
                 ContentAsset.objects.get_or_create(content=content, asset=asset)
 
+        if board_ids:
+            boards = Board.objects.filter(id__in=board_ids)
+            for board in boards:
+                ContentBoard.objects.get_or_create(content=content, board=board)
+
+        ContentMeta.objects.update_or_create(
+            content=content,
+            defaults={'content_type': content_type, 'format_type': format_type},
+        )
+
+        if poll_data and content_type == 'POLL':
+            poll = Poll.objects.create(
+                content=content,
+                question=poll_data.get('question', ''),
+                allow_multiple=bool(poll_data.get('allowMultiple', False)),
+                expires_at=poll_data.get('expiresAt'),
+            )
+            options = poll_data.get('options', [])
+            for idx, opt in enumerate(options):
+                text = (opt.get('text') if isinstance(opt, dict) else opt) or ''
+                text = text.strip()
+                if text:
+                    PollOption.objects.create(poll=poll, text=text, sort_order=idx)
+
+        if attachment_ids:
+            ContentAttachment.objects.filter(
+                id__in=attachment_ids,
+                uploaded_by=self.context['request'].user
+            ).update(content=content)
+
         # 如果是发布状态，设置发布时间
         if content.status == 'PUBLISHED':
             content.published_at = timezone.now()
             content.save()
 
         return content
+
+    def update(self, instance, validated_data):
+        asset_ids = validated_data.pop('asset_ids', None)
+        asset_codes = validated_data.pop('assetCodes', None)
+        board_ids = validated_data.pop('board_ids', None)
+        content_type = validated_data.pop('contentType', None)
+        format_type = validated_data.pop('formatType', None)
+        poll_data = validated_data.pop('poll', None)
+        attachment_ids = validated_data.pop('attachmentIds', None)
+
+        instance = super().update(instance, validated_data)
+
+        # 兼容 PATCH：如传 assetIds/assetCodes 则重建资产关联
+        if asset_ids is not None or asset_codes is not None:
+            merged_asset_ids = list(asset_ids or [])
+            if asset_codes:
+                code_assets = Asset.objects.filter(code__in=asset_codes)
+                merged_asset_ids.extend(list(code_assets.values_list('id', flat=True)))
+            merged_asset_ids = list(set(merged_asset_ids))
+            ContentAsset.objects.filter(content=instance).delete()
+            if merged_asset_ids:
+                for asset in Asset.objects.filter(id__in=merged_asset_ids):
+                    ContentAsset.objects.get_or_create(content=instance, asset=asset)
+
+        # 兼容 PATCH：如传 boardIds 则重建板块关联
+        if board_ids is not None:
+            ContentBoard.objects.filter(content=instance).delete()
+            if board_ids:
+                for board in Board.objects.filter(id__in=board_ids):
+                    ContentBoard.objects.get_or_create(content=instance, board=board)
+
+        if content_type is not None or format_type is not None:
+            meta, _ = ContentMeta.objects.get_or_create(content=instance)
+            if content_type is not None:
+                meta.content_type = content_type
+            if format_type is not None:
+                meta.format_type = format_type
+            meta.save()
+
+        if poll_data is not None:
+            if (content_type or getattr(getattr(instance, 'meta', None), 'content_type', 'NORMAL')) == 'POLL':
+                poll, _ = Poll.objects.get_or_create(content=instance, defaults={'question': ''})
+                poll.question = poll_data.get('question', poll.question)
+                poll.allow_multiple = bool(poll_data.get('allowMultiple', poll.allow_multiple))
+                poll.expires_at = poll_data.get('expiresAt', poll.expires_at)
+                poll.save()
+                options = poll_data.get('options')
+                if options is not None:
+                    poll.options.all().delete()
+                    for idx, opt in enumerate(options):
+                        text = (opt.get('text') if isinstance(opt, dict) else opt) or ''
+                        text = text.strip()
+                        if text:
+                            PollOption.objects.create(poll=poll, text=text, sort_order=idx)
+
+        if attachment_ids is not None:
+            ContentAttachment.objects.filter(content=instance).update(content=None)
+            if attachment_ids:
+                ContentAttachment.objects.filter(
+                    id__in=attachment_ids,
+                    uploaded_by=self.context['request'].user
+                ).update(content=instance)
+
+        return instance
 
 
 class CommentSerializer(serializers.ModelSerializer):
@@ -184,6 +460,7 @@ class CommentSerializer(serializers.ModelSerializer):
 
     replies = serializers.SerializerMethodField()
     isLiked = serializers.SerializerMethodField()
+    attachments = CommentAttachmentSerializer(many=True, read_only=True)
 
     class Meta:
         model = Comment
@@ -192,7 +469,7 @@ class CommentSerializer(serializers.ModelSerializer):
             'authorId', 'authorName', 'authorAvatar',
             'parentId', 'replyToUserId', 'replyToUsername',
             'body', 'likeCount', 'createdAt',
-            'replies', 'isLiked',
+            'replies', 'isLiked', 'attachments'
         ]
         read_only_fields = ['authorId', 'likeCount']
 
@@ -212,17 +489,42 @@ class CommentSerializer(serializers.ModelSerializer):
 
 class CommentCreateSerializer(serializers.ModelSerializer):
     """评论创建序列化器"""
-    text = serializers.CharField(source='body')
+    text = serializers.CharField(source='body', required=False, allow_blank=True)
+    parentId = serializers.IntegerField(source='parent_id', required=False, allow_null=True)
+    replyToUserId = serializers.IntegerField(source='reply_to_user_id', required=False, allow_null=True)
+    attachmentIds = serializers.ListField(
+        child=serializers.IntegerField(),
+        required=False,
+        write_only=True
+    )
 
     class Meta:
         model = Comment
-        fields = ['text', 'parent_id', 'reply_to_user_id']
+        fields = ['text', 'parentId', 'replyToUserId', 'attachmentIds']
+
+    def validate(self, attrs):
+        body = (attrs.get('body') or '').strip()
+        attachment_ids = attrs.get('attachmentIds') or []
+        if not body and not attachment_ids:
+            raise serializers.ValidationError('评论内容和附件不能同时为空')
+        if attachment_ids:
+            qs = CommentAttachment.objects.filter(id__in=attachment_ids, comment__isnull=True)
+            if qs.count() != len(set(attachment_ids)):
+                raise serializers.ValidationError({'attachmentIds': '存在无效附件或附件已被使用'})
+        return attrs
 
     def create(self, validated_data):
-        validated_data['body'] = validated_data.pop('body')
+        attachment_ids = validated_data.pop('attachmentIds', [])
+        validated_data['body'] = (validated_data.pop('body', '') or '').strip()
         validated_data['content_id'] = self.context['content_id']
         validated_data['author'] = self.context['request'].user
-        return Comment.objects.create(**validated_data)
+        comment = Comment.objects.create(**validated_data)
+        if attachment_ids:
+            CommentAttachment.objects.filter(
+                id__in=attachment_ids,
+                uploaded_by=self.context['request'].user
+            ).update(comment=comment)
+        return comment
 
 
 class LikeSerializer(serializers.Serializer):

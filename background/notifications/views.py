@@ -4,6 +4,7 @@ import time
 from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from rest_framework import generics
 from rest_framework import status
@@ -94,17 +95,15 @@ def mark_all_read(request):
     })
 
 
-def _notification_stream(request):
+def _notification_stream(request, user):
     """
     SSE 流：推送当前用户最新通知与未读数量
 
     - 间隔 3 秒轮询一次数据库
     - 最长保持 5 分钟（100 次循环）
     """
-    user = request.user
-
     def event_stream():
-        if not user.is_authenticated:
+        if not user:
             # 未登录直接结束
             yield 'event: error\ndata: {"detail": "unauthorized"}\n\n'
             return
@@ -139,15 +138,29 @@ def _notification_stream(request):
     return response
 
 
-@permission_classes([IsAuthenticated])
 def notifications_stream(request):
     """
     GET /api/notifications/stream/
 
     通知 SSE 长连接：用于前端 MainLayout 实时刷新未读数和通知列表。
     """
-    # 暂时停用：避免前端依赖该长连接时触发错误/性能问题
-    return Response(
-        {'code': 0, 'message': '接口已暂时停用'},
-        status=status.HTTP_503_SERVICE_UNAVAILABLE,
-    )
+    # SSE 不能走 DRF 的 JSON 内容协商，否则可能出现 406
+    token = request.GET.get('token')
+    if token:
+        request.META['HTTP_AUTHORIZATION'] = f'Bearer {token}'
+
+    user = None
+    try:
+        auth_res = JWTAuthentication().authenticate(request)
+        if auth_res:
+            user, _ = auth_res
+    except Exception:
+        user = None
+
+    if user is None and hasattr(request, 'user') and getattr(request.user, 'is_authenticated', False):
+        user = request.user
+
+    if user is None:
+        return Response({'code': 4010, 'message': '需要登录'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    return _notification_stream(request, user)

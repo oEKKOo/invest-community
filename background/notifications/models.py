@@ -12,6 +12,9 @@ class Notification(models.Model):
         ('COMMENT', '评论通知'),
         ('FOLLOW', '关注通知'),
         ('REVIEW_RESULT', '审核结果通知'),
+        ('MENTION', '@提及通知'),
+        ('POLL_VOTED', '投票通知'),
+        ('ATTACHMENT_REVIEWED', '附件审核通知'),
         ('SYSTEM', '系统通知'),
     ]
 

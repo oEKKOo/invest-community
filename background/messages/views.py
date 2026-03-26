@@ -8,7 +8,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.models import User
-from .models import Conversation, ConversationParticipant, Message, MessageReadLog
+import os
+from .models import Conversation, ConversationParticipant, Message, MessageReadLog, MessageAttachment
 from .serializers import (
     ConversationSerializer,
     ConversationCreateSerializer,
@@ -100,8 +101,15 @@ class ConversationMessagesView(APIView):
             message = Message.objects.create(
                 conversation=conversation,
                 sender=request.user,
-                content=serializer.validated_data['content'],
+                content=(serializer.validated_data.get('content') or '').strip(),
             )
+            attachment_ids = serializer.validated_data.get('attachmentIds', [])
+            if attachment_ids:
+                MessageAttachment.objects.filter(
+                    id__in=attachment_ids,
+                    uploaded_by=request.user,
+                    message__isnull=True
+                ).update(message=message)
             # 更新会话最新消息时间
             Conversation.objects.filter(pk=conversation.pk).update(
                 last_message_at=message.created_at
@@ -128,4 +136,41 @@ def mark_message_read(request, pk: int):
     )
     MessageReadLog.objects.get_or_create(message=message, user=request.user)
     return Response({'code': 0, 'message': '标记成功'})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def upload_message_attachment(request):
+    if _user_is_muted_or_banned(request.user):
+        return Response(
+            {'code': 4030, 'message': '当前账号处于禁言/封禁状态，无法上传私信附件'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    upload = request.FILES.get('file')
+    if not upload:
+        return Response({'code': 4001, 'message': '缺少文件'}, status=status.HTTP_400_BAD_REQUEST)
+
+    ext = os.path.splitext(upload.name)[1].lower()
+    if ext not in {'.png', '.jpg', '.jpeg', '.webp', '.gif'}:
+        return Response({'code': 4001, 'message': '私信当前仅支持图片附件'}, status=status.HTTP_400_BAD_REQUEST)
+
+    attachment = MessageAttachment.objects.create(
+        uploaded_by=request.user,
+        file=upload,
+        original_name=upload.name,
+        mime_type=getattr(upload, 'content_type', '') or '',
+        file_size=getattr(upload, 'size', 0) or 0,
+    )
+    url = request.build_absolute_uri(attachment.file.url) if attachment.file else ''
+    return Response({
+        'code': 0,
+        'data': {
+            'id': attachment.id,
+            'name': attachment.original_name,
+            'mimeType': attachment.mime_type,
+            'size': attachment.file_size,
+            'url': url,
+        }
+    }, status=status.HTTP_201_CREATED)
 

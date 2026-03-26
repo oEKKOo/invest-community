@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
-from .models import Conversation, ConversationParticipant, Message, MessageReadLog
+from .models import Conversation, ConversationParticipant, Message, MessageReadLog, MessageAttachment
 
 User = get_user_model()
 
@@ -25,6 +25,7 @@ class MessageSerializer(serializers.ModelSerializer):
   senderAvatar = serializers.CharField(source='sender.avatar_url', read_only=True)
   createdAt = serializers.DateTimeField(source='created_at', read_only=True)
   isRead = serializers.SerializerMethodField()
+  attachments = serializers.SerializerMethodField()
 
   class Meta:
     model = Message
@@ -38,6 +39,7 @@ class MessageSerializer(serializers.ModelSerializer):
       'is_deleted',
       'createdAt',
       'isRead',
+      'attachments',
     ]
 
   def get_isRead(self, obj: Message) -> bool:
@@ -46,18 +48,50 @@ class MessageSerializer(serializers.ModelSerializer):
       return False
     return MessageReadLog.objects.filter(message=obj, user=user).exists()
 
+  def get_attachments(self, obj: Message):
+    request = self.context.get('request')
+    items = []
+    for att in obj.attachments.all():
+      url = att.file.url if att.file else ''
+      if request and url:
+        url = request.build_absolute_uri(url)
+      items.append({
+        'id': att.id,
+        'name': att.original_name,
+        'mimeType': att.mime_type,
+        'size': att.file_size,
+        'url': url,
+      })
+    return items
+
 
 class MessageCreateSerializer(serializers.ModelSerializer):
   """发送消息序列化器"""
 
   class Meta:
     model = Message
-    fields = ['content']
+    fields = ['content', 'attachmentIds']
+    extra_kwargs = {
+      'content': {'required': False, 'allow_blank': True}
+    }
+
+  attachmentIds = serializers.ListField(
+    child=serializers.IntegerField(),
+    required=False,
+    write_only=True,
+  )
 
   def validate_content(self, value: str) -> str:
-    if not value or not value.strip():
-      raise serializers.ValidationError('消息内容不能为空')
+    if value is None:
+      return ''
     return value
+
+  def validate(self, attrs):
+    content = (attrs.get('content') or '').strip()
+    attachment_ids = attrs.get('attachmentIds') or []
+    if not content and not attachment_ids:
+      raise serializers.ValidationError('消息内容和附件不能同时为空')
+    return attrs
 
 
 class ConversationSerializer(serializers.ModelSerializer):

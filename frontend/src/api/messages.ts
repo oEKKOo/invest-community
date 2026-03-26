@@ -26,6 +26,13 @@ export interface Message {
   is_deleted: boolean
   createdAt: string
   isRead: boolean
+  attachments?: Array<{
+    id: number
+    name: string
+    mimeType?: string
+    size?: number
+    url: string
+  }>
 }
 
 export const getConversations = (): Promise<{ items: Conversation[] }> => {
@@ -47,12 +54,27 @@ export const getConversationMessages = (
 
 export const sendMessage = (
   conversationId: number,
-  content: string
+  content: string,
+  attachmentIds?: number[]
 ): Promise<Message> => {
-  return post(`/messages/conversations/${conversationId}/messages/`, { content })
+  return post(`/messages/conversations/${conversationId}/messages/`, { content, attachmentIds })
 }
 
 export const markMessageRead = (messageId: number): Promise<void> => {
   return post(`/messages/${messageId}/read/`)
+}
+
+export const uploadMessageAttachment = (file: File): Promise<{
+  id: number
+  name: string
+  mimeType?: string
+  size?: number
+  url: string
+}> => {
+  const form = new FormData()
+  form.append('file', file)
+  return post('/uploads/messages/', form, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
 }
 

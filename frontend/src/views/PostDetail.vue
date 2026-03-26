@@ -52,6 +52,32 @@
           {{ postsStore.currentPost.content }}
         </div>
 
+        <div v-if="postsStore.currentPost.poll" class="post-tags" style="flex-direction: column; align-items: stretch;">
+          <div style="font-weight:600;">投票：{{ postsStore.currentPost.poll.question }}</div>
+          <div style="display:flex; gap:8px; flex-wrap: wrap;">
+            <el-button
+              v-for="opt in postsStore.currentPost.poll.options"
+              :key="opt.id"
+              size="small"
+              @click="handleVote(opt.id)"
+            >
+              {{ opt.text }} ({{ opt.vote_count }})
+            </el-button>
+          </div>
+        </div>
+
+        <div v-if="postsStore.currentPost.attachments?.length" class="post-tags">
+          <el-tag
+            v-for="att in postsStore.currentPost.attachments"
+            :key="att.id"
+            :type="att.status === 'APPROVED' ? 'success' : att.status === 'REJECTED' ? 'danger' : 'warning'"
+            class="tag-item"
+            @click="handleDownloadAttachment(att.id)"
+          >
+            附件: {{ att.original_name || `#${att.id}` }}（{{ att.status }}）
+          </el-tag>
+        </div>
+
         <div class="post-tags" v-if="postsStore.currentPost.tags?.length || postsStore.currentPost.assets?.length">
           <el-tag 
             v-for="tag in postsStore.currentPost.tags" 
@@ -113,12 +139,19 @@
             <el-icon><Share /></el-icon>
             <span>分享</span>
           </el-button>
+          <el-button
+            type="text"
+            @click="handleRepost"
+            class="action-btn"
+          >
+            <span>转发 {{ postsStore.currentPost.reposts || 0 }}</span>
+          </el-button>
         </div>
       </article>
 
       <!-- 评论区域 -->
       <section class="comments-section">
-        <h3 class="comments-title">评论 ({{ postsStore.currentPost.comments }})</h3>
+        <h3 class="comments-title">评论 ({{ commentCount }})</h3>
         
         <!-- 发表评论（顶级评论） -->
         <div class="comment-form" v-if="authStore.isLoggedIn">
@@ -129,12 +162,33 @@
             placeholder="写下你的看法…"
             class="comment-input"
           />
+          <div class="comment-attachment-upload">
+            <el-upload
+              :show-file-list="false"
+              :auto-upload="false"
+              :disabled="commenting || commentUploading"
+              :on-change="handleCommentAttachmentSelect"
+            >
+              <el-button size="small" :loading="commentUploading">上传附件</el-button>
+            </el-upload>
+            <div v-if="selectedCommentAttachments.length" class="comment-attachment-list">
+              <el-tag
+                v-for="att in selectedCommentAttachments"
+                :key="att.id"
+                closable
+                class="comment-attachment-tag"
+                @close="removeSelectedCommentAttachment(att.id)"
+              >
+                {{ att.original_name || `附件#${att.id}` }}
+              </el-tag>
+            </div>
+          </div>
           <div class="comment-actions">
             <el-button 
               type="primary" 
               @click="handleAddComment"
               :loading="commenting"
-              :disabled="!newComment.trim()"
+              :disabled="!newComment.trim() && !selectedCommentAttachments.length"
             >
               发表评论
             </el-button>
@@ -159,7 +213,9 @@
                     >
                       {{ comment.authorName }}
                     </span>
-                    <span class="comment-time">{{ formatDate(comment.createdAt) }}</span>
+                    <div class="comment-meta-line">
+                      <span class="comment-time">{{ formatDate(comment.createdAt) }}</span>
+                    </div>
                   </div>
                   <div class="comment-actions-inline">
                     <el-button
@@ -228,6 +284,18 @@
                     {{ comment.body }}
                   </template>
                 </div>
+                <div v-if="comment.attachments?.length" class="comment-attachments-view">
+                  <a
+                    v-for="att in comment.attachments"
+                    :key="att.id"
+                    :href="att.fileUrl"
+                    class="comment-attachment-link"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {{ att.original_name || `附件#${att.id}` }}
+                  </a>
+                </div>
 
                 <div class="comment-footer">
                   <el-button
@@ -245,7 +313,7 @@
               <!-- 子回复列表 -->
               <div class="comment-replies" v-if="comment.replies && comment.replies.length">
                 <div
-                  v-for="reply in comment.replies"
+                  v-for="reply in visibleReplies(comment)"
                   :key="reply.id"
                   class="comment-reply-item"
                 >
@@ -257,10 +325,12 @@
                       >
                         {{ reply.authorName }}
                       </span>
-                      <span v-if="reply.replyToUsername" class="reply-to">
-                        回复 @{{ reply.replyToUsername }}
-                      </span>
-                      <span class="comment-time">{{ formatDate(reply.createdAt) }}</span>
+                      <div class="comment-meta-line">
+                        <span v-if="reply.replyToUsername" class="reply-to">
+                          回复 @{{ reply.replyToUsername }}
+                        </span>
+                        <span class="comment-time">{{ formatDate(reply.createdAt) }}</span>
+                      </div>
                     </div>
                     <div class="comment-actions-inline">
                       <el-button
@@ -328,6 +398,18 @@
                       {{ reply.body }}
                     </template>
                   </div>
+                  <div v-if="reply.attachments?.length" class="comment-attachments-view">
+                    <a
+                      v-for="att in reply.attachments"
+                      :key="att.id"
+                      :href="att.fileUrl"
+                      class="comment-attachment-link"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {{ att.original_name || `附件#${att.id}` }}
+                    </a>
+                  </div>
                   <div class="comment-footer">
                     <el-button
                       class="comment-like-btn"
@@ -344,13 +426,15 @@
                 <!-- 展开更多回复 -->
                 <div class="comment-more-replies">
                   <el-button
-                    v-if="hasMoreReplies(comment)"
+                    v-if="(comment.replies && comment.replies.length > 1) || (hasMoreReplies(comment) && !isRepliesExpanded(comment.id))"
                     link
                     size="small"
                     :loading="loadingRepliesId === comment.id"
-                    @click="loadAllReplies(comment)"
+                    @click="toggleReplies(comment)"
                   >
-                    展开更多回复
+                    {{ isRepliesExpanded(comment.id)
+                      ? '收起回复'
+                      : `展开${hiddenReplyCount(comment)}条回复` }}
                   </el-button>
                 </div>
               </div>
@@ -366,17 +450,44 @@
                   :rows="2"
                   placeholder="分享你的补充判断…"
                 />
+                <div v-if="selectedReplyAttachments.length" class="comment-attachment-list reply-attachment-list">
+                  <el-tag
+                    v-for="att in selectedReplyAttachments"
+                    :key="att.id"
+                    closable
+                    class="comment-attachment-tag"
+                    @close="removeSelectedReplyAttachment(att.id)"
+                  >
+                    {{ att.original_name || `附件#${att.id}` }}
+                  </el-tag>
+                </div>
                 <div class="comment-edit-actions">
+                  <el-upload
+                    :show-file-list="false"
+                    :auto-upload="false"
+                    :disabled="replying || replyUploading"
+                    :on-change="handleReplyAttachmentSelect"
+                  >
+                    <el-button
+                      size="small"
+                      class="reply-action-btn"
+                      :loading="replyUploading"
+                    >
+                      上传附件
+                    </el-button>
+                  </el-upload>
                   <el-button
                     size="small"
+                    class="reply-action-btn"
                     @click="cancelReply"
                   >
                     取消
                   </el-button>
                   <el-button
                     size="small"
-                    type="primary"
+                    class="reply-action-btn"
                     :loading="replying"
+                    :disabled="!replyText.trim() && !selectedReplyAttachments.length"
                     @click="confirmReply(comment)"
                   >
                     发送回复
@@ -452,7 +563,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { usePostsStore } from '../stores/posts'
 import { useAuthStore } from '../stores/auth'
-import type { Comment } from '../types'
+import type { Comment, CommentAttachment } from '../types'
 import { PostStatus } from '../types'
 import * as postsApi from '../api/posts'
 import * as reportsApi from '../api/reports'
@@ -470,6 +581,7 @@ const authStore = useAuthStore()
 const newComment = ref('')
 const commenting = ref(false)
 const comments = ref<Comment[]>([])
+const commentCount = ref(0)
 const loadingComments = ref(false)
 const showShareDialog = ref(false)
 
@@ -477,10 +589,15 @@ const showShareDialog = ref(false)
 const replyingTo = ref<Comment | null>(null)
 const replyText = ref('')
 const replying = ref(false)
+const commentUploading = ref(false)
+const replyUploading = ref(false)
+const selectedCommentAttachments = ref<CommentAttachment[]>([])
+const selectedReplyAttachments = ref<CommentAttachment[]>([])
 const editingCommentId = ref<number | null>(null)
 const editText = ref('')
 const editing = ref(false)
 const loadingRepliesId = ref<number | null>(null)
+const expandedReplies = ref<Record<number, boolean>>({})
 
 // 举报
 const showReportDialog = ref(false)
@@ -526,20 +643,62 @@ const handleFavorite = async () => {
   }
 }
 
+const handleRepost = async () => {
+  if (!authStore.isLoggedIn || !postsStore.currentPost) {
+    ElMessage.warning('请先登录')
+    return
+  }
+  try {
+    await postsApi.repostPost(postsStore.currentPost.id)
+    postsStore.currentPost.reposts = (postsStore.currentPost.reposts || 0) + 1
+    ElMessage.success('转发成功')
+  } catch (error) {
+    ElMessage.error('转发失败')
+  }
+}
+
+const handleVote = async (optionId: number) => {
+  if (!authStore.isLoggedIn || !postsStore.currentPost) {
+    ElMessage.warning('请先登录')
+    return
+  }
+  try {
+    await postsApi.votePoll(postsStore.currentPost.id, [optionId])
+    const poll = await postsApi.getPollResult(postsStore.currentPost.id)
+    postsStore.currentPost.poll = poll as any
+    ElMessage.success('投票成功')
+  } catch (error: any) {
+    ElMessage.error(error?.message || '投票失败')
+  }
+}
+
+const handleDownloadAttachment = async (attachmentId: number) => {
+  try {
+    const data: any = await postsApi.downloadContentAttachment(attachmentId)
+    if (data?.url) {
+      window.open(data.url, '_blank')
+    }
+  } catch {
+    ElMessage.error('附件暂不可下载（可能仍在审核）')
+  }
+}
+
 const handleAddComment = async () => {
-  if (!newComment.value.trim()) return
+  if (!newComment.value.trim() && !selectedCommentAttachments.value.length) return
 
   if (!postsStore.currentPost) return
 
   commenting.value = true
   try {
     const comment = await postsApi.createComment(postsStore.currentPost.id, {
-      text: newComment.value.trim()
+      text: newComment.value.trim(),
+      attachmentIds: selectedCommentAttachments.value.map(item => item.id)
     })
     comments.value.push(comment)
-    postsStore.currentPost.comments += 1
+    commentCount.value += 1
     ElMessage.success('评论发表成功')
     newComment.value = ''
+    selectedCommentAttachments.value = []
   } catch (error) {
     ElMessage.error('评论失败')
   } finally {
@@ -596,6 +755,12 @@ const loadComments = async (postId: number) => {
   try {
     const data = await postsApi.getPostComments(postId)
     comments.value = data
+    if (postsStore.currentPost) {
+      const serverComments: any = postsStore.currentPost.comments
+      commentCount.value = typeof serverComments === 'number' ? serverComments : data.length
+    } else {
+      commentCount.value = data.length
+    }
   } catch (error) {
     ElMessage.error('加载评论失败')
   } finally {
@@ -616,21 +781,24 @@ const startReply = (comment: Comment, topLevelParent?: Comment) => {
   }
   replyingTo.value = topLevelParent || comment
   replyText.value = ''
+  selectedReplyAttachments.value = []
 }
 
 const cancelReply = () => {
   replyingTo.value = null
   replyText.value = ''
+  selectedReplyAttachments.value = []
 }
 
 const confirmReply = async (parentComment: Comment) => {
-  if (!replyText.value.trim() || !postsStore.currentPost) return
+  if ((!replyText.value.trim() && !selectedReplyAttachments.value.length) || !postsStore.currentPost) return
   replying.value = true
   try {
     const payload: postsApi.CreateCommentParams = {
       text: replyText.value.trim(),
       parentId: parentComment.id,
-      replyToUserId: parentComment.authorId
+      replyToUserId: parentComment.authorId,
+      attachmentIds: selectedReplyAttachments.value.map(item => item.id)
     }
     const reply = await postsApi.createComment(postsStore.currentPost.id, payload) as Comment
     // 将新回复追加到对应父评论的 replies 列表
@@ -639,7 +807,7 @@ const confirmReply = async (parentComment: Comment) => {
       if (!target.replies) target.replies = []
       target.replies.push(reply)
     }
-    postsStore.currentPost.comments += 1
+    commentCount.value += 1
     ElMessage.success('回复已发送')
     cancelReply()
   } catch (error) {
@@ -649,9 +817,74 @@ const confirmReply = async (parentComment: Comment) => {
   }
 }
 
+const handleCommentAttachmentSelect = async (uploadFile: any) => {
+  if (!uploadFile?.raw) return
+  commentUploading.value = true
+  try {
+    const attachment = await postsApi.uploadCommentAttachment(uploadFile.raw as File)
+    selectedCommentAttachments.value.push(attachment)
+    ElMessage.success('评论附件上传成功')
+  } catch {
+    ElMessage.error('评论附件上传失败')
+  } finally {
+    commentUploading.value = false
+  }
+}
+
+const handleReplyAttachmentSelect = async (uploadFile: any) => {
+  if (!uploadFile?.raw) return
+  replyUploading.value = true
+  try {
+    const attachment = await postsApi.uploadCommentAttachment(uploadFile.raw as File)
+    selectedReplyAttachments.value.push(attachment)
+    ElMessage.success('回复附件上传成功')
+  } catch {
+    ElMessage.error('回复附件上传失败')
+  } finally {
+    replyUploading.value = false
+  }
+}
+
+const removeSelectedCommentAttachment = (attachmentId: number) => {
+  selectedCommentAttachments.value = selectedCommentAttachments.value.filter(item => item.id !== attachmentId)
+}
+
+const removeSelectedReplyAttachment = (attachmentId: number) => {
+  selectedReplyAttachments.value = selectedReplyAttachments.value.filter(item => item.id !== attachmentId)
+}
+
 const hasMoreReplies = (comment: Comment) => {
   // 底层实现始终只返回前 5 条预览，认为 >=5 就可能还有更多
   return comment.replies && comment.replies.length >= 5
+}
+
+const isRepliesExpanded = (commentId: number) => {
+  return !!expandedReplies.value[commentId]
+}
+
+const visibleReplies = (comment: Comment) => {
+  const replies = comment.replies || []
+  if (isRepliesExpanded(comment.id)) {
+    return replies
+  }
+  return replies.slice(0, 1)
+}
+
+const hiddenReplyCount = (comment: Comment) => {
+  const replies = comment.replies || []
+  if (isRepliesExpanded(comment.id)) return 0
+  return Math.max(0, replies.length - 1)
+}
+
+const toggleReplies = async (comment: Comment) => {
+  if (isRepliesExpanded(comment.id)) {
+    expandedReplies.value[comment.id] = false
+    return
+  }
+  if (hasMoreReplies(comment)) {
+    await loadAllReplies(comment)
+  }
+  expandedReplies.value[comment.id] = true
 }
 
 const loadAllReplies = async (comment: Comment) => {
@@ -712,9 +945,7 @@ const handleDeleteComment = async (comment: Comment) => {
       })
       .filter((c): c is Comment => c !== null)
 
-    if (postsStore.currentPost) {
-      postsStore.currentPost.comments = Math.max(0, postsStore.currentPost.comments - 1)
-    }
+    commentCount.value = Math.max(0, commentCount.value - 1)
     ElMessage.success('评论已删除')
   } catch (error) {
     ElMessage.error('删除评论失败')
@@ -1088,6 +1319,27 @@ onMounted(async () => {
   }
 }
 
+.comment-attachment-upload {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.comment-attachment-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.reply-attachment-list {
+  margin-top: 0.5rem;
+}
+
+.comment-attachment-tag {
+  cursor: default;
+}
+
 .comment-actions {
   display: flex;
   justify-content: flex-end;
@@ -1106,6 +1358,47 @@ onMounted(async () => {
       background: rgba(0, 113, 227, 0.9) !important;
     }
   }
+}
+
+.comment-reply-form {
+  margin-top: 0.625rem;
+}
+
+.comment-reply-form .comment-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.625rem;
+  margin-top: 0.625rem;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+.comment-reply-form :deep(.el-upload) {
+  display: inline-flex !important;
+  flex: 0 0 auto !important;
+  width: auto !important;
+}
+
+.comment-reply-form :deep(.reply-action-btn) {
+  background: #fff !important;
+  color: $apple-text-secondary !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  border-radius: 8px !important;
+  padding: 0.375rem 0.875rem !important;
+  font-weight: 500 !important;
+  min-width: 92px !important;
+  height: 32px !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
+}
+
+.comment-reply-form :deep(.reply-action-btn:hover) {
+  background: rgba(245, 245, 247, 0.9) !important;
 }
 
 .comments-list {
@@ -1132,14 +1425,17 @@ onMounted(async () => {
 .comment-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   font-size: 0.8125rem;
   color: $apple-text-tertiary;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.625rem;
 }
 
 .comment-author {
   font-weight: 600;
+  font-size: 1rem;
+  letter-spacing: 0.01em;
+  line-height: 1.35;
   color: $apple-text-primary;
   cursor: pointer;
   transition: color 0.2s ease;
@@ -1149,11 +1445,95 @@ onMounted(async () => {
   }
 }
 
+.comment-user {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+}
+
+.comment-meta-line {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.comment-time {
+  font-size: 0.8125rem;
+  color: $apple-text-tertiary;
+  letter-spacing: 0.01em;
+  line-height: 1.3;
+}
+
+.reply-to {
+  font-size: 0.8125rem;
+  color: $apple-text-tertiary;
+  letter-spacing: 0.01em;
+}
+
 .comment-body {
-  font-size: 0.875rem;
-  color: $apple-text-secondary;
-  line-height: 1.65;
-  margin-bottom: 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: $apple-text-primary;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+  margin-bottom: 0.875rem;
+}
+
+.comment-attachments-view {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: -0.25rem;
+  margin-bottom: 0.625rem;
+}
+
+.comment-attachment-link {
+  font-size: 0.8125rem;
+  color: $apple-accent;
+  text-decoration: none;
+  border: 1px solid rgba(0, 113, 227, 0.2);
+  border-radius: 8px;
+  padding: 0.2rem 0.5rem;
+}
+
+.comment-attachment-link:hover {
+  background: rgba(0, 113, 227, 0.06);
+}
+
+/* 楼中楼：二级评论与一级评论形成清晰层级 */
+.comment-replies {
+  margin-top: 0.5rem;
+  margin-left: 1.75rem;
+  padding-left: 1rem;
+  border-left: 2px solid rgba(0, 0, 0, 0.08);
+}
+
+.comment-reply-item {
+  padding: 0.5rem 0;
+}
+
+.comment-reply-item .comment-author {
+  font-size: 0.9375rem;
+}
+
+.comment-reply-item .comment-time,
+.comment-reply-item .reply-to {
+  font-size: 0.78125rem;
+}
+
+.comment-reply-item .comment-body {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: $apple-text-primary;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+}
+
+.comment-more-replies {
+  margin-top: 0.25rem;
+  margin-left: 0.125rem;
 }
 
 .share-options {

@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 
 User = get_user_model()
 
@@ -89,6 +90,84 @@ class Asset(models.Model):
         return market_map.get(self.market, self.market)
 
 
+class Board(models.Model):
+    """社区板块（支持三级层级）"""
+
+    BOARD_TYPE_CHOICES = [
+        ('MARKET', '市场讨论区'),
+        ('THEME', '主题专区'),
+        ('COMPANY_RESEARCH', '公司研究专区'),
+        ('QA', '问答求助区'),
+    ]
+
+    STATUS_CHOICES = [
+        ('ACTIVE', '启用'),
+        ('INACTIVE', '停用'),
+    ]
+
+    MARKET_CHOICES = [
+        ('A_SHARE', 'A股'),
+        ('HK_STOCK', '港股'),
+        ('US_STOCK', '美股'),
+        ('FUTURES', '期货'),
+    ]
+
+    name = models.CharField('板块名称', max_length=100)
+    slug = models.SlugField('唯一标识', max_length=120, unique=True)
+    board_type = models.CharField('板块类型', max_length=32, choices=BOARD_TYPE_CHOICES)
+    parent = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='children',
+        verbose_name='父板块'
+    )
+    description = models.TextField('描述', blank=True)
+    icon = models.CharField('图标', max_length=100, blank=True)
+    sort_order = models.PositiveIntegerField('排序', default=0)
+    status = models.CharField('状态', max_length=16, choices=STATUS_CHOICES, default='ACTIVE')
+    is_builtin = models.BooleanField('系统预置', default=False)
+
+    # 扩展字段（用于公司研究专区等扩展场景）
+    market = models.CharField('市场维度', max_length=20, blank=True, choices=MARKET_CHOICES)
+    industry_code = models.CharField('行业编码', max_length=32, blank=True)
+    stock_code = models.CharField('个股代码', max_length=20, blank=True)
+
+    created_at = models.DateTimeField('创建时间', default=timezone.now)
+    updated_at = models.DateTimeField('更新时间', auto_now=True)
+
+    class Meta:
+        db_table = 'board'
+        verbose_name = '板块'
+        verbose_name_plural = '板块'
+        ordering = ['sort_order', 'id']
+        indexes = [
+            models.Index(fields=['board_type', 'status'], name='idx_board_type_status'),
+            models.Index(fields=['parent', 'sort_order'], name='idx_board_parent_sort'),
+            models.Index(fields=['status', 'sort_order'], name='idx_board_status_sort'),
+        ]
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def level(self):
+        level = 1
+        node = self.parent
+        while node:
+            level += 1
+            node = node.parent
+        return level
+
+    def clean(self):
+        if self.parent_id and self.parent_id == self.id:
+            raise ValidationError('板块不能将自己设置为父节点')
+
+        if self.parent and self.parent.parent and self.parent.parent.parent:
+            raise ValidationError('板块层级最多支持三级')
+
+
 class Content(models.Model):
     """内容表（帖子、文章）"""
     STATUS_CHOICES = [
@@ -119,6 +198,7 @@ class Content(models.Model):
 
     # 关联资产
     assets = models.ManyToManyField(Asset, through='ContentAsset', verbose_name='关联资产')
+    boards = models.ManyToManyField('Board', through='ContentBoard', verbose_name='关联板块', blank=True)
 
     class Meta:
         db_table = 'content'
@@ -150,6 +230,214 @@ class ContentAsset(models.Model):
 
     def __str__(self):
         return f"{self.content.title} - {self.asset.code}"
+
+
+class ContentBoard(models.Model):
+    """内容-板块关联表（多对多）"""
+    content = models.ForeignKey(Content, on_delete=models.CASCADE, verbose_name='内容')
+    board = models.ForeignKey(Board, on_delete=models.CASCADE, verbose_name='板块')
+
+    created_at = models.DateTimeField('关联时间', default=timezone.now)
+
+    class Meta:
+        db_table = 'content_board'
+        verbose_name = '内容板块关联'
+        verbose_name_plural = '内容板块关联'
+        unique_together = ['content', 'board']
+        indexes = [
+            models.Index(fields=['board', 'created_at'], name='idx_content_board_board'),
+        ]
+
+    def __str__(self):
+        return f"{self.content.title} - {self.board.name}"
+
+
+class ContentMeta(models.Model):
+    """内容扩展元信息（帖子类型等）"""
+    CONTENT_TYPE_CHOICES = [
+        ('NORMAL', '普通帖子'),
+        ('LONGFORM', '长文分析'),
+        ('POLL', '投票调研'),
+        ('LIVE', '实时讨论'),
+    ]
+    FORMAT_TYPE_CHOICES = [
+        ('PLAIN', '纯文本'),
+        ('RICH_TEXT', '富文本'),
+    ]
+
+    content = models.OneToOneField(Content, on_delete=models.CASCADE, related_name='meta', verbose_name='内容')
+    content_type = models.CharField('内容类型', max_length=20, choices=CONTENT_TYPE_CHOICES, default='NORMAL')
+    format_type = models.CharField('格式类型', max_length=20, choices=FORMAT_TYPE_CHOICES, default='PLAIN')
+    repost_count = models.PositiveIntegerField('转发数', default=0)
+    forward_count = models.PositiveIntegerField('分享数', default=0)
+
+    created_at = models.DateTimeField('创建时间', default=timezone.now)
+    updated_at = models.DateTimeField('更新时间', auto_now=True)
+
+    class Meta:
+        db_table = 'content_meta'
+        verbose_name = '内容扩展'
+        verbose_name_plural = '内容扩展'
+
+
+class Poll(models.Model):
+    """投票主题"""
+    content = models.OneToOneField(Content, on_delete=models.CASCADE, related_name='poll', verbose_name='内容')
+    question = models.CharField('投票问题', max_length=300)
+    allow_multiple = models.BooleanField('是否可多选', default=False)
+    expires_at = models.DateTimeField('截止时间', null=True, blank=True)
+    is_closed = models.BooleanField('是否关闭', default=False)
+    created_at = models.DateTimeField('创建时间', default=timezone.now)
+
+    class Meta:
+        db_table = 'poll'
+        verbose_name = '投票'
+        verbose_name_plural = '投票'
+
+
+class PollOption(models.Model):
+    """投票选项"""
+    poll = models.ForeignKey(Poll, on_delete=models.CASCADE, related_name='options', verbose_name='投票')
+    text = models.CharField('选项文本', max_length=200)
+    sort_order = models.PositiveIntegerField('排序', default=0)
+    vote_count = models.PositiveIntegerField('票数', default=0)
+    created_at = models.DateTimeField('创建时间', default=timezone.now)
+
+    class Meta:
+        db_table = 'poll_option'
+        verbose_name = '投票选项'
+        verbose_name_plural = '投票选项'
+        ordering = ['sort_order', 'id']
+
+
+class PollVote(models.Model):
+    """投票记录"""
+    poll = models.ForeignKey(Poll, on_delete=models.CASCADE, related_name='votes', verbose_name='投票')
+    option = models.ForeignKey(PollOption, on_delete=models.CASCADE, related_name='votes', verbose_name='选项')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='poll_votes', verbose_name='用户')
+    created_at = models.DateTimeField('投票时间', default=timezone.now)
+
+    class Meta:
+        db_table = 'poll_vote'
+        verbose_name = '投票记录'
+        verbose_name_plural = '投票记录'
+        unique_together = ['poll', 'option', 'user']
+        indexes = [
+            models.Index(fields=['poll', 'user'], name='idx_poll_vote_poll_user'),
+        ]
+
+
+class Repost(models.Model):
+    """帖子转发"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reposts', verbose_name='用户')
+    content = models.ForeignKey(Content, on_delete=models.CASCADE, related_name='reposts', verbose_name='内容')
+    comment = models.CharField('转发语', max_length=500, blank=True)
+    created_at = models.DateTimeField('转发时间', default=timezone.now)
+
+    class Meta:
+        db_table = 'repost'
+        verbose_name = '转发'
+        verbose_name_plural = '转发'
+        unique_together = ['user', 'content']
+        indexes = [
+            models.Index(fields=['content', '-created_at'], name='idx_repost_content_time'),
+        ]
+
+
+class Mention(models.Model):
+    """@提及记录"""
+    TARGET_TYPE_CHOICES = [
+        ('POST', '帖子'),
+        ('COMMENT', '评论'),
+    ]
+
+    source_type = models.CharField('来源类型', max_length=20, choices=TARGET_TYPE_CHOICES)
+    source_id = models.PositiveIntegerField('来源ID')
+    from_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='mentions_sent', verbose_name='提及者')
+    to_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='mentions_received', verbose_name='被提及者')
+    created_at = models.DateTimeField('创建时间', default=timezone.now)
+
+    class Meta:
+        db_table = 'mention'
+        verbose_name = '提及记录'
+        verbose_name_plural = '提及记录'
+        unique_together = ['source_type', 'source_id', 'to_user']
+        indexes = [
+            models.Index(fields=['to_user', '-created_at'], name='idx_mention_to_user_time'),
+        ]
+
+
+class ContentAttachment(models.Model):
+    """帖子附件（需审核）"""
+    STATUS_CHOICES = [
+        ('PENDING', '待审核'),
+        ('APPROVED', '已通过'),
+        ('REJECTED', '已驳回'),
+    ]
+
+    content = models.ForeignKey(
+        Content,
+        on_delete=models.CASCADE,
+        related_name='attachments',
+        verbose_name='内容',
+        null=True,
+        blank=True,
+    )
+    uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='content_attachments', verbose_name='上传者')
+    file = models.FileField('附件文件', upload_to='content_attachments/%Y/%m/')
+    original_name = models.CharField('原始文件名', max_length=255, blank=True)
+    mime_type = models.CharField('文件类型', max_length=100, blank=True)
+    file_size = models.PositiveBigIntegerField('文件大小', default=0)
+    status = models.CharField('审核状态', max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_attachments',
+        verbose_name='审核人'
+    )
+    reject_reason = models.TextField('驳回原因', blank=True)
+    created_at = models.DateTimeField('创建时间', default=timezone.now)
+    updated_at = models.DateTimeField('更新时间', auto_now=True)
+
+    class Meta:
+        db_table = 'content_attachment'
+        verbose_name = '内容附件'
+        verbose_name_plural = '内容附件'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status', '-created_at'], name='idx_attachment_status_time'),
+            models.Index(fields=['uploaded_by', '-created_at'], name='idx_attachment_uploader_time'),
+        ]
+
+
+class CommentAttachment(models.Model):
+    """评论附件（无需审核）"""
+    comment = models.ForeignKey(
+        'Comment',
+        on_delete=models.CASCADE,
+        related_name='attachments',
+        verbose_name='评论',
+        null=True,
+        blank=True,
+    )
+    uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comment_attachments', verbose_name='上传者')
+    file = models.FileField('附件文件', upload_to='comment_attachments/%Y/%m/')
+    original_name = models.CharField('原始文件名', max_length=255, blank=True)
+    mime_type = models.CharField('文件类型', max_length=100, blank=True)
+    file_size = models.PositiveBigIntegerField('文件大小', default=0)
+    created_at = models.DateTimeField('创建时间', default=timezone.now)
+    updated_at = models.DateTimeField('更新时间', auto_now=True)
+
+    class Meta:
+        db_table = 'comment_attachment'
+        verbose_name = '评论附件'
+        verbose_name_plural = '评论附件'
+        ordering = ['created_at']
+        indexes = [
+            models.Index(fields=['uploaded_by', '-created_at'], name='idx_cmtatt_uploader_time'),
+        ]
 
 
 class Comment(models.Model):

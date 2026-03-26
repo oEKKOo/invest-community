@@ -120,3 +120,30 @@ class MessageReadLog(models.Model):
     def __str__(self):
         return f'{self.user.username} read {self.message_id}'
 
+
+class MessageAttachment(models.Model):
+    """私信附件（文本外的图片/文件）"""
+    message = models.ForeignKey(
+        Message,
+        on_delete=models.CASCADE,
+        related_name='attachments',
+        verbose_name='消息',
+    )
+    uploaded_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='message_attachments',
+        verbose_name='上传者',
+    )
+    file = models.FileField('附件文件', upload_to='message_attachments/%Y/%m/')
+    original_name = models.CharField('原始文件名', max_length=255, blank=True)
+    mime_type = models.CharField('文件类型', max_length=100, blank=True)
+    file_size = models.PositiveBigIntegerField('文件大小', default=0)
+    created_at = models.DateTimeField('创建时间', default=timezone.now)
+
+    class Meta:
+        db_table = 'message_attachment'
+        verbose_name = '私信附件'
+        verbose_name_plural = '私信附件'
+        ordering = ['created_at']
+

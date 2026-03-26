@@ -1,12 +1,14 @@
 import { get, post, patch, del } from './index'
 import * as likesApi from './likes'
-import type { Post, PaginatedResponse, PostStatus, Comment } from '@/types'
+import type { Post, Board, Attachment, Poll, PaginatedResponse, PostStatus, Comment, CommentAttachment } from '@/types'
 
 // 获取帖子列表
 export interface GetPostsParams {
   status?: string
   authorId?: number
   tag?: string
+  boardId?: number
+  boardIds?: number[]
   q?: string
   sort?: 'new' | 'hot'
   page?: number
@@ -29,6 +31,16 @@ export interface CreatePostParams {
   tags?: string[]
   status?: PostStatus
   assetIds?: number[]
+  boardIds?: number[]
+  contentType?: 'NORMAL' | 'LONGFORM' | 'POLL' | 'LIVE'
+  formatType?: 'PLAIN' | 'RICH_TEXT'
+  poll?: {
+    question: string
+    allowMultiple?: boolean
+    expiresAt?: string
+    options: Array<{ text: string }>
+  }
+  attachmentIds?: number[]
 }
 
 export const createPost = (params: CreatePostParams): Promise<Post> => {
@@ -67,6 +79,7 @@ export interface CreateCommentParams {
   text: string
   parentId?: number
   replyToUserId?: number
+  attachmentIds?: number[]
 }
 
 export const createComment = (postId: number, params: CreateCommentParams) => {
@@ -103,4 +116,52 @@ export const unlikeComment = (commentId: number): Promise<void> => {
 // 获取我的收藏列表
 export const getMyFavorites = (params?: { page?: number; pageSize?: number }): Promise<{ items: Post[]; total: number }> => {
   return get('/users/me/favorites/', { params })
+}
+
+export interface GetBoardsParams {
+  type?: 'MARKET' | 'THEME' | 'COMPANY_RESEARCH' | 'QA'
+  parentId?: number
+  status?: 'ACTIVE' | 'INACTIVE'
+}
+
+export const getBoards = (params?: GetBoardsParams): Promise<{ items: Board[]; total: number }> => {
+  return get('/boards/', { params })
+}
+
+export const uploadContentAttachment = (file: File): Promise<Attachment> => {
+  const form = new FormData()
+  form.append('file', file)
+  return post('/uploads/content/', form, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+}
+
+export const uploadCommentAttachment = (file: File): Promise<CommentAttachment> => {
+  const form = new FormData()
+  form.append('file', file)
+  return post('/uploads/comment/', form, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+}
+
+export const votePoll = (postId: number, optionIds: number[]): Promise<void> => {
+  return post(`/posts/${postId}/poll/vote/`, { optionIds })
+}
+
+export const getPollResult = (postId: number): Promise<Poll> => {
+  return get(`/posts/${postId}/poll/result/`)
+}
+
+export const repostPost = (postId: number, comment?: string): Promise<void> => {
+  return post(`/posts/${postId}/repost/`, { comment })
+}
+
+export const cancelRepost = (postId: number): Promise<void> => {
+  return del(`/posts/${postId}/repost/`)
+}
+
+export const downloadContentAttachment = (
+  attachmentId: number
+): Promise<{ id: number; url: string; name: string; status: string }> => {
+  return get(`/attachments/${attachmentId}/download/`)
 }
