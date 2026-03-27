@@ -177,6 +177,16 @@ class Content(models.Model):
         ('REJECTED', '被驳回'),
         ('TAKEN_DOWN', '下架'),
     ]
+    RISK_LEVEL_CHOICES = [
+        ('LOW', '低风险'),
+        ('MEDIUM', '中风险'),
+        ('HIGH', '高风险'),
+    ]
+    MODERATION_SOURCE_CHOICES = [
+        ('MANUAL', '人工'),
+        ('AUTO', '自动规则'),
+        ('REPORT', '举报触发'),
+    ]
 
     author = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='作者', related_name='contents')
     title = models.CharField('标题', max_length=200)
@@ -187,6 +197,9 @@ class Content(models.Model):
     reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, 
                                     verbose_name='审核人', related_name='reviewed_contents')
     reject_reason = models.TextField('驳回原因', blank=True)
+    risk_score = models.PositiveIntegerField('风险分', default=0)
+    risk_level = models.CharField('风险等级', max_length=16, choices=RISK_LEVEL_CHOICES, default='LOW')
+    moderation_source = models.CharField('审核来源', max_length=16, choices=MODERATION_SOURCE_CHOICES, default='MANUAL')
     
     like_count = models.PositiveIntegerField('点赞数', default=0)
     comment_count = models.PositiveIntegerField('评论数', default=0)

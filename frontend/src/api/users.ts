@@ -54,6 +54,24 @@ export const unfollowUser = (userId: number): Promise<void> => {
   return del(`/users/${userId}/follow/`)
 }
 
+export const getFollowStatus = (userId: number): Promise<{
+  isFollowing: boolean
+  isMutual: boolean
+  isStarred: boolean
+}> => get(`/users/${userId}/follow-status/`)
+
+export const getFollowStats = (userId: number): Promise<{
+  followers: number
+  following: number
+  starFollowing: number
+}> => get(`/users/${userId}/follow-stats/`)
+
+export const starFollowUser = (userId: number): Promise<void> => post(`/users/${userId}/star-follow/`)
+
+export const unstarFollowUser = (userId: number): Promise<void> => del(`/users/${userId}/star-follow/`)
+
+export const getMyStarFollowing = (): Promise<User[]> => get('/users/me/star-following/')
+
 export const getPrivacySettings = (): Promise<PrivacySettings> => {
   return get('/users/me/privacy-settings/')
 }

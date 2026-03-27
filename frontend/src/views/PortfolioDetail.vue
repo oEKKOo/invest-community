@@ -26,10 +26,37 @@
             
             <!-- 第二重点：收益率（突出显示） -->
             <div class="hero-return">
-              <div class="return-value" :class="perf ? pnlClass(perf.totalUnrealizedReturn) : ''">
-                {{ perf ? fmtRate(perf.totalUnrealizedReturn) : '--' }}
+              <div class="return-value" :class="pnlClass(displayTotalReturn)">
+                {{ fmtRate(displayTotalReturn) || '--' }}
               </div>
-              <div class="return-label">收益率</div>
+              <div class="return-label">总收益率</div>
+            </div>
+
+            <div class="hero-kpis">
+              <div class="kpi-item">
+                <span class="kpi-label">今日收益率</span>
+                <span class="kpi-value" :class="pnlClass(portfoliosStore.currentPortfolio.dailyReturn)">
+                  {{ fmtRate(portfoliosStore.currentPortfolio.dailyReturn) || '--' }}
+                </span>
+              </div>
+              <div class="kpi-item">
+                <span class="kpi-label">近7日收益率</span>
+                <span class="kpi-value" :class="pnlClass(portfoliosStore.currentPortfolio.sevenDayReturn)">
+                  {{ fmtRate(portfoliosStore.currentPortfolio.sevenDayReturn) || '--' }}
+                </span>
+              </div>
+              <div class="kpi-item">
+                <span class="kpi-label">持仓资产数</span>
+                <span class="kpi-value">{{ portfoliosStore.currentPortfolio.assetCount ?? portfoliosStore.currentPortfolio.assets?.length ?? 0 }}</span>
+              </div>
+              <div class="kpi-item">
+                <span class="kpi-label">最近更新时间</span>
+                <span class="kpi-value">{{ formatDateTime(portfoliosStore.currentPortfolio.updatedAt || portfoliosStore.currentPortfolio.lastRebalanceAt || portfoliosStore.currentPortfolio.createdAt) }}</span>
+              </div>
+              <div class="kpi-item">
+                <span class="kpi-label">可见性</span>
+                <span class="kpi-value">{{ formatVisibility(portfoliosStore.currentPortfolio.visibility, portfoliosStore.currentPortfolio.isPublic) }}</span>
+              </div>
             </div>
 
             <!-- 第三重点：风险等级 -->
@@ -48,6 +75,10 @@
               <div class="meta-item">
                 <span class="meta-label">点赞</span>
                 <span class="meta-value">{{ portfoliosStore.currentPortfolio.likes }}</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">收藏</span>
+                <span class="meta-value">{{ portfoliosStore.currentPortfolio.favorites || 0 }}</span>
               </div>
             </div>
 
@@ -82,6 +113,16 @@
               <el-icon><Star /></el-icon>
               <span>{{ portfoliosStore.currentPortfolio.isLiked ? '已点赞' : '点赞' }}</span>
             </el-button>
+
+            <el-button
+              type="text"
+              :class="{ liked: portfoliosStore.currentPortfolio.isFavorited }"
+              @click="handleFavorite"
+              class="action-btn like-btn"
+            >
+              <el-icon><Star /></el-icon>
+              <span>{{ portfoliosStore.currentPortfolio.isFavorited ? '已收藏' : '收藏' }}</span>
+            </el-button>
             
             <el-button
               type="primary"
@@ -106,6 +147,33 @@
         </div>
       </div>
 
+      <div class="assets-overview">
+        <div class="section-title-wrap">
+          <h2 class="section-title">收益趋势</h2>
+          <div class="range-tabs">
+            <button
+              v-for="r in rangeOptions"
+              :key="r.value"
+              class="range-tab"
+              :class="{ active: trendRange === r.value }"
+              @click="changeTrendRange(r.value)"
+            >
+              {{ r.label }}
+            </button>
+          </div>
+        </div>
+        <div class="chart-container trend-chart-wrap">
+          <el-skeleton v-if="trendLoading" :rows="4" animated />
+          <v-chart
+            v-else-if="trendChartOption.series?.[0]?.data?.length"
+            class="pie-chart"
+            :option="trendChartOption"
+            autoresize
+          />
+          <el-empty v-else description="暂无收益趋势数据" />
+        </div>
+      </div>
+
       <!-- 资产配置详情 -->
       <div class="portfolio-content">
         <div class="assets-overview">
@@ -127,14 +195,14 @@
               <span class="col-name">名称</span>
               <span class="col-market">市场</span>
               <span class="col-allocation">配置比例</span>
-              <span class="col-value" v-if="isOwner">持仓市值</span>
-              <span class="col-pnl" v-if="isOwner">持有收益</span>
-              <span class="col-rate" v-if="isOwner">收益率</span>
+              <span class="col-value">现价</span>
+              <span class="col-pnl">市值</span>
+              <span class="col-rate">收益率</span>
             </div>
             
             <div 
-              v-for="(asset, index) in portfoliosStore.currentPortfolio.assets"
-              :key="asset.symbol"
+              v-for="(asset, index) in detailRows"
+              :key="`${asset.code}-${index}`"
               class="table-row table-row--enhanced"
             >
               <!-- 代码 -->
@@ -143,7 +211,7 @@
                   class="color-indicator"
                   :style="{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }"
                 ></div>
-                {{ asset.symbol }}
+                {{ asset.code || asset.symbol || '--' }}
               </span>
 
               <!-- 名称 -->
@@ -152,73 +220,48 @@
               <!-- 市场 -->
               <span class="col-market">
                 <el-tag size="small" class="market-tag-sm" v-if="asset.displayMarket || asset.market">
-                  {{ asset.displayMarket || asset.market }}
+                  {{ asset.market }}
                 </el-tag>
                 <span v-else class="no-data">--</span>
               </span>
 
               <!-- 配置比例 -->
               <span class="col-allocation">
-                <span class="alloc-badge">{{ asset.allocation }}%</span>
+                <span class="alloc-badge">{{ Number(asset.weight ?? asset.allocation ?? 0).toFixed(2) }}%</span>
                 <div class="alloc-bar-wrap">
                   <div
                     class="alloc-bar-fill"
-                    :style="{ width: Math.min(asset.allocation, 100) + '%', backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }"
+                    :style="{ width: Math.min(Number(asset.weight ?? asset.allocation ?? 0), 100) + '%', backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }"
                   ></div>
                 </div>
               </span>
 
               <!-- 持仓市值（owner only）-->
-              <span class="col-value" v-if="isOwner">
-                <template v-if="holdingPerfLoading">
-                  <el-skeleton-item variant="text" style="width:60px" />
-                </template>
-                <template v-else-if="getPerfByAssetId(asset.assetId)?.hasData">
-                  <span class="mono-val">{{ fmtMoney(getPerfByAssetId(asset.assetId)?.marketValue) }}</span>
-                </template>
-                <span v-else class="no-data">--</span>
+              <span class="col-value">
+                <span class="mono-val">{{ asset.price != null ? fmtMoney(asset.price) : '--' }}</span>
               </span>
 
-              <!-- 持有收益（owner only）-->
-              <span class="col-pnl" v-if="isOwner">
-                <template v-if="holdingPerfLoading">
-                  <el-skeleton-item variant="text" style="width:60px" />
-                </template>
-                <template v-else-if="getPerfByAssetId(asset.assetId)?.hasData">
-                  <span
-                    class="mono-val"
-                    :class="pnlClass(getPerfByAssetId(asset.assetId)?.unrealizedPnl)"
-                  >
-                    {{ fmtPnl(getPerfByAssetId(asset.assetId)?.unrealizedPnl) }}
-                  </span>
-                </template>
-                <span v-else class="no-data">--</span>
+              <span class="col-pnl">
+                <span class="mono-val">{{ asset.marketValue != null ? fmtMoney(asset.marketValue) : '--' }}</span>
               </span>
 
-              <!-- 收益率（owner only）-->
-              <span class="col-rate" v-if="isOwner">
-                <template v-if="holdingPerfLoading">
-                  <el-skeleton-item variant="text" style="width:50px" />
-                </template>
-                <template v-else-if="getPerfByAssetId(asset.assetId)?.hasData">
-                  <span
-                    class="mono-val rate-val"
-                    :class="pnlClass(getPerfByAssetId(asset.assetId)?.unrealizedReturn)"
-                  >
-                    {{ fmtRate(getPerfByAssetId(asset.assetId)?.unrealizedReturn) }}
-                  </span>
-                </template>
-                <span v-else class="no-data">--</span>
+              <span class="col-rate">
+                <span
+                  class="mono-val rate-val"
+                  :class="pnlClass(asset.returnRate)"
+                >
+                  {{ fmtRate(asset.returnRate) || '--' }}
+                </span>
               </span>
             </div>
 
             <!-- 合计行（owner only）-->
-            <div class="table-row table-row--total" v-if="isOwner && portfolioMarketValue !== null">
+            <div class="table-row table-row--total" v-if="portfolioMarketValue !== null">
               <span class="col-symbol total-label">合计</span>
               <span class="col-name"></span>
               <span class="col-market"></span>
               <span class="col-allocation total-alloc">100%</span>
-              <span class="col-value total-value">{{ fmtMoney(portfolioMarketValue) }}</span>
+              <span class="col-value total-value">--</span>
               <span class="col-pnl">
                 <span
                   class="mono-val"
@@ -292,6 +335,12 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <div class="comments-card">
+        <h2 class="section-title">策略说明</h2>
+        <div class="strategy-note" v-if="strategyMarkdownHtml" v-html="strategyMarkdownHtml"></div>
+        <el-empty v-else description="作者尚未填写策略说明" />
       </div>
 
       <!-- 组合评论区 -->
@@ -381,8 +430,8 @@ import { useAuthStore } from '../stores/auth'
 import { ElMessage } from 'element-plus'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
-import { PieChart } from 'echarts/charts'
-import { TooltipComponent, LegendComponent } from 'echarts/components'
+import { PieChart, LineChart } from 'echarts/charts'
+import { TooltipComponent, LegendComponent, GridComponent, MarkLineComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import {
   Star,
@@ -393,9 +442,14 @@ import ReportDialog from '@/components/ReportDialog.vue'
 import dayjs from 'dayjs'
 import { getHoldingPerformance } from '../api/holdings'
 import type { HoldingPerformanceItem } from '../types'
-import { getPortfolioComments, getPortfolioUpdates, createPortfolioComment } from '../api/portfolios'
+import {
+  getPortfolioComments,
+  getPortfolioUpdates,
+  createPortfolioComment,
+  getPortfolioReturnsHistory
+} from '../api/portfolios'
 
-use([CanvasRenderer, PieChart, TooltipComponent, LegendComponent])
+use([CanvasRenderer, PieChart, LineChart, TooltipComponent, LegendComponent, GridComponent, MarkLineComponent])
 
 const route = useRoute()
 const portfoliosStore = usePortfoliosStore()
@@ -408,6 +462,14 @@ const reportTargetPortfolioSummary = ref('')
 const comments = ref<any[]>([])
 const newComment = ref('')
 const updateLogs = ref<any[]>([])
+const trendRange = ref<'7d' | '30d' | 'all'>('30d')
+const trendLoading = ref(false)
+const trendItems = ref<any[]>([])
+const rangeOptions = [
+  { label: '近7日', value: '7d' as const },
+  { label: '近30日', value: '30d' as const },
+  { label: '全部', value: 'all' as const }
+]
 
 // 图表颜色
 const CHART_COLORS = ['#3B82F6', '#34D399', '#60A5FA', '#F472B6', '#FBBF24', '#818CF8']
@@ -505,6 +567,83 @@ const totalAllocation = computed(() => {
   return sum.toFixed(2)
 })
 
+const displayTotalReturn = computed(() => {
+  const p = portfoliosStore.currentPortfolio
+  if (!p) return null
+  // 详情页优先使用 owner 的实时持仓收益
+  if (isOwner.value && perf.value?.totalUnrealizedReturn !== null && perf.value?.totalUnrealizedReturn !== undefined) {
+    const n = Number(perf.value.totalUnrealizedReturn)
+    if (!isNaN(n)) return n
+  }
+  // 后端 totalReturn 可能默认 0，避免覆盖已有 returnsYTD
+  const total = Number(p.totalReturn)
+  if (!isNaN(total) && total !== 0) return total
+  const ytd = Number(p.returnsYTD)
+  if (!isNaN(ytd)) return ytd
+  if (!isNaN(total)) return total
+  return null
+})
+
+const detailRows = computed(() => {
+  const detail = portfoliosStore.currentPortfolio?.holdingDetails
+  if (detail?.length) return detail
+  return (portfoliosStore.currentPortfolio?.assets || []).map((a: any) => ({
+    assetId: a.assetId ?? null,
+    code: a.symbol,
+    name: a.name,
+    market: a.displayMarket || a.market || '',
+    weight: Number(a.allocation || 0),
+    price: null,
+    marketValue: null,
+    returnRate: null
+  }))
+})
+
+const trendChartOption = computed(() => {
+  if (!trendItems.value.length) return {}
+  const x = trendItems.value.map(i => i.date)
+  const y = trendItems.value.map(i => Number(i.returnRate || 0) * 100)
+  return {
+    tooltip: {
+      trigger: 'axis',
+      formatter: (params: any[]) => {
+        const p = params?.[0]
+        if (!p) return ''
+        return `${p.axisValue}<br/>累计收益率：${p.value >= 0 ? '+' : ''}${Number(p.value).toFixed(2)}%`
+      }
+    },
+    grid: { top: 24, right: 24, bottom: 40, left: 50 },
+    xAxis: { type: 'category', data: x },
+    yAxis: {
+      type: 'value',
+      axisLabel: { formatter: (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}%` }
+    },
+    series: [{
+      type: 'line',
+      smooth: true,
+      symbol: 'none',
+      data: y,
+      lineStyle: { width: 2.5, color: '#3B82F6' },
+      markLine: {
+        silent: true,
+        symbol: ['none', 'none'],
+        data: [{ yAxis: 0 }]
+      }
+    }]
+  }
+})
+
+const strategyMarkdownHtml = computed(() => {
+  const text = portfoliosStore.currentPortfolio?.strategyNote || portfoliosStore.currentPortfolio?.description || ''
+  if (!text.trim()) return ''
+  // MVP 阶段先做轻量渲染：换行 + 基础转义，避免引入额外依赖
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+  return escaped.replace(/\n/g, '<br/>')
+})
+
 const pieChartOption = computed(() => {
   if (!portfoliosStore.currentPortfolio?.assets) return {}
 
@@ -582,6 +721,19 @@ const handleLike = async () => {
   }
 }
 
+const handleFavorite = async () => {
+  if (!authStore.isLoggedIn) {
+    ElMessage.warning('请先登录')
+    return
+  }
+  if (!portfoliosStore.currentPortfolio) return
+  try {
+    await portfoliosStore.toggleFavorite(portfoliosStore.currentPortfolio.id)
+  } catch {
+    ElMessage.error('操作失败')
+  }
+}
+
 const copyShareUrl = async () => {
   try {
     await navigator.clipboard.writeText(shareUrl.value)
@@ -609,6 +761,36 @@ const formatTime = (dateStr: string) => {
   return dayjs(dateStr).format('MM-DD HH:mm')
 }
 
+const formatDateTime = (dateStr: string) => {
+  return dayjs(dateStr).format('YYYY-MM-DD HH:mm')
+}
+
+const formatVisibility = (visibility?: string, isPublic?: boolean) => {
+  if (visibility === 'FOLLOWERS') return '仅粉丝'
+  if (visibility === 'PRIVATE') return '私密'
+  return isPublic === false ? '私密' : '公开'
+}
+
+const fetchTrend = async () => {
+  const portfolioId = Number(route.params.id)
+  if (!portfolioId) return
+  trendLoading.value = true
+  try {
+    const res = await getPortfolioReturnsHistory(portfolioId, trendRange.value)
+    trendItems.value = res.items || []
+  } catch {
+    trendItems.value = []
+  } finally {
+    trendLoading.value = false
+  }
+}
+
+const changeTrendRange = async (v: '7d' | '30d' | 'all') => {
+  if (trendRange.value === v) return
+  trendRange.value = v
+  await fetchTrend()
+}
+
 const getAvatarUrl = (id: number) => {
   return `https://picsum.photos/seed/${id}/40/40`
 }
@@ -633,6 +815,7 @@ onMounted(async () => {
   if (portfolioId) {
     try {
       await portfoliosStore.fetchPortfolio(portfolioId)
+      await fetchTrend()
       // 如果是本人的组合，同步拉持仓收益（非阻塞）
       fetchHoldingPerf()
       // 组合评论与更新日志
@@ -734,6 +917,35 @@ const handleSubmitComment = async () => {
   padding: $portfolio-space-6 0;
   border-top: 1px solid $border-subtle;
   border-bottom: 1px solid $border-subtle;
+}
+
+.hero-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: $portfolio-space-3;
+  margin-bottom: $portfolio-space-6;
+}
+
+.kpi-item {
+  background: rgba(29, 78, 216, 0.04);
+  border: 1px solid $border-subtle;
+  border-radius: 10px;
+  padding: $portfolio-space-3;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kpi-label {
+  font-size: $portfolio-mini;
+  color: $text-muted;
+}
+
+.kpi-value {
+  font-size: $portfolio-body;
+  color: $text-primary;
+  font-weight: 600;
+  font-family: 'IBM Plex Mono', monospace;
 }
 
 .return-value {
@@ -911,6 +1123,39 @@ const handleSubmitComment = async () => {
   border: 1px solid $border-default;
   border-radius: $portfolio-hero-radius;
   padding: $portfolio-space-8;
+}
+
+.section-title-wrap {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: $portfolio-space-5;
+}
+
+.range-tabs {
+  display: inline-flex;
+  border: 1px solid $border-subtle;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.range-tab {
+  border: none;
+  background: transparent;
+  color: $text-secondary;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: $portfolio-caption;
+
+  &.active {
+    background: $primary-color;
+    color: #fff;
+  }
+}
+
+.trend-chart-wrap {
+  height: 320px;
 }
 
 .section-title {
@@ -1144,6 +1389,19 @@ const handleSubmitComment = async () => {
   font-size: $portfolio-body;
   color: $text-primary;
   line-height: 1.6;
+}
+
+.strategy-note {
+  color: $text-primary;
+  line-height: 1.7;
+
+  :deep(p) {
+    margin: 0 0 10px;
+  }
+
+  :deep(strong) {
+    font-weight: 700;
+  }
 }
 
 .comment-editor {

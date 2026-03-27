@@ -10,8 +10,12 @@ urlpatterns = [
     
     # 关注功能
     path('<int:user_id>/follow/', views.manage_follow, name='manage_follow'),
+    path('<int:user_id>/follow-status/', views.follow_status, name='follow_status'),
+    path('<int:user_id>/follow-stats/', views.follow_stats, name='follow_stats'),
+    path('<int:user_id>/star-follow/', views.manage_star_follow, name='manage_star_follow'),
     path('<int:user_id>/followers/', views.UserFollowersView.as_view(), name='user_followers'),
     path('<int:user_id>/following/', views.UserFollowingView.as_view(), name='user_following'),
+    path('me/star-following/', views.my_star_following, name='my_star_following'),
     
     # 用户收藏列表
     path('me/favorites/', views.UserFavoritesView.as_view(), name='user_favorites'),

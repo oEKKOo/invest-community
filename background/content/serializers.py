@@ -6,6 +6,7 @@ from .models import (
     Content, Comment, Asset, Board, Like, Favorite, ContentAsset, ContentBoard,
     ContentMeta, Poll, PollOption, PollVote, Repost, ContentAttachment, Mention, CommentAttachment
 )
+from .moderation_service import evaluate_content_risk, persist_moderation_result
 
 User = get_user_model()
 
@@ -278,14 +279,10 @@ class ContentCreateSerializer(serializers.ModelSerializer):
                     'assetCodes': f'以下资产代码不存在于系统中: {missing}。请先通过管理员同步资产数据。'
                 })
 
-        # 内容审核细化：命中风险关键词时，强制进入待审核状态
+        # 自动审核：规则命中后统一走待审核，最终处置在 create 阶段落表
         body = attrs.get('body', '')
-        status_value = attrs.get('status')
         if body:
-            risk_keywords = ['保本收益', '稳赚不赔', '带单', '跟单', '内幕消息']
-            if any(kw in body for kw in risk_keywords):
-                # 不论前端传什么，只要命中风险词，一律改为待审核
-                attrs['status'] = 'PENDING_REVIEW'
+            attrs['status'] = 'PENDING_REVIEW'
 
         board_ids = attrs.get('board_ids', [])
         if board_ids:
@@ -369,10 +366,18 @@ class ContentCreateSerializer(serializers.ModelSerializer):
                 uploaded_by=self.context['request'].user
             ).update(content=content)
 
-        # 如果是发布状态，设置发布时间
+        # 自动审核落地（命中日志 + 可疑队列 + 风险字段）
+        decision = evaluate_content_risk(
+            text=content.body,
+            title=content.title,
+            author=self.context['request'].user,
+        )
+        persist_moderation_result(content=content, decision=decision, author=self.context['request'].user)
+
+        # 如果是发布状态，设置发布时间（保留兼容逻辑）
         if content.status == 'PUBLISHED':
             content.published_at = timezone.now()
-            content.save()
+            content.save(update_fields=['published_at', 'updated_at'])
 
         return content
 

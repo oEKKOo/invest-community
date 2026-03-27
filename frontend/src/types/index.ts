@@ -171,6 +171,30 @@ export interface PortfolioAsset {
   allocation: number
 }
 
+export interface PortfolioHoldingDetail {
+  assetId: number | null
+  code: string
+  name: string
+  market: string
+  weight: number
+  price: number | null
+  marketValue: number | null
+  returnRate: number | null
+}
+
+export interface PortfolioReturnPoint {
+  date: string
+  totalValue: string
+  returnRate: string
+  coverage: number
+}
+
+export interface PortfolioReturnsHistory {
+  range: '7d' | '30d' | 'all' | string
+  portfolioId: number
+  items: PortfolioReturnPoint[]
+}
+
 // 个人持仓
 export interface UserHolding {
   id: number
@@ -196,11 +220,22 @@ export interface Portfolio {
   description: string
   riskLevel: 'Low' | 'Medium' | 'High'
   returnsYTD: number
+  totalReturn?: number | null
+  dailyReturn?: number | null
+  sevenDayReturn?: number | null
   isPublic: boolean
+  visibility?: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS' | string
   likes: number
+  favorites?: number
   assets: PortfolioAsset[]
+  assetCount?: number
   isLiked?: boolean
+  isFavorited?: boolean
   createdAt: string
+  updatedAt?: string
+  lastRebalanceAt?: string
+  strategyNote?: string
+  holdingDetails?: PortfolioHoldingDetail[]
 }
 
 // 通知类型
@@ -361,4 +396,99 @@ export interface HoldingPerformance {
   totalDailyReturn: string     // 总当日收益率
   hasAnyData: boolean          // 是否有任意一只有快照数据
   items: HoldingPerformanceItem[]
+}
+
+// 群组相关
+export interface Group {
+  id: number
+  name: string
+  slug: string
+  description: string
+  avatar?: string
+  tags: string[]
+  topicDirection?: string
+  visibility: 'PUBLIC' | 'PRIVATE' | 'APPROVAL'
+  status: 'ACTIVE' | 'DISSOLVED'
+  ownerId: number
+  ownerName: string
+  memberCount: number
+  postCount: number
+  fileCount: number
+  createdAt: string
+}
+
+export interface GroupMember {
+  id: number
+  userId: number
+  username: string
+  displayName: string
+  avatar?: string
+  role: 'OWNER' | 'ADMIN' | 'MEMBER'
+  status: 'ACTIVE' | 'LEFT' | 'REMOVED'
+  joinedAt: string
+}
+
+export interface GroupPost {
+  id: number
+  groupId: number
+  authorId: number
+  authorName: string
+  title: string
+  body: string
+  content_type: 'NORMAL' | 'LONGFORM' | 'POLL'
+  status: 'PUBLISHED' | 'DELETED'
+  like_count: number
+  comment_count: number
+  createdAt: string
+}
+
+export interface GroupFile {
+  id: number
+  groupId: number
+  uploadedBy: number
+  uploadedByName: string
+  original_name: string
+  mime_type?: string
+  file_size: number
+  visibility: 'GROUP_ONLY'
+  status: 'ACTIVE' | 'DELETED'
+  createdAt: string
+  fileUrl: string
+}
+
+export interface GroupJoinRequest {
+  id: number
+  group_id: number
+  userId: number
+  userName: string
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
+  message: string
+  reviewedBy?: number
+  reviewNote?: string
+  createdAt: string
+  reviewedAt?: string
+}
+
+export interface GroupReviewer {
+  id: number
+  group_id: number
+  userId: number
+  userName: string
+  username: string
+  createdAt: string
+}
+
+export interface GroupInvite {
+  id: number
+  groupId: number
+  groupName: string
+  groupVisibility: 'PUBLIC' | 'PRIVATE' | 'APPROVAL'
+  inviterId: number
+  inviterName: string
+  inviteeId: number
+  inviteeName: string
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED'
+  message: string
+  respondedAt?: string
+  createdAt: string
 }

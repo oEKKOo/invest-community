@@ -80,6 +80,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     
     followers_count = models.PositiveIntegerField('粉丝数', default=0)
     following_count = models.PositiveIntegerField('关注数', default=0)
+    points = models.IntegerField('积分', default=0)
+    level = models.PositiveIntegerField('等级', default=1)
+    quality_score = models.DecimalField('内容质量分', max_digits=5, decimal_places=2, default=0)
 
     # 治理相关字段：禁言截止时间（仅限制发帖/评论），封禁走 status=BANNED + is_active=False
     mute_until = models.DateTimeField('禁言截止时间', null=True, blank=True)
@@ -173,6 +176,86 @@ class UserFollow(models.Model):
         return f"{self.follower.username} 关注 {self.followee.username}"
 
 
+class UserStarFollow(models.Model):
+    """用户特别关注（星标）"""
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='star_following_set',
+        verbose_name='星标用户',
+    )
+    follow_user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='star_followers_set',
+        verbose_name='被星标用户',
+    )
+    created_at = models.DateTimeField('创建时间', default=timezone.now)
+    updated_at = models.DateTimeField('更新时间', auto_now=True)
+
+    class Meta:
+        db_table = 'user_star_follow'
+        verbose_name = '用户特别关注'
+        verbose_name_plural = '用户特别关注'
+        unique_together = ['user', 'follow_user']
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['follow_user']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} 星标 {self.follow_user.username}"
+
+
+class FollowFeedItem(models.Model):
+    """关注动态预写入表"""
+    ACTION_TYPE_CHOICES = [
+        ('POST_PUBLISHED', '发布帖子'),
+        ('PORTFOLIO_PUBLISHED', '发布组合'),
+        ('GROUP_POST_PUBLISHED', '发布群讨论'),
+    ]
+    OBJECT_TYPE_CHOICES = [
+        ('POST', '帖子'),
+        ('PORTFOLIO', '组合'),
+        ('GROUP_POST', '群讨论'),
+    ]
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='follow_feed_items',
+        verbose_name='接收用户',
+    )
+    actor_user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='follow_feed_actor_items',
+        verbose_name='触发用户',
+    )
+    action_type = models.CharField('动作类型', max_length=40, choices=ACTION_TYPE_CHOICES)
+    object_type = models.CharField('对象类型', max_length=20, choices=OBJECT_TYPE_CHOICES)
+    object_id = models.PositiveIntegerField('对象ID')
+    score = models.DecimalField('排序分值', max_digits=10, decimal_places=4, default=0)
+    is_star_actor = models.BooleanField('是否特别关注用户', default=False)
+    is_deleted = models.BooleanField('是否软删除', default=False)
+    created_at = models.DateTimeField('创建时间', default=timezone.now)
+    updated_at = models.DateTimeField('更新时间', auto_now=True)
+
+    class Meta:
+        db_table = 'follow_feed_item'
+        verbose_name = '关注动态项'
+        verbose_name_plural = '关注动态项'
+        unique_together = ['user', 'action_type', 'object_type', 'object_id']
+        indexes = [
+            models.Index(fields=['user', '-created_at'], name='idx_feed_user_time'),
+            models.Index(fields=['user', 'is_star_actor', '-created_at'], name='idx_feed_user_star_time'),
+            models.Index(fields=['object_type', 'object_id'], name='idx_feed_object'),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} <- {self.actor_user.username} {self.object_type}#{self.object_id}"
+
+
 class UserPrivacySettings(models.Model):
     """用户隐私设置"""
     PROFILE_VISIBILITY_CHOICES = [
@@ -210,10 +293,12 @@ class UserModerationLog(models.Model):
     记录禁言/解禁/封禁/解封等关键动作，用于“社区治理留痕”
     """
     ACTION_CHOICES = [
+        ('WARNING', '警告'),
         ('MUTE', '禁言'),
         ('UNMUTE', '解除禁言'),
         ('BAN', '封禁'),
         ('UNBAN', '解除封禁'),
+        ('RATE_LIMIT', '限流'),
         ('STATUS_CHANGE', '状态变更'),
     ]
 
@@ -267,6 +352,98 @@ class UserSocialAccount(models.Model):
 
     def __str__(self):
         return f"{self.user.username} {self.provider}:{self.provider_uid}"
+
+
+class LevelRule(models.Model):
+    """积分等级规则"""
+    level = models.PositiveIntegerField('等级', unique=True)
+    min_points = models.IntegerField('最低积分')
+    max_points = models.IntegerField('最高积分')
+    title = models.CharField('等级称号', max_length=64, blank=True)
+    is_active = models.BooleanField('是否启用', default=True)
+    created_at = models.DateTimeField('创建时间', default=timezone.now)
+    updated_at = models.DateTimeField('更新时间', auto_now=True)
+
+    class Meta:
+        db_table = 'level_rule'
+        verbose_name = '等级规则'
+        verbose_name_plural = '等级规则'
+        ordering = ['level']
+        indexes = [
+            models.Index(fields=['is_active', 'level'], name='idx_level_rule_active_level'),
+        ]
+
+    def __str__(self):
+        return f"Lv{self.level}: {self.min_points}-{self.max_points}"
+
+
+class UserPointLog(models.Model):
+    """积分流水"""
+    EVENT_TYPE_CHOICES = [
+        ('POST_CREATED', '发帖'),
+        ('COMMENT_CREATED', '评论'),
+        ('CONTENT_LIKED', '内容获赞'),
+        ('CONTENT_REJECTED', '内容驳回'),
+        ('MODERATION_PENALTY', '治理处罚扣分'),
+        ('ADMIN_ADJUST', '管理员调整'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='point_logs', verbose_name='用户')
+    delta = models.IntegerField('积分变动值')
+    event_type = models.CharField('事件类型', max_length=32, choices=EVENT_TYPE_CHOICES)
+    source_type = models.CharField('来源类型', max_length=32, blank=True)
+    source_id = models.PositiveIntegerField('来源ID', null=True, blank=True)
+    reason = models.CharField('变动原因', max_length=255, blank=True)
+    operator = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='operated_point_logs',
+        verbose_name='操作人',
+    )
+    created_at = models.DateTimeField('创建时间', default=timezone.now)
+
+    class Meta:
+        db_table = 'user_point_log'
+        verbose_name = '用户积分流水'
+        verbose_name_plural = '用户积分流水'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', '-created_at'], name='idx_upoint_user_time'),
+            models.Index(fields=['event_type', '-created_at'], name='idx_upoint_event_time'),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} {self.event_type} {self.delta:+d}"
+
+
+class UserBehaviorDaily(models.Model):
+    """用户行为日聚合"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='behavior_daily', verbose_name='用户')
+    stat_date = models.DateField('统计日期')
+    post_count = models.PositiveIntegerField('发帖数', default=0)
+    comment_count = models.PositiveIntegerField('评论数', default=0)
+    reported_count = models.PositiveIntegerField('被举报数', default=0)
+    violation_count = models.PositiveIntegerField('违规数', default=0)
+    received_likes = models.PositiveIntegerField('获赞数', default=0)
+    taken_down_count = models.PositiveIntegerField('下架数', default=0)
+    quality_score = models.DecimalField('质量分', max_digits=5, decimal_places=2, default=0)
+    created_at = models.DateTimeField('创建时间', default=timezone.now)
+    updated_at = models.DateTimeField('更新时间', auto_now=True)
+
+    class Meta:
+        db_table = 'user_behavior_daily'
+        verbose_name = '用户行为日统计'
+        verbose_name_plural = '用户行为日统计'
+        unique_together = ['user', 'stat_date']
+        indexes = [
+            models.Index(fields=['stat_date'], name='idx_ubehavior_date'),
+            models.Index(fields=['user', 'stat_date'], name='idx_ubehavior_user_date'),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} {self.stat_date}"
 
 
 class UserVerificationCode(models.Model):

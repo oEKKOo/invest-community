@@ -6,6 +6,7 @@ from .models import (
     UserHolding,
     PortfolioComment,
     PortfolioSubscription,
+    PortfolioFavorite,
     PortfolioUpdateLog,
 )
 from content.models import Like, Asset
@@ -110,16 +111,27 @@ class PortfolioListSerializer(serializers.ModelSerializer):
     returnsYTD = serializers.FloatField(source='returns_ytd', read_only=True)
     isPublic = serializers.BooleanField(source='is_public', read_only=True)
     likes = serializers.IntegerField(source='like_count', read_only=True)
+    favorites = serializers.IntegerField(source='favorites_count', read_only=True, default=0)
+    assetCount = serializers.IntegerField(source='asset_count', read_only=True, default=0)
     isLiked = serializers.SerializerMethodField()
+    isFavorited = serializers.SerializerMethodField()
     createdAt = serializers.DateTimeField(source='created_at', read_only=True)
+    updatedAt = serializers.DateTimeField(source='updated_at', read_only=True)
+    lastRebalanceAt = serializers.DateTimeField(source='updated_at', read_only=True)
+    visibility = serializers.SerializerMethodField()
+    totalReturn = serializers.SerializerMethodField()
+    dailyReturn = serializers.SerializerMethodField()
+    sevenDayReturn = serializers.SerializerMethodField()
+    strategyNote = serializers.CharField(source='strategy_note', read_only=True)
     assets = PortfolioAssetSerializer(many=True, read_only=True)
 
     class Meta:
         model = Portfolio
         fields = [
             'id', 'userId', 'userName', 'title', 'description',
-            'riskLevel', 'returnsYTD', 'isPublic', 'likes',
-            'assets', 'isLiked', 'createdAt'
+            'riskLevel', 'returnsYTD', 'isPublic', 'visibility', 'likes', 'favorites',
+            'assets', 'assetCount', 'isLiked', 'isFavorited', 'createdAt', 'updatedAt',
+            'lastRebalanceAt', 'totalReturn', 'dailyReturn', 'sevenDayReturn', 'strategyNote'
         ]
 
     def get_isLiked(self, obj):
@@ -130,16 +142,46 @@ class PortfolioListSerializer(serializers.ModelSerializer):
             ).exists()
         return False
 
+    def get_isFavorited(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            return PortfolioFavorite.objects.filter(
+                user=request.user, portfolio_id=obj.id
+            ).exists()
+        return False
+
+    def get_visibility(self, obj):
+        return 'PUBLIC' if obj.is_public else 'PRIVATE'
+
+    def _get_metric(self, obj, key):
+        metrics = self.context.get('portfolio_metrics', {})
+        item = metrics.get(obj.id, {})
+        return item.get(key)
+
+    def get_totalReturn(self, obj):
+        # totalReturn 暂按 returnsYTD 口径输出
+        n = self._get_metric(obj, 'totalReturn')
+        if n is not None:
+            return n
+        return float(obj.returns_ytd)
+
+    def get_dailyReturn(self, obj):
+        return self._get_metric(obj, 'dailyReturn')
+
+    def get_sevenDayReturn(self, obj):
+        return self._get_metric(obj, 'sevenDayReturn')
+
 
 class PortfolioCreateSerializer(serializers.ModelSerializer):
     """组合创建/更新序列化器（接受 camelCase 字段）"""
     riskLevel = serializers.CharField(source='risk_level', required=True)
     isPublic = serializers.BooleanField(source='is_public', required=False, default=True)
+    strategyNote = serializers.CharField(source='strategy_note', required=False, allow_blank=True, default='')
     assets = PortfolioAssetCreateSerializer(many=True)
 
     class Meta:
         model = Portfolio
-        fields = ['title', 'description', 'riskLevel', 'isPublic', 'assets']
+        fields = ['title', 'description', 'strategyNote', 'riskLevel', 'isPublic', 'assets']
 
     def validate_assets(self, assets):
         total_allocation = sum(asset['allocation'] for asset in assets)
@@ -201,9 +243,10 @@ class PortfolioDetailSerializer(PortfolioListSerializer):
     """组合详情序列化器"""
     # 是否已订阅
     isSubscribed = serializers.SerializerMethodField()
+    holdingDetails = serializers.SerializerMethodField()
 
     class Meta(PortfolioListSerializer.Meta):
-        fields = PortfolioListSerializer.Meta.fields + ['isSubscribed']
+        fields = PortfolioListSerializer.Meta.fields + ['isSubscribed', 'holdingDetails']
 
     def get_isSubscribed(self, obj: Portfolio) -> bool:
         request = self.context.get('request')
@@ -212,6 +255,10 @@ class PortfolioDetailSerializer(PortfolioListSerializer):
                 portfolio=obj, user=request.user
             ).exists()
         return False
+
+    def get_holdingDetails(self, obj):
+        details_map = self.context.get('portfolio_holding_details', {})
+        return details_map.get(obj.id, [])
 
 
 # ---------------------------------------------------------------------------

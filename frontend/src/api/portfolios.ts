@@ -1,11 +1,16 @@
 import { get, post, patch, del } from './index'
-import type { Portfolio, PaginatedResponse, PortfolioAsset } from '@/types'
+import type {
+  Portfolio,
+  PaginatedResponse,
+  PortfolioAsset,
+  PortfolioReturnsHistory
+} from '@/types'
 
 // 获取投资组合列表
 export interface GetPortfoliosParams {
   userId?: number
   isPublic?: boolean
-  sortBy?: 'returnsYTD' | 'new'
+  sortBy?: 'returnsYTD' | 'new' | 'likes'
   page?: number
   pageSize?: number
 }
@@ -28,6 +33,7 @@ export const getPortfolio = (id: number): Promise<Portfolio> => {
 export interface CreatePortfolioParams {
   title: string
   description?: string
+  strategyNote?: string
   riskLevel: 'Low' | 'Medium' | 'High'
   isPublic?: boolean
   assets: PortfolioAsset[]
@@ -66,7 +72,20 @@ export const togglePortfolioSubscribe = (id: number): Promise<{ message: string 
   return post(`/portfolios/${id}/subscribe/`)
 }
 
+// 组合收藏（开关）
+export const togglePortfolioFavorite = (id: number): Promise<{ message: string }> => {
+  return post(`/portfolios/${id}/favorite/`)
+}
+
 // 组合更新日志
 export const getPortfolioUpdates = (id: number): Promise<{ items: any[] }> => {
   return get(`/portfolios/${id}/updates/`)
+}
+
+// 组合收益趋势曲线
+export const getPortfolioReturnsHistory = (
+  id: number,
+  range: '7d' | '30d' | 'all' = '30d'
+): Promise<PortfolioReturnsHistory> => {
+  return get(`/portfolios/${id}/returns-history/`, { params: { range } })
 }

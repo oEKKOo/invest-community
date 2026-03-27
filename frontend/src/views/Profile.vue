@@ -95,7 +95,16 @@
                 @click="toggleFollow"
                 size="large"
               >
-                {{ isFollowing ? '已关注' : '关注' }}
+                {{ isMutual ? '互相关注' : (isFollowing ? '已关注' : '关注') }}
+              </el-button>
+              <el-button
+                v-if="isFollowing"
+                :type="isStarred ? 'warning' : 'default'"
+                :plain="!isStarred"
+                @click="toggleStarFollow"
+                size="large"
+              >
+                {{ isStarred ? '已特别关注' : '特别关注' }}
               </el-button>
               <el-button 
                 type="danger" 
@@ -124,6 +133,34 @@
           <!-- 我的互动 -->
           <div class="sidebar-card">
             <h3 class="card-title">我的互动</h3>
+            <div class="overview-item">
+              <div class="overview-icon likes-icon">
+                <el-icon><Star /></el-icon>
+              </div>
+              <div class="overview-info">
+                <div class="overview-label">特别关注</div>
+                <div class="overview-meta">
+                  <span class="overview-count">{{ myStarFollowingCount }} 人</span>
+                </div>
+              </div>
+            </div>
+            <div class="overview-divider" />
+            <div
+              class="overview-item"
+              @click="goGroupInvites"
+            >
+              <div class="overview-icon favorites-icon">
+                <el-icon><MessageBox /></el-icon>
+              </div>
+              <div class="overview-info">
+                <div class="overview-label">我的群邀请</div>
+                <div class="overview-meta">
+                  <span class="overview-count">查看并处理邀请</span>
+                </div>
+              </div>
+              <el-icon class="overview-arrow"><ArrowRight /></el-icon>
+            </div>
+            <div class="overview-divider" />
             <div
               class="overview-item"
               @click="openDrawer('likes')"
@@ -813,7 +850,8 @@ import {
   Warning,
   Edit,
   Plus,
-  FolderOpened
+  FolderOpened,
+  MessageBox
 } from '@element-plus/icons-vue'
 import ReportDialog from '@/components/ReportDialog.vue'
 import dayjs from 'dayjs'
@@ -821,10 +859,15 @@ import { getMyLikes } from '@/api/likes'
 import { getMyFavorites, uploadContentAttachment } from '@/api/posts'
 import type { User } from '@/types'
 import {
+  followUser,
+  getFollowStatus,
   getMyAchievements,
   getPrivacySettings,
+  getMyStarFollowing,
   getUserFollowers,
   getUserFollowing,
+  starFollowUser,
+  unstarFollowUser,
   unfollowUser,
   updatePrivacySettings,
   type UserFollowItem
@@ -837,6 +880,10 @@ const route = useRoute()
 const authStore = useAuthStore()
 const postsStore = usePostsStore()
 const portfoliosStore = usePortfoliosStore()
+
+const goGroupInvites = () => {
+  router.push('/groups/invites')
+}
 
 // ──────────── 基础状态 ────────────
 const loading = ref(false)
@@ -1018,6 +1065,9 @@ const targetUserId = computed<number | null>(() => {
 })
 
 const isFollowing = ref(false)
+const isMutual = ref(false)
+const isStarred = ref(false)
+const myStarFollowingCount = ref(0)
 
 const fetchDisplayUser = async () => {
   if (!route.params.userId) {
@@ -1063,24 +1113,40 @@ const fetchDisplayUser = async () => {
 const toggleFollow = async () => {
   if (!displayUser.value || !authStore.isLoggedIn) return
   const userId = displayUser.value.id
-  const method = isFollowing.value ? 'DELETE' : 'POST'
   try {
-    const res = await fetch(`/api/users/${userId}/follow/`, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: authStore.token ? `Bearer ${authStore.token}` : ''
-      }
-    })
-    const data = await res.json()
-    if (data.code === 0) {
-      isFollowing.value = !isFollowing.value
-      if (displayUser.value) {
-        displayUser.value.followers += isFollowing.value ? 1 : -1
-      }
-      ElMessage.success(isFollowing.value ? '关注成功' : '已取消关注')
+    if (isFollowing.value) {
+      await unfollowUser(userId)
+      isFollowing.value = false
+      isMutual.value = false
+      isStarred.value = false
+      if (displayUser.value) displayUser.value.followers -= 1
+      ElMessage.success('已取消关注')
+      return
+    }
+    await followUser(userId)
+    isFollowing.value = true
+    if (displayUser.value) displayUser.value.followers += 1
+    ElMessage.success('关注成功')
+    const status = await getFollowStatus(userId)
+    isMutual.value = status.isMutual
+    isStarred.value = status.isStarred
+  } catch {
+    ElMessage.error('操作失败')
+  }
+}
+
+const toggleStarFollow = async () => {
+  if (!displayUser.value || !authStore.isLoggedIn || !isFollowing.value) return
+  const userId = displayUser.value.id
+  try {
+    if (isStarred.value) {
+      await unstarFollowUser(userId)
+      isStarred.value = false
+      ElMessage.success('已取消特别关注')
     } else {
-      ElMessage.error(data.message || '操作失败')
+      await starFollowUser(userId)
+      isStarred.value = true
+      ElMessage.success('已设为特别关注')
     }
   } catch {
     ElMessage.error('操作失败')
@@ -1558,6 +1624,14 @@ const handleReportSubmitted = () => {
 // ──────────── 生命周期 ────────────
 const initProfilePage = async () => {
   await fetchDisplayUser()
+  if (authStore.isLoggedIn && displayUser.value && !isSelf.value) {
+    const status = await getFollowStatus(displayUser.value.id).catch(() => null)
+    if (status) {
+      isFollowing.value = status.isFollowing
+      isMutual.value = status.isMutual
+      isStarred.value = status.isStarred
+    }
+  }
   if (activeTab.value === 'overview') {
     await fetchOverviewData()
   } else if (activeTab.value === 'posts') {
@@ -1575,6 +1649,9 @@ onMounted(() => {
     fetchAchievements()
     fetchPrivacySettings()
     fetchInvestProfile()
+    getMyStarFollowing().then((items) => {
+      myStarFollowingCount.value = items.length
+    }).catch(() => undefined)
   }
 })
 

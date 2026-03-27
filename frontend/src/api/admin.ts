@@ -161,3 +161,117 @@ export const reviewAttachment = (
 ): Promise<void> => {
   return patch(`/admin/attachments/${attachmentId}/status/`, payload)
 }
+
+export interface ModerationQueueItem {
+  id: number
+  content_id: number
+  content_title: string
+  source: 'AUTO' | 'REPORT' | 'MANUAL'
+  risk_level: 'LOW' | 'MEDIUM' | 'HIGH'
+  risk_score: number
+  reason_summary: string
+  status: 'PENDING' | 'RESOLVED'
+  decided_status?: 'PUBLISHED' | 'REJECTED' | 'TAKEN_DOWN'
+  created_at: string
+}
+
+export const getModerationQueue = (
+  params?: { riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH'; source?: 'AUTO' | 'REPORT' | 'MANUAL'; status?: 'PENDING' | 'RESOLVED'; page?: number; pageSize?: number }
+): Promise<PaginatedResponse<ModerationQueueItem>> => {
+  return get('/admin/moderation/queue/', { params })
+}
+
+export const decideModerationQueue = (
+  queueId: number,
+  payload: { status: 'PUBLISHED' | 'REJECTED' | 'TAKEN_DOWN'; reason?: string; tags?: string[] }
+): Promise<void> => {
+  return patch(`/admin/moderation/queue/${queueId}/decision/`, payload)
+}
+
+export interface ModerationRule {
+  id: number
+  name: string
+  rule_type: 'SENSITIVE_WORD' | 'COMPLIANCE_POLICY' | 'REPETITION'
+  pattern: string
+  risk_level: 'LOW' | 'MEDIUM' | 'HIGH'
+  risk_score: number
+  action: 'ALLOW' | 'REVIEW' | 'REJECT'
+  is_active: boolean
+}
+
+export const getModerationRules = (): Promise<{ items: ModerationRule[]; total: number }> => {
+  return get('/admin/moderation/rules/')
+}
+
+export const createModerationRule = (payload: Partial<ModerationRule>): Promise<ModerationRule> => {
+  return post('/admin/moderation/rules/', payload)
+}
+
+export const updateModerationRule = (ruleId: number, payload: Partial<ModerationRule>): Promise<ModerationRule> => {
+  return patch(`/admin/moderation/rules/${ruleId}/`, payload)
+}
+
+export interface UserRiskItem {
+  id: number
+  username: string
+  displayName: string
+  status: string
+  points: number
+  level: number
+  qualityScore: number
+  riskScore: number
+  postCount: number
+  commentCount: number
+  reportedCount: number
+  violationCount: number
+}
+
+export const getAdminUsersRisk = (
+  params?: { riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH'; sortBy?: 'riskScore' | 'reportedCount'; page?: number; pageSize?: number }
+): Promise<PaginatedResponse<UserRiskItem>> => {
+  return get('/admin/users/risk/', { params })
+}
+
+export const getAdminUserBehaviorReport = (
+  userId: number,
+  params?: { range?: '7d' | '30d' }
+): Promise<{ userId: number; range: string; summary: Record<string, number>; daily: any[] }> => {
+  return get(`/admin/users/${userId}/behavior-report/`, { params })
+}
+
+export const warningUser = (userId: number, payload?: { reason?: string }): Promise<void> => {
+  return post(`/admin/users/${userId}/warning/`, payload || {})
+}
+
+export const getUserPointLogs = (
+  userId: number,
+  params?: { page?: number; pageSize?: number }
+): Promise<PaginatedResponse<any>> => {
+  return get(`/admin/users/${userId}/points/logs/`, { params })
+}
+
+export const adjustUserPoints = (userId: number, payload: { delta: number; reason?: string }): Promise<void> => {
+  return patch(`/admin/users/${userId}/points/adjust/`, payload)
+}
+
+export const getAnalyticsActivity = (
+  params?: { from?: string; to?: string; granularity?: 'day' }
+): Promise<{ items: any[]; total: number }> => {
+  return get('/admin/analytics/activity/', { params })
+}
+
+export const getAnalyticsTopicsHot = (
+  params?: { from?: string; to?: string; topN?: number }
+): Promise<{ items: any[]; total: number }> => {
+  return get('/admin/analytics/topics/hot/', { params })
+}
+
+export const getAnalyticsUsersEngagement = (
+  params?: { range?: '7d' | '30d' }
+): Promise<{ items: any[]; total: number }> => {
+  return get('/admin/analytics/users/engagement/', { params })
+}
+
+export const getAnalyticsOverview = (): Promise<any> => {
+  return get('/admin/analytics/dashboard/overview/')
+}

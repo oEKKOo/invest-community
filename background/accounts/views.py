@@ -25,7 +25,7 @@ from .models import (
     User, UserInvestProfile, UserFollow, UserModerationLog,
     UserSocialAccount, UserVerificationCode, UserRealNameVerification,
     UserProfessionalVerification, RiskQuestionnaireTemplate, RiskQuestionnaireSubmission,
-    UserPrivacySettings
+    UserPrivacySettings, UserStarFollow, FollowFeedItem, UserBehaviorDaily, UserPointLog
 )
 from .serializers import (
     UserRegistrationSerializer,
@@ -47,6 +47,8 @@ from .serializers import (
     UserPrivacySettingsSerializer,
 )
 from notifications.events import publish_event
+from .feed_service import write_follow_feed_for_actor
+from .user_score_service import apply_points
 from .oauth.wechat_client import WeChatOAuthClient
 from .oauth.weibo_client import WeiboOAuthClient
 from .message_service import send_email_verification_code, send_sms_verification_code
@@ -713,6 +715,7 @@ def manage_follow(request, user_id):
             follow = UserFollow.objects.get(follower=request.user, followee=target_user)
             with transaction.atomic():
                 follow.delete()
+                UserStarFollow.objects.filter(user=request.user, follow_user=target_user).delete()
                 # 更新关注数和粉丝数
                 request.user.following_count = max(0, request.user.following_count - 1)
                 target_user.followers_count = max(0, target_user.followers_count - 1)
@@ -766,6 +769,77 @@ class UserFollowingView(generics.ListAPIView):
         })
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def follow_status(request, user_id):
+    """查询关注状态"""
+    target_user = get_object_or_404(User, id=user_id)
+    if target_user == request.user:
+        return Response({
+            'code': 0,
+            'data': {'isFollowing': False, 'isMutual': False, 'isStarred': False}
+        })
+    is_following = UserFollow.objects.filter(follower=request.user, followee=target_user).exists()
+    is_mutual = is_following and UserFollow.objects.filter(follower=target_user, followee=request.user).exists()
+    is_starred = UserStarFollow.objects.filter(user=request.user, follow_user=target_user).exists()
+    return Response({'code': 0, 'data': {'isFollowing': is_following, 'isMutual': is_mutual, 'isStarred': is_starred}})
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def follow_stats(request, user_id):
+    user = get_object_or_404(User, id=user_id)
+    star_following = UserStarFollow.objects.filter(user=user).count()
+    return Response({
+        'code': 0,
+        'data': {
+            'followers': user.followers_count,
+            'following': user.following_count,
+            'starFollowing': star_following,
+        }
+    })
+
+
+@api_view(['POST', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def manage_star_follow(request, user_id):
+    """管理特别关注"""
+    target_user = get_object_or_404(User, id=user_id)
+    if target_user == request.user:
+        return Response({'code': 4001, 'message': '不能特别关注自己'}, status=status.HTTP_400_BAD_REQUEST)
+    if not UserFollow.objects.filter(follower=request.user, followee=target_user).exists():
+        return Response({'code': 4001, 'message': '请先关注该用户'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.method == 'POST':
+        _, created = UserStarFollow.objects.get_or_create(user=request.user, follow_user=target_user)
+        if not created:
+            return Response({'code': 4090, 'message': '已设置特别关注'}, status=status.HTTP_409_CONFLICT)
+        FollowFeedItem.objects.filter(user=request.user, actor_user=target_user).update(is_star_actor=True)
+        return Response({'code': 0, 'message': '设置特别关注成功'})
+
+    deleted, _ = UserStarFollow.objects.filter(user=request.user, follow_user=target_user).delete()
+    if not deleted:
+        return Response({'code': 4040, 'message': '未设置特别关注'}, status=status.HTTP_404_NOT_FOUND)
+    FollowFeedItem.objects.filter(user=request.user, actor_user=target_user).update(is_star_actor=False)
+    return Response({'code': 0, 'message': '已取消特别关注'})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_star_following(request):
+    qs = UserStarFollow.objects.filter(user=request.user).select_related('follow_user').order_by('-created_at')
+    items = [{
+        'id': x.follow_user.id,
+        'username': x.follow_user.username,
+        'display_name': x.follow_user.display_name,
+        'avatar_url': x.follow_user.avatar_url,
+        'followers_count': x.follow_user.followers_count,
+        'following_count': x.follow_user.following_count,
+        'created_at': x.created_at,
+    } for x in qs]
+    return Response({'code': 0, 'data': items})
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])  
 def logout(request):
@@ -790,11 +864,11 @@ def following_feed(request):
     """
     user = request.user
 
-    # 当前用户关注的所有用户 ID
-    followee_ids = list(
-        UserFollow.objects.filter(follower=user).values_list('followee_id', flat=True)
-    )
-    if not followee_ids:
+    queryset = FollowFeedItem.objects.filter(
+        user=user,
+        is_deleted=False,
+    ).select_related('actor_user').order_by('-is_star_actor', '-created_at')
+    if not queryset.exists():
         return Response({
             'code': 0,
             'data': {
@@ -805,24 +879,39 @@ def following_feed(request):
             }
         })
 
-    queryset = Content.objects.select_related('author').prefetch_related('assets').filter(
-        status='PUBLISHED',
-        author_id__in=followee_ids,
-    ).order_by('-published_at', '-created_at')
-
     page = int(request.query_params.get('page', 1))
     page_size = int(request.query_params.get('pageSize', 20))
     total = queryset.count()
     start = (page - 1) * page_size
     end = start + page_size
+    feed_items = queryset[start:end]
 
-    contents = queryset[start:end]
-    serializer = ContentListSerializer(contents, many=True, context={'request': request})
+    post_ids = [x.object_id for x in feed_items if x.object_type == 'POST']
+    posts_map = {
+        post.id: post for post in Content.objects.select_related('author').prefetch_related('assets').filter(
+            id__in=post_ids, status='PUBLISHED'
+        )
+    }
+    items = []
+    for row in feed_items:
+        if row.object_type != 'POST':
+            continue
+        post = posts_map.get(row.object_id)
+        if not post:
+            continue
+        data = ContentListSerializer(post, context={'request': request}).data
+        data['feedMeta'] = {
+            'actionType': row.action_type,
+            'actorUserId': row.actor_user_id,
+            'isStarActor': row.is_star_actor,
+            'createdAt': row.created_at,
+        }
+        items.append(data)
 
     return Response({
         'code': 0,
         'data': {
-            'items': serializer.data,
+            'items': items,
             'page': page,
             'pageSize': page_size,
             'total': total,
@@ -1122,6 +1211,199 @@ def admin_moderated_users(request):
             'total': len(items),
         }
     })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def admin_users_risk(request):
+    """
+    GET /api/admin/users/risk/
+    用户风险画像与行为指标列表
+    """
+    perm_error = _ensure_moderator(request)
+    if perm_error:
+        return perm_error
+
+    risk_level = request.query_params.get('riskLevel')
+    sort_by = request.query_params.get('sortBy', 'riskScore')
+    page = int(request.query_params.get('page', 1))
+    page_size = int(request.query_params.get('pageSize', 20))
+    offset = (page - 1) * page_size
+
+    users = User.objects.all().order_by('-updated_at')
+    if risk_level in ['LOW', 'MEDIUM', 'HIGH']:
+        if risk_level == 'LOW':
+            users = users.filter(quality_score__gte=80)
+        elif risk_level == 'MEDIUM':
+            users = users.filter(quality_score__gte=50, quality_score__lt=80)
+        else:
+            users = users.filter(quality_score__lt=50)
+
+    user_ids = list(users.values_list('id', flat=True))
+    behavior_rows = (
+        UserBehaviorDaily.objects
+        .filter(user_id__in=user_ids)
+        .values('user_id')
+        .annotate(
+            post_count=Sum('post_count'),
+            comment_count=Sum('comment_count'),
+            reported_count=Sum('reported_count'),
+            violation_count=Sum('violation_count'),
+        )
+    )
+    behavior_map = {x['user_id']: x for x in behavior_rows}
+
+    items = []
+    for u in users[offset: offset + page_size]:
+        behavior = behavior_map.get(u.id, {})
+        risk_score = int(
+            (behavior.get('violation_count') or 0) * 25 +
+            (behavior.get('reported_count') or 0) * 10 +
+            (100 - float(u.quality_score or 0)) * 0.5
+        )
+        items.append({
+            'id': u.id,
+            'username': u.username,
+            'displayName': u.display_name,
+            'status': u.status,
+            'points': u.points,
+            'level': u.level,
+            'qualityScore': float(u.quality_score),
+            'riskScore': risk_score,
+            'postCount': behavior.get('post_count') or 0,
+            'commentCount': behavior.get('comment_count') or 0,
+            'reportedCount': behavior.get('reported_count') or 0,
+            'violationCount': behavior.get('violation_count') or 0,
+        })
+
+    if sort_by == 'reportedCount':
+        items.sort(key=lambda x: x['reportedCount'], reverse=True)
+    else:
+        items.sort(key=lambda x: x['riskScore'], reverse=True)
+
+    return Response({
+        'code': 0,
+        'data': {
+            'items': items,
+            'page': page,
+            'pageSize': page_size,
+            'total': users.count(),
+        }
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def admin_user_behavior_report(request, user_id):
+    """
+    GET /api/admin/users/{id}/behavior-report/
+    """
+    perm_error = _ensure_moderator(request)
+    if perm_error:
+        return perm_error
+    target_user = get_object_or_404(User, id=user_id)
+    range_param = request.query_params.get('range', '7d')
+    days = 30 if range_param == '30d' else 7
+    start_date = timezone.now().date() - timezone.timedelta(days=days - 1)
+    rows = UserBehaviorDaily.objects.filter(user=target_user, stat_date__gte=start_date).order_by('stat_date')
+    daily = [{
+        'date': r.stat_date,
+        'postCount': r.post_count,
+        'commentCount': r.comment_count,
+        'reportedCount': r.reported_count,
+        'violationCount': r.violation_count,
+        'receivedLikes': r.received_likes,
+        'qualityScore': float(r.quality_score),
+    } for r in rows]
+    summary = {
+        'postCount': sum(x['postCount'] for x in daily),
+        'commentCount': sum(x['commentCount'] for x in daily),
+        'reportedCount': sum(x['reportedCount'] for x in daily),
+        'violationCount': sum(x['violationCount'] for x in daily),
+        'receivedLikes': sum(x['receivedLikes'] for x in daily),
+    }
+    return Response({'code': 0, 'data': {'userId': target_user.id, 'range': range_param, 'summary': summary, 'daily': daily}})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def admin_warning_user(request, user_id):
+    """
+    POST /api/admin/users/{id}/warning/
+    """
+    perm_error = _ensure_moderator(request)
+    if perm_error:
+        return perm_error
+    target_user = get_object_or_404(User, id=user_id)
+    reason = request.data.get('reason', '')
+    _create_moderation_log(target_user, request.user, 'WARNING', reason=reason)
+    apply_points(
+        user=target_user,
+        event_type='MODERATION_PENALTY',
+        delta=-5,
+        source_type='USER',
+        source_id=target_user.id,
+        reason=reason or '管理员警告扣分',
+        operator=request.user,
+    )
+    return Response({'code': 0, 'message': '警告已记录'})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def admin_user_points_logs(request, user_id):
+    """
+    GET /api/admin/users/{id}/points/logs/
+    """
+    perm_error = _ensure_moderator(request)
+    if perm_error:
+        return perm_error
+    target_user = get_object_or_404(User, id=user_id)
+    page = int(request.query_params.get('page', 1))
+    page_size = int(request.query_params.get('pageSize', 20))
+    qs = UserPointLog.objects.filter(user=target_user).select_related('operator').order_by('-created_at')
+    total = qs.count()
+    logs = qs[(page - 1) * page_size: page * page_size]
+    items = [{
+        'id': log.id,
+        'delta': log.delta,
+        'eventType': log.event_type,
+        'sourceType': log.source_type,
+        'sourceId': log.source_id,
+        'reason': log.reason,
+        'operator': log.operator.display_name if log.operator else None,
+        'createdAt': log.created_at,
+    } for log in logs]
+    return Response({'code': 0, 'data': {'items': items, 'page': page, 'pageSize': page_size, 'total': total}})
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def admin_adjust_user_points(request, user_id):
+    """
+    PATCH /api/admin/users/{id}/points/adjust/
+    仅 ADMIN 可调整积分
+    """
+    if not request.user.is_authenticated:
+        return Response({'code': 4010, 'message': '需要登录'}, status=status.HTTP_401_UNAUTHORIZED)
+    if request.user.role != 'ADMIN':
+        return Response({'code': 4030, 'message': '仅管理员可调整积分'}, status=status.HTTP_403_FORBIDDEN)
+    target_user = get_object_or_404(User, id=user_id)
+    try:
+        delta = int(request.data.get('delta', 0))
+    except (TypeError, ValueError):
+        return Response({'code': 4001, 'message': 'delta 必须是整数'}, status=status.HTTP_400_BAD_REQUEST)
+    reason = request.data.get('reason', '')
+    apply_points(
+        user=target_user,
+        event_type='ADMIN_ADJUST',
+        delta=delta,
+        source_type='USER',
+        source_id=target_user.id,
+        reason=reason or '管理员调整积分',
+        operator=request.user,
+    )
+    return Response({'code': 0, 'message': '积分调整成功'})
 
 
 @api_view(['POST'])

@@ -128,6 +128,25 @@ export const usePortfoliosStore = defineStore('portfolios', () => {
     }
   }
 
+  const toggleFavorite = async (portfolioId: number) => {
+    const portfolio = portfolios.value.find(p => p.id === portfolioId) ||
+                    topPortfolios.value.find(p => p.id === portfolioId) ||
+                    currentPortfolio.value
+    if (!portfolio) return
+
+    const wasFavorited = !!portfolio.isFavorited
+
+    try {
+      await portfoliosApi.togglePortfolioFavorite(portfolioId)
+      portfolio.isFavorited = !wasFavorited
+      const currentFavorites = Number(portfolio.favorites || 0)
+      portfolio.favorites = currentFavorites + (wasFavorited ? -1 : 1)
+    } catch (error) {
+      portfolio.isFavorited = wasFavorited
+      throw error
+    }
+  }
+
   return {
     // State
     portfolios,
@@ -143,6 +162,7 @@ export const usePortfoliosStore = defineStore('portfolios', () => {
     createPortfolio,
     updatePortfolio,
     deletePortfolio,
-    toggleLike
+    toggleLike,
+    toggleFavorite
   }
 })

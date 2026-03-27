@@ -1,6 +1,9 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Report, Alert
+from .models import (
+    Report, Alert, ModerationRule, ModerationQueueItem, ModerationHit,
+    CommunityMetricDaily, TopicMetricDaily,
+)
 
 User = get_user_model()
 
@@ -83,4 +86,58 @@ class AlertSerializer(serializers.ModelSerializer):
             'related_object_type', 'related_object_id',
             'severity', 'status', 'handled_by_name', 'handle_result',
             'created_at', 'handle_time'
+        ]
+
+
+class ModerationRuleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ModerationRule
+        fields = [
+            'id', 'name', 'rule_type', 'pattern', 'config_json',
+            'risk_level', 'risk_score', 'action', 'is_active',
+            'created_at', 'updated_at',
+        ]
+
+
+class ModerationQueueItemSerializer(serializers.ModelSerializer):
+    content_title = serializers.CharField(source='content.title', read_only=True)
+    content_id = serializers.IntegerField(source='content.id', read_only=True)
+    decided_by_name = serializers.CharField(source='decided_by.display_name', read_only=True)
+
+    class Meta:
+        model = ModerationQueueItem
+        fields = [
+            'id', 'content_id', 'content_title', 'source', 'risk_level', 'risk_score',
+            'reason_summary', 'status', 'decided_status', 'decided_by_name',
+            'decided_at', 'created_at',
+        ]
+
+
+class ModerationHitSerializer(serializers.ModelSerializer):
+    content_title = serializers.CharField(source='content.title', read_only=True)
+    user_name = serializers.CharField(source='user.display_name', read_only=True)
+    rule_name = serializers.CharField(source='rule.name', read_only=True)
+
+    class Meta:
+        model = ModerationHit
+        fields = [
+            'id', 'rule_name', 'content', 'content_title', 'user', 'user_name',
+            'hit_text', 'evidence_json', 'risk_score', 'risk_level', 'created_at',
+        ]
+
+
+class CommunityMetricDailySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CommunityMetricDaily
+        fields = [
+            'stat_date', 'dau', 'post_count', 'comment_count', 'report_count',
+            'review_pass_rate', 'taken_down_count',
+        ]
+
+
+class TopicMetricDailySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TopicMetricDaily
+        fields = [
+            'stat_date', 'topic', 'post_count', 'comment_count', 'like_count', 'heat_score',
         ]

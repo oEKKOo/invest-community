@@ -18,12 +18,19 @@ const AssetDetail = () => import('../views/AssetDetail.vue')
 const MarketList = () => import('../views/MarketList.vue')
 const MarketRankings = () => import('../views/MarketRankings.vue')
 const DataMonitor = () => import('../views/admin/DataMonitor.vue')
+const ModerationQueue = () => import('../views/admin/ModerationQueue.vue')
+const UserRiskCenter = () => import('../views/admin/UserRiskCenter.vue')
+const AnalyticsCenter = () => import('../views/admin/AnalyticsCenter.vue')
 const MyHoldings = () => import('../views/MyHoldings.vue')
 const Messages = () => import('../views/Messages.vue')
 const VerifyChannel = () => import('../views/auth/VerifyChannel.vue')
 const RealNameAuth = () => import('../views/auth/RealNameAuth.vue')
 const ProfessionalAuth = () => import('../views/auth/ProfessionalAuth.vue')
 const RiskAssessment = () => import('../views/auth/RiskAssessment.vue')
+const Groups = () => import('../views/Groups.vue')
+const GroupDetail = () => import('../views/GroupDetail.vue')
+const GroupJoinRequests = () => import('../views/GroupJoinRequests.vue')
+const GroupInvites = () => import('../views/GroupInvites.vue')
 
 const routes: RouteRecordRaw[] = [
   {
@@ -84,6 +91,24 @@ const routes: RouteRecordRaw[] = [
           title: '数据监控',
           requiresAdmin: true
         }
+      },
+      {
+        path: '/admin/moderation-queue',
+        name: 'ModerationQueue',
+        component: ModerationQueue,
+        meta: { title: '可疑内容队列', requiresAdmin: true }
+      },
+      {
+        path: '/admin/user-risk',
+        name: 'UserRiskCenter',
+        component: UserRiskCenter,
+        meta: { title: '用户风险中心', requiresAdmin: true }
+      },
+      {
+        path: '/admin/analytics',
+        name: 'AnalyticsCenter',
+        component: AnalyticsCenter,
+        meta: { title: '运营数据分析', requiresAdmin: true }
       },
       {
         path: '/profile',
@@ -168,7 +193,34 @@ const routes: RouteRecordRaw[] = [
         name: 'MarketRankings',
         component: MarketRankings,
         meta: { title: '涨跌幅榜单' }
-      }
+      },
+      {
+        path: '/groups',
+        name: 'Groups',
+        component: Groups,
+        meta: { title: '群组' }
+      },
+      {
+        path: '/groups/invites',
+        name: 'GroupInvites',
+        component: GroupInvites,
+        meta: { title: '我的群邀请' }
+      },
+      {
+        path: '/groups/:groupId',
+        name: 'GroupDetail',
+        component: GroupDetail,
+        props: true,
+        meta: { title: '群组详情' }
+      },
+      {
+        path: '/groups/:groupId/requests',
+        name: 'GroupJoinRequests',
+        component: GroupJoinRequests,
+        props: true,
+        meta: { title: '入群审核' }
+      },
+      
     ]
   }
 ]

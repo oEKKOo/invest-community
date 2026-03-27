@@ -123,9 +123,14 @@
               {{ tab.label }}
             </button>
           </div>
-          <router-link to="/community" class="to-community-btn">
-            社区广场 
-          </router-link>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <router-link to="/groups" class="to-community-btn">
+              群组
+            </router-link>
+            <router-link to="/community" class="to-community-btn">
+              社区广场
+            </router-link>
+          </div>
         </div>
 
         <!-- 登录提示（关注Tab时未登录）-->

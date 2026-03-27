@@ -16,6 +16,7 @@ class Portfolio(models.Model):
     owner = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='创建者', related_name='portfolios')
     title = models.CharField('组合名称', max_length=200)
     description = models.TextField('描述', blank=True)
+    strategy_note = models.TextField('策略说明', blank=True)
     
     risk_level = models.CharField('风险等级', max_length=20, choices=RISK_LEVEL_CHOICES, default='Medium')
     returns_ytd = models.DecimalField('年初至今回报', max_digits=10, decimal_places=4, default=0.0000)
@@ -241,6 +242,36 @@ class PortfolioSubscription(models.Model):
         verbose_name = '组合订阅'
         verbose_name_plural = '组合订阅'
         unique_together = ['portfolio', 'user']
+
+    def __str__(self):
+        return f"{self.user.username} -> {self.portfolio.title}"
+
+
+class PortfolioFavorite(models.Model):
+    """组合收藏"""
+    portfolio = models.ForeignKey(
+        Portfolio,
+        on_delete=models.CASCADE,
+        related_name='favorites',
+        verbose_name='组合',
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='portfolio_favorites',
+        verbose_name='用户',
+    )
+    created_at = models.DateTimeField('收藏时间', default=timezone.now)
+
+    class Meta:
+        db_table = 'portfolio_favorite'
+        verbose_name = '组合收藏'
+        verbose_name_plural = '组合收藏'
+        unique_together = ['portfolio', 'user']
+        indexes = [
+            models.Index(fields=['portfolio', 'created_at'], name='idx_portfolio_fav_portfolio'),
+            models.Index(fields=['user', 'created_at'], name='idx_portfolio_fav_user'),
+        ]
 
     def __str__(self):
         return f"{self.user.username} -> {self.portfolio.title}"

@@ -61,6 +61,15 @@
               />
             </el-form-item>
 
+            <el-form-item label="策略说明" prop="strategyNote">
+              <el-input
+                v-model="createForm.strategyNote"
+                type="textarea"
+                :rows="3"
+                placeholder="可填写核心逻辑、择时思路、风险控制要点"
+              />
+            </el-form-item>
+
             <el-form-item label="风险等级" prop="riskLevel">
               <el-select v-model="createForm.riskLevel" placeholder="选择风险等级">
                 <el-option label="低风险" value="Low" />
@@ -291,12 +300,20 @@
           </el-tag>
         </div>
 
+        <p v-if="portfolio.description" class="portfolio-summary">
+          {{ portfolio.description }}
+        </p>
+
         <!-- 第二层：收益表现（前置并突出） -->
         <div class="portfolio-return-section">
-          <div class="return-value" :class="pnlClass(getPortfolioReturn(portfolio) ?? portfolio.returnsYTD)">
-            {{ fmtRate(getPortfolioReturn(portfolio) ?? portfolio.returnsYTD) || '--' }}
+          <div class="return-value" :class="pnlClass(getDisplayTotalReturn(portfolio))">
+            {{ fmtRate(getDisplayTotalReturn(portfolio)) || '--' }}
           </div>
-          <div class="return-label">收益率</div>
+          <div class="return-label">总收益率</div>
+          <div class="return-subline">
+            <span :class="pnlClass(portfolio.dailyReturn)">今日 {{ fmtRate(portfolio.dailyReturn) || '--' }}</span>
+            <span :class="pnlClass(portfolio.sevenDayReturn)">7日 {{ fmtRate(portfolio.sevenDayReturn) || '--' }}</span>
+          </div>
         </div>
 
         <!-- 第三层：配置可视化 -->
@@ -309,11 +326,12 @@
             />
           </div>
           <div class="chart-meta">
-            <span class="meta-item">{{ portfolio.assets?.length || 0 }} Assets</span>
+            <span class="meta-item">{{ (portfolio.assetCount ?? portfolio.assets?.length) || 0 }} Assets</span>
             <span class="meta-item" v-if="portfolio.assets?.[0]">
               主要持仓 {{ portfolio.assets[0].symbol }}
             </span>
             <span class="meta-item" v-if="portfolio.isPublic">公开组合</span>
+            <span class="meta-item">更新 {{ formatDate(portfolio.updatedAt || portfolio.createdAt) }}</span>
           </div>
         </div>
 
@@ -335,15 +353,26 @@
               {{ portfolio.userName }}
             </span>
           </div>
-          <el-button
-            type="text"
-            :class="{ liked: portfolio.isLiked }"
-            @click.stop="handleLike(portfolio.id)"
-            class="like-btn"
-          >
-            <el-icon><Star /></el-icon>
-            <span>{{ portfolio.likes }}</span>
-          </el-button>
+          <div class="portfolio-actions">
+            <el-button
+              type="text"
+              :class="{ liked: portfolio.isLiked }"
+              @click.stop="handleLike(portfolio.id)"
+              class="like-btn"
+            >
+              <el-icon><Star /></el-icon>
+              <span>{{ portfolio.likes }}</span>
+            </el-button>
+            <el-button
+              type="text"
+              :class="{ liked: portfolio.isFavorited }"
+              @click.stop="handleFavorite(portfolio.id)"
+              class="like-btn"
+            >
+              <el-icon><StarFilled /></el-icon>
+              <span>{{ portfolio.favorites || 0 }}</span>
+            </el-button>
+          </div>
         </div>
       </div>
     </div>
@@ -380,6 +409,7 @@ import VChart from 'vue-echarts'
 import {
   Plus,
   Star,
+  StarFilled,
   InfoFilled
 } from '@element-plus/icons-vue'
 
@@ -430,6 +460,7 @@ const createFormRef = ref<FormInstance>()
 const createForm = ref({
   title: '',
   description: '',
+  strategyNote: '',
   riskLevel: 'Medium' as 'Low' | 'Medium' | 'High',
   isPublic: true,
   assets: [] as FormAsset[]
@@ -447,6 +478,9 @@ const createRules: FormRules = {
   ],
   description: [
     { max: 200, message: '描述不能超过200字符', trigger: 'blur' }
+  ],
+  strategyNote: [
+    { max: 2000, message: '策略说明不能超过2000字符', trigger: 'blur' }
   ],
   riskLevel: [
     { required: true, message: '请选择风险等级', trigger: 'change' }
@@ -671,6 +705,22 @@ const getPortfolioReturn = (portfolio: any): string | null => {
   return totalReturn.toString()
 }
 
+const getDisplayTotalReturn = (portfolio: any): number | null => {
+  // 列表页优先使用 owner 的实时持仓收益
+  const ownerReturn = getPortfolioReturn(portfolio)
+  if (ownerReturn !== null && ownerReturn !== undefined && ownerReturn !== '') {
+    const n = Number(ownerReturn)
+    if (!isNaN(n)) return n
+  }
+  // 后端 totalReturn 可能是默认 0，不应覆盖 returnsYTD
+  const total = Number(portfolio.totalReturn)
+  if (!isNaN(total) && total !== 0) return total
+  const ytd = Number(portfolio.returnsYTD)
+  if (!isNaN(ytd)) return ytd
+  if (!isNaN(total)) return total
+  return null
+}
+
 // ============ 分页 / 列表 ============
 const handlePageChange = (page: number) => {
   currentPage.value = page
@@ -740,6 +790,7 @@ const handleCreatePortfolio = async () => {
     const payload = {
       title: createForm.value.title,
       description: createForm.value.description,
+      strategyNote: createForm.value.strategyNote,
       riskLevel: createForm.value.riskLevel,
       isPublic: createForm.value.isPublic,
       assets: mappedAssets
@@ -763,6 +814,7 @@ const resetCreateForm = () => {
   createForm.value = {
     title: '',
     description: '',
+    strategyNote: '',
     riskLevel: 'Medium',
     isPublic: true,
     assets: []
@@ -785,6 +837,26 @@ const handleLike = async (portfolioId: number) => {
   } catch (error) {
     ElMessage.error('操作失败')
   }
+}
+
+const handleFavorite = async (portfolioId: number) => {
+  if (!authStore.isLoggedIn) {
+    ElMessage.warning('请先登录')
+    return
+  }
+  try {
+    await portfoliosStore.toggleFavorite(portfolioId)
+  } catch {
+    ElMessage.error('操作失败')
+  }
+}
+
+const formatDate = (dateStr?: string) => {
+  if (!dateStr) return '--'
+  const d = new Date(dateStr)
+  const m = `${d.getMonth() + 1}`.padStart(2, '0')
+  const day = `${d.getDate()}`.padStart(2, '0')
+  return `${m}-${day}`
 }
 
 const getRiskLevelType = (riskLevel: string) => {
@@ -1336,6 +1408,18 @@ onMounted(() => {
   letter-spacing: -0.01em;
 }
 
+.portfolio-summary {
+  margin: 0 0 $portfolio-space-3 0;
+  color: $text-secondary;
+  font-size: $portfolio-caption;
+  line-height: 1.5;
+  display: -webkit-box;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .risk-tag {
   font-size: $portfolio-mini !important;
   font-weight: 600 !important;
@@ -1397,6 +1481,14 @@ onMounted(() => {
   color: $text-muted;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+.return-subline {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 6px;
+  font-size: $portfolio-mini;
 }
 
 // 图表区域
@@ -1478,6 +1570,12 @@ onMounted(() => {
   padding-top: $portfolio-space-4;
   border-top: 1px solid $border-subtle;
   margin-top: auto;
+}
+
+.portfolio-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .portfolio-author {

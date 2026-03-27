@@ -34,6 +34,7 @@ urlpatterns = [
     path('api/', include('notifications.urls')),
     path('api/', include('reports.urls')),
     path('api/', include('messages.urls')),
+    path('api/', include('groups.urls')),
 
     # 行情数据模块（Finnhub 接入）
     # 路由优先级说明：

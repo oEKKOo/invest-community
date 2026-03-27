@@ -21,6 +21,9 @@ from .serializers import (
     BoardSerializer, BoardCreateUpdateSerializer, ContentAttachmentSerializer, CommentAttachmentSerializer, PollSerializer
 )
 from notifications.events import publish_event
+from accounts.feed_service import write_follow_feed_for_actor
+from accounts.user_score_service import apply_points
+from invest_backend.permissions import IsModeratorOrAdmin
 
 User = get_user_model()
 
@@ -149,7 +152,21 @@ class ContentListView(generics.ListCreateAPIView):
         serializer = ContentCreateSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             content = serializer.save(author=request.user)
+            apply_points(
+                user=request.user,
+                event_type='POST_CREATED',
+                source_type='POST',
+                source_id=content.id,
+                reason='发布内容积分',
+            )
             _create_mentions('POST', content.id, request.user, content.body)
+            if content.status == 'PUBLISHED':
+                write_follow_feed_for_actor(
+                    actor_user=request.user,
+                    action_type='POST_PUBLISHED',
+                    object_type='POST',
+                    object_id=content.id,
+                )
 
             # 返回详细信息
             response_serializer = ContentDetailSerializer(content, context={'request': request})
@@ -208,6 +225,7 @@ def content_detail(request, pk):
             return Response({'code': 4030, 'message': '无权修改'}, 
                            status=status.HTTP_403_FORBIDDEN)
         
+        old_status = content.status
         serializer = ContentCreateSerializer(content, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
             # 处理状态变更
@@ -217,6 +235,13 @@ def content_detail(request, pk):
             
             serializer.save()
             _create_mentions('POST', content.id, request.user, content.body)
+            if old_status != 'PUBLISHED' and content.status == 'PUBLISHED':
+                write_follow_feed_for_actor(
+                    actor_user=content.author,
+                    action_type='POST_PUBLISHED',
+                    object_type='POST',
+                    object_id=content.id,
+                )
             
             return Response({'code': 0, 'data': ContentDetailSerializer(content, context={'request': request}).data})
         
@@ -321,6 +346,13 @@ def post_comments(request, pk):
 
         if serializer.is_valid():
             comment = serializer.save()
+            apply_points(
+                user=request.user,
+                event_type='COMMENT_CREATED',
+                source_type='COMMENT',
+                source_id=comment.id,
+                reason='发表评论积分',
+            )
 
             # 更新内容的评论数
             Content.objects.filter(pk=pk).update(comment_count=F('comment_count') + 1)
@@ -747,7 +779,7 @@ def asset_posts(request, pk):
 class AdminPostsView(generics.ListAPIView):
     """管理员查看帖子列表"""
     serializer_class = ContentListSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsModeratorOrAdmin]
 
     def get_queryset(self):
         # 检查权限
@@ -759,6 +791,12 @@ class AdminPostsView(generics.ListAPIView):
         status_param = self.request.query_params.get('status')
         if status_param:
             queryset = queryset.filter(status=status_param)
+        risk_level = self.request.query_params.get('riskLevel')
+        if risk_level:
+            queryset = queryset.filter(risk_level=risk_level)
+        moderation_source = self.request.query_params.get('source')
+        if moderation_source:
+            queryset = queryset.filter(moderation_source=moderation_source)
 
         board_id = self.request.query_params.get('boardId')
         if board_id:
@@ -830,6 +868,15 @@ def admin_post_status(request, pk):
         content.published_at = timezone.now()
     
     content.save()
+    if new_status in ['REJECTED', 'TAKEN_DOWN']:
+        apply_points(
+            user=content.author,
+            event_type='CONTENT_REJECTED',
+            source_type='POST',
+            source_id=content.id,
+            reason=reject_reason or '内容违规处理扣分',
+            operator=request.user,
+        )
 
     # 事件：帖子审核结果
     publish_event(

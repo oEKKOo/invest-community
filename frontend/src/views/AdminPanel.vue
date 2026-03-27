@@ -23,6 +23,27 @@
         </div>
         <el-icon class="monitor-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></el-icon>
       </router-link>
+      <router-link :to="{ name: 'ModerationQueue' }" class="monitor-link-card">
+        <div class="monitor-icon">🛡️</div>
+        <div class="monitor-info">
+          <h4>可疑内容队列</h4>
+          <p>查看自动审核命中与人工决策队列</p>
+        </div>
+      </router-link>
+      <router-link :to="{ name: 'UserRiskCenter' }" class="monitor-link-card">
+        <div class="monitor-icon">👥</div>
+        <div class="monitor-info">
+          <h4>用户风险中心</h4>
+          <p>监控用户行为风险、警告与积分调整</p>
+        </div>
+      </router-link>
+      <router-link :to="{ name: 'AnalyticsCenter' }" class="monitor-link-card">
+        <div class="monitor-icon">📈</div>
+        <div class="monitor-info">
+          <h4>运营数据分析</h4>
+          <p>查看活跃度、话题热度与参与度报告</p>
+        </div>
+      </router-link>
     </div>
 
     <!-- 统计卡片 -->
