@@ -290,14 +290,12 @@
         <!-- 第一层：组合名称 + 风险标签 -->
         <div class="portfolio-header">
           <h3 class="portfolio-title">{{ portfolio.title }}</h3>
-          <el-tag
-            :type="getRiskLevelType(portfolio.riskLevel)"
-            size="small"
-            class="risk-tag"
-            :class="`risk-${portfolio.riskLevel.toLowerCase()}`"
+          <span
+            class="risk-pill"
+            :class="`risk-pill--${portfolio.riskLevel.toLowerCase()}`"
           >
             {{ portfolio.riskLevel === 'Low' ? '低风险' : portfolio.riskLevel === 'Medium' ? '中等风险' : '高风险' }}
-          </el-tag>
+          </span>
         </div>
 
         <p v-if="portfolio.description" class="portfolio-summary">
@@ -310,9 +308,15 @@
             {{ fmtRate(getDisplayTotalReturn(portfolio)) || '--' }}
           </div>
           <div class="return-label">总收益率</div>
-          <div class="return-subline">
-            <span :class="pnlClass(portfolio.dailyReturn)">今日 {{ fmtRate(portfolio.dailyReturn) || '--' }}</span>
-            <span :class="pnlClass(portfolio.sevenDayReturn)">7日 {{ fmtRate(portfolio.sevenDayReturn) || '--' }}</span>
+          <div class="return-stats">
+            <div class="return-stat">
+              <span class="return-stat-label">今日</span>
+              <span class="return-stat-value" :class="pnlClass(portfolio.dailyReturn)">{{ fmtRate(portfolio.dailyReturn) || '—' }}</span>
+            </div>
+            <div class="return-stat">
+              <span class="return-stat-label">7 日</span>
+              <span class="return-stat-value" :class="pnlClass(portfolio.sevenDayReturn)">{{ fmtRate(portfolio.sevenDayReturn) || '—' }}</span>
+            </div>
           </div>
         </div>
 
@@ -323,15 +327,16 @@
               class="pie-chart" 
               :option="getPieChartOption(portfolio.assets)"
               v-if="portfolio.assets?.length"
+              autoresize
             />
           </div>
           <div class="chart-meta">
-            <span class="meta-item">{{ (portfolio.assetCount ?? portfolio.assets?.length) || 0 }} Assets</span>
-            <span class="meta-item" v-if="portfolio.assets?.[0]">
-              主要持仓 {{ portfolio.assets[0].symbol }}
+            <span class="meta-chip">{{ (portfolio.assetCount ?? portfolio.assets?.length) || 0 }} 只标的</span>
+            <span class="meta-chip" v-if="portfolio.assets?.[0]">
+              主要 {{ portfolio.assets[0].symbol }}
             </span>
-            <span class="meta-item" v-if="portfolio.isPublic">公开组合</span>
-            <span class="meta-item">更新 {{ formatDate(portfolio.updatedAt || portfolio.createdAt) }}</span>
+            <span class="meta-chip" v-if="portfolio.isPublic">公开</span>
+            <span class="meta-chip">更新 {{ formatDate(portfolio.updatedAt || portfolio.createdAt) }}</span>
           </div>
         </div>
 
@@ -404,7 +409,7 @@ import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { PieChart } from 'echarts/charts'
-import { TooltipComponent, LegendComponent } from 'echarts/components'
+import { TooltipComponent, LegendComponent, GraphicComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import {
   Plus,
@@ -413,7 +418,7 @@ import {
   InfoFilled
 } from '@element-plus/icons-vue'
 
-use([CanvasRenderer, PieChart, TooltipComponent, LegendComponent])
+use([CanvasRenderer, PieChart, TooltipComponent, LegendComponent, GraphicComponent])
 
 // 扩展资产类型，包含持仓金额字段
 interface FormAsset extends PortfolioAsset {
@@ -487,8 +492,38 @@ const createRules: FormRules = {
   ]
 }
 
-// 图表颜色 - Dark theme palette
-const CHART_COLORS = ['#3B82F6', '#34D399', '#60A5FA', '#F472B6', '#FBBF24', '#818CF8']
+/** 组合卡片饼图：蓝系为主、克制统一（与 variables $portfolio-chart-colors 对齐） */
+const PIE_PALETTE = ['#2563eb', '#3b82f6', '#60a5fa', '#38bdf8', '#94a3b8']
+
+interface PieSliceItem {
+  value: number
+  name: string
+}
+
+/** 取前若干大项，其余合并为「其他」，避免扇区与图例过多 */
+const buildPieSliceData = (assets: PortfolioAsset[]): PieSliceItem[] => {
+  if (!assets?.length) return []
+  const sorted = [...assets].sort(
+    (a, b) => (Number(b.allocation) || 0) - (Number(a.allocation) || 0)
+  )
+  const maxSlices = 4
+  if (sorted.length <= maxSlices) {
+    return sorted.map((a) => ({
+      value: Number(a.allocation) || 0,
+      name: (a.symbol || a.name || '—').slice(0, 14)
+    }))
+  }
+  const head = sorted.slice(0, maxSlices - 1)
+  const tail = sorted.slice(maxSlices - 1)
+  const otherVal = tail.reduce((s, a) => s + (Number(a.allocation) || 0), 0)
+  return [
+    ...head.map((a) => ({
+      value: Number(a.allocation) || 0,
+      name: (a.symbol || a.name || '—').slice(0, 14)
+    })),
+    { value: otherVal, name: '其他' }
+  ]
+}
 
 // ============ 计算属性============
 
@@ -706,18 +741,17 @@ const getPortfolioReturn = (portfolio: any): string | null => {
 }
 
 const getDisplayTotalReturn = (portfolio: any): number | null => {
-  // 列表页优先使用 owner 的实时持仓收益
+  // 自己的组合：优先用持仓市值/成本推算的真实收益（与列表接口的 K 线口径可并存）
   const ownerReturn = getPortfolioReturn(portfolio)
   if (ownerReturn !== null && ownerReturn !== undefined && ownerReturn !== '') {
     const n = Number(ownerReturn)
     if (!isNaN(n)) return n
   }
-  // 后端 totalReturn 可能是默认 0，不应覆盖 returnsYTD
+  // 接口 totalReturn：列表接口由后端按持仓权重与日 K 推算的「年初至今」加权收益；勿用「!== 0」跳过，否则会与今日/7 日脱节
   const total = Number(portfolio.totalReturn)
-  if (!isNaN(total) && total !== 0) return total
+  if (!isNaN(total)) return total
   const ytd = Number(portfolio.returnsYTD)
   if (!isNaN(ytd)) return ytd
-  if (!isNaN(total)) return total
   return null
 }
 
@@ -859,48 +893,116 @@ const formatDate = (dateStr?: string) => {
   return `${m}-${day}`
 }
 
-const getRiskLevelType = (riskLevel: string) => {
-  switch (riskLevel) {
-    case 'High': return 'danger'
-    case 'Medium': return 'warning'
-    case 'Low': return 'success'
-    default: return 'info'
-  }
-}
-
 const getPieChartOption = (assets: PortfolioAsset[]) => {
+  const data = buildPieSliceData(assets)
+  const n = assets.length
   return {
+    color: PIE_PALETTE,
+    animationDuration: 480,
+    animationEasing: 'cubicOut',
     tooltip: {
       trigger: 'item',
-      formatter: '{a} <br/>{b}: {c}% ({d}%)',
-      backgroundColor: '#FFFFFF',
-      borderColor: 'rgba(29, 78, 216, 0.25)',
+      confine: true,
+      formatter: (params: unknown) => {
+        const p = (Array.isArray(params) ? params[0] : params) as {
+          name?: string
+          value?: number
+          percent?: number
+          marker?: string
+        }
+        if (!p?.name) return ''
+        const v = Number(p.value ?? 0).toFixed(1)
+        const pct = p.percent != null ? Number(p.percent).toFixed(1) : '—'
+        return `${p.marker ?? ''}<span style="font-weight:600">${p.name}</span><br/><span style="color:#64748b;font-size:11px">占比 ${v}% · 扇区 ${pct}%</span>`
+      },
+      backgroundColor: 'rgba(255, 255, 255, 0.96)',
+      borderColor: 'rgba(148, 163, 184, 0.45)',
       borderWidth: 1,
+      padding: [10, 12],
+      extraCssText: 'box-shadow: 0 4px 20px rgba(15,23,42,0.08); border-radius: 10px;',
       textStyle: {
-        color: '#1F2937',
-        fontFamily: 'IBM Plex Mono'
+        color: '#334155',
+        fontSize: 12,
+        fontFamily: 'Inter, system-ui, sans-serif'
       }
     },
+    legend: {
+      type: 'scroll',
+      orient: 'horizontal',
+      bottom: 0,
+      left: 'center',
+      width: '92%',
+      itemGap: 14,
+      itemWidth: 7,
+      itemHeight: 7,
+      icon: 'circle',
+      pageIconColor: '#64748b',
+      pageTextStyle: { color: '#64748b' },
+      textStyle: {
+        color: '#64748b',
+        fontSize: 11,
+        fontWeight: 500,
+        fontFamily: 'Inter, system-ui, sans-serif'
+      },
+      formatter: (name: string) => (name.length > 10 ? `${name.slice(0, 9)}…` : name)
+    },
+    graphic: [
+      {
+        type: 'text',
+        left: 'center',
+        top: '36%',
+        style: {
+          text: '资产配置',
+          textAlign: 'center',
+          fill: '#94a3b8',
+          fontSize: 11,
+          fontWeight: 500,
+          fontFamily: 'Inter, system-ui, sans-serif'
+        }
+      },
+      {
+        type: 'text',
+        left: 'center',
+        top: '44%',
+        style: {
+          text: `${n} 项持仓`,
+          textAlign: 'center',
+          fill: '#0f172a',
+          fontSize: 15,
+          fontWeight: 600,
+          fontFamily: 'Inter, system-ui, "Segoe UI", sans-serif'
+        }
+      }
+    ],
     series: [
       {
         name: '资产配置',
         type: 'pie',
-        radius: ['40%', '70%'],
-        center: ['50%', '50%'],
-        data: assets.map((asset, index) => ({
-          value: asset.allocation,
-          name: asset.symbol,
-          itemStyle: {
-            color: CHART_COLORS[index % CHART_COLORS.length]
-          }
-        })),
+        radius: ['52%', '74%'],
+        center: ['50%', '46%'],
+        clockwise: true,
+        minAngle: 2,
+        avoidLabelOverlap: true,
+        itemStyle: {
+          borderColor: '#f8fafc',
+          borderWidth: 2,
+          borderRadius: 2
+        },
+        label: { show: false },
+        labelLine: { show: false },
         emphasis: {
           itemStyle: {
-            shadowBlur: 10,
-            shadowOffsetX: 0,
-            shadowColor: 'rgba(0, 0, 0, 0.5)'
+            shadowBlur: 14,
+            shadowOffsetY: 2,
+            shadowColor: 'rgba(37, 99, 235, 0.2)'
           }
-        }
+        },
+        data: data.map((d, index) => ({
+          ...d,
+          itemStyle: {
+            color: PIE_PALETTE[index % PIE_PALETTE.length]
+          }
+        }))
       }
     ]
   }
@@ -1354,10 +1456,11 @@ onMounted(() => {
 }
 
 .portfolio-skeleton {
-  background: #FFFFFF;
-  border: 1px solid $border-subtle;
-  border-radius: $border-radius;
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 22px;
   padding: 1.5rem;
+  box-shadow: $apple-shadow-sm;
 }
 
 .empty-state {
@@ -1372,22 +1475,29 @@ onMounted(() => {
 }
 
 .portfolio-card {
-  background: $bg-card;
-  border: 1px solid $border-subtle;
-  border-radius: $portfolio-card-radius;
-  padding: $portfolio-card-padding;
+  font-family: $apple-font-family;
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.38);
+  border-radius: 22px;
+  padding: 1.65rem 1.5rem 1.5rem;
   cursor: pointer;
-  transition: $transition-all;
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 0.28s ease;
   display: flex;
   flex-direction: column;
   position: relative;
   overflow: hidden;
-  box-shadow: $portfolio-card-shadow;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 6px 20px rgba(15, 23, 42, 0.05);
 
   &:hover {
-    border-color: $border-default;
-    box-shadow: $portfolio-card-shadow-hover;
-    transform: translateY(-2px);
+    border-color: rgba(37, 99, 235, 0.22);
+    box-shadow:
+      0 4px 12px rgba(15, 23, 42, 0.06),
+      0 12px 32px rgba(15, 23, 42, 0.08);
+    transform: translateY(-3px);
   }
 }
 
@@ -1395,24 +1505,26 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: $portfolio-space-4;
+  gap: $portfolio-space-3;
+  margin-bottom: $portfolio-space-3;
 }
 
 .portfolio-title {
-  font-size: $portfolio-body;
-  font-weight: 700;
-  color: $text-primary;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: #1e293b;
   margin: 0;
   flex: 1;
-  line-height: 1.4;
-  letter-spacing: -0.01em;
+  min-width: 0;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
 }
 
 .portfolio-summary {
-  margin: 0 0 $portfolio-space-3 0;
+  margin: 0 0 $portfolio-space-4 0;
   color: $text-secondary;
   font-size: $portfolio-caption;
-  line-height: 1.5;
+  line-height: 1.55;
   display: -webkit-box;
   line-clamp: 2;
   -webkit-line-clamp: 2;
@@ -1420,85 +1532,130 @@ onMounted(() => {
   overflow: hidden;
 }
 
-.risk-tag {
-  font-size: $portfolio-mini !important;
-  font-weight: 600 !important;
-  margin-left: $portfolio-space-3 !important;
-  border-radius: $apple-radius-sm !important;
-  letter-spacing: 0.02em !important;
-  padding: 4px 10px !important;
+.risk-pill {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: none;
+  line-height: 1.2;
 
-  &.risk-low {
-    background: $portfolio-risk-low-bg !important;
-    color: $portfolio-risk-low !important;
-    border-color: $portfolio-risk-low !important;
+  &--low {
+    background: rgba(22, 163, 74, 0.12);
+    color: #15803d;
   }
 
-  &.risk-medium {
-    background: $portfolio-risk-medium-bg !important;
-    color: $portfolio-risk-medium !important;
-    border-color: $portfolio-risk-medium !important;
+  &--medium {
+    background: rgba(217, 119, 6, 0.12);
+    color: #b45309;
   }
 
-  &.risk-high {
-    background: $portfolio-risk-high-bg !important;
-    color: $portfolio-risk-high !important;
-    border-color: $portfolio-risk-high !important;
+  &--high {
+    background: rgba(220, 38, 38, 0.1);
+    color: #b91c1c;
   }
 }
 
 // 收益率区域（前置并突出）
 .portfolio-return-section {
   text-align: center;
-  margin: $portfolio-space-4 0;
-  padding: $portfolio-space-4 0;
-  border-top: 1px solid $border-subtle;
-  border-bottom: 1px solid $border-subtle;
+  margin: $portfolio-space-2 0 $portfolio-space-5;
+  padding: $portfolio-space-5 $portfolio-space-3;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(226, 232, 240, 0.9);
 }
 
 .return-value {
-  font-size: $portfolio-return-size;
-  font-weight: 700;
-  font-family: 'IBM Plex Mono', monospace;
-  line-height: 1.2;
+  font-size: clamp(1.75rem, 4.5vw, 2.125rem);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  line-height: 1.15;
   margin-bottom: $portfolio-space-2;
+  letter-spacing: -0.03em;
 
   &.pnl-up {
-    color: $portfolio-return-positive;
+    color: #15803d;
   }
 
   &.pnl-down {
-    color: $portfolio-return-negative;
+    color: #b91c1c;
   }
 
   &.pnl-zero {
-    color: $text-muted;
+    color: #94a3b8;
   }
 }
 
 .return-label {
-  font-size: $portfolio-caption;
-  color: $text-muted;
+  font-size: 11px;
+  font-weight: 500;
+  color: #94a3b8;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  margin-bottom: $portfolio-space-4;
 }
 
-.return-subline {
+.return-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $portfolio-space-2;
+  max-width: 280px;
+  margin: 0 auto;
+}
+
+.return-stat {
   display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin-top: 6px;
-  font-size: $portfolio-mini;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: $portfolio-space-2 $portfolio-space-2;
+  border-radius: 12px;
+  background: rgba(248, 250, 252, 0.9);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+}
+
+.return-stat-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.return-stat-value {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  letter-spacing: -0.02em;
+
+  &.pnl-up {
+    color: #15803d;
+  }
+
+  &.pnl-down {
+    color: #b91c1c;
+  }
+
+  &.pnl-zero {
+    color: #94a3b8;
+  }
 }
 
 // 图表区域
 .chart-section {
-  margin: $portfolio-space-4 0;
+  margin: $portfolio-space-2 0 $portfolio-space-4;
 }
 
 .chart-container {
-  height: 180px;
-  margin-bottom: $portfolio-space-3;
+  height: 208px;
+  margin-bottom: $portfolio-space-2;
 }
 
 .pie-chart {
@@ -1509,16 +1666,25 @@ onMounted(() => {
 .chart-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: $portfolio-space-3;
+  gap: 8px;
   justify-content: center;
-  font-size: $portfolio-caption;
-  color: $text-muted;
+  align-items: center;
 }
 
-.meta-item {
-  padding: 2px 8px;
-  background: rgba(15, 23, 42, 0.03);
-  border-radius: 4px;
+.meta-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 11px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: #475569;
+  background: rgba(241, 245, 249, 0.95);
+  border: 1px solid rgba(203, 213, 225, 0.75);
+  border-radius: 999px;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .stat-row {
@@ -1568,7 +1734,7 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding-top: $portfolio-space-4;
-  border-top: 1px solid $border-subtle;
+  border-top: 1px solid rgba(226, 232, 240, 0.95);
   margin-top: auto;
 }
 

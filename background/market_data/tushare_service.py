@@ -11,8 +11,9 @@ Tushare 服务层 —— A 股行情数据接入
 - 股票基础信息   (pro.stock_basic)
 - 日线行情 K 线  (pro.daily)  — 字段：开/高/低/收/量/额/涨跌幅
 - 最新行情快照   (get_latest_daily_quote) — 取最近交易日 daily 数据
+- 港股基础/日线 (pro.hk_basic / pro.hk_daily)，ts_code 形如 00001.HK
 
-Tushare ts_code 格式：{6位代码}.{市场后缀}
+Tushare A 股 ts_code 格式：{6位代码}.{市场后缀}
   600519.SH  (上交所)
   000001.SZ  (深交所)
   837566.BJ  (北交所)
@@ -30,6 +31,9 @@ logger = logging.getLogger(__name__)
 
 # ── A 股市场集合（供 tasks/views 判断是否走 Tushare）──────────────────────
 CN_MARKETS = {'SH', 'SZ', 'BJ'}
+
+# 港股：日 K 走 Tushare hk_daily（与 Finnhub 分时/实时行情可并存）
+HK_MARKET = 'HK'
 
 # 市场 → Tushare 后缀
 MARKET_TO_SUFFIX: Dict[str, str] = {
@@ -89,6 +93,40 @@ def parse_tushare_code(ts_code: str) -> Optional[Dict[str, str]]:
     if suffix not in MARKET_TO_SUFFIX.values():
         return None
     return {'code': code, 'market': suffix}
+
+
+def normalize_hk_listing_code(code: str) -> str:
+    """港股代码与 hk_daily 路由键：纯数字则左补零至 5 位，否则原样 strip。"""
+    s = str(code).strip()
+    if s.isdigit():
+        return s.zfill(5)
+    return s
+
+
+def parse_hk_ts_code(ts_code: str) -> Optional[Dict[str, str]]:
+    """
+    解析港股 Tushare 代码，如 '00001.HK' → code（五位数字串）+ market 'HK'
+    """
+    parts = ts_code.strip().split('.')
+    if len(parts) != 2:
+        return None
+    code, suf = parts
+    if suf.upper() != 'HK':
+        return None
+    return {'code': normalize_hk_listing_code(code), 'market': HK_MARKET}
+
+
+def get_hk_tushare_code(code: str) -> Optional[str]:
+    """
+    内部展示码 → Tushare 港股 ts_code（00001.HK）。
+    非纯数字无法与 hk_daily 对齐时返回 None。
+    """
+    s = str(code).strip()
+    if not s:
+        return None
+    if not s.isdigit():
+        return None
+    return f'{normalize_hk_listing_code(s)}.HK'
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -406,6 +444,154 @@ def get_latest_daily_quote(ts_code: str, lookback_days: int = 7) -> Optional[Dic
         'quote_time':    latest.get('k_time'),
         'source':        'tushare',
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 港股：hk_basic / hk_daily（需 Tushare 积分与 hk_daily 权限）
+# ═══════════════════════════════════════════════════════════════════════════
+
+def get_hk_basic(list_status: str = 'L') -> Optional[List[Dict]]:
+    """
+    港股列表 pro.hk_basic(list_status=...)
+    返回 [{'ts_code','code','name','fullname','list_status','list_date','curr_type'}, ...]
+    """
+    pro = _get_pro_api()
+    if not pro:
+        return None
+
+    df = _call_with_retry(pro.hk_basic, list_status=list_status)
+    if df is None or df.empty:
+        logger.warning('[Tushare] get_hk_basic: 空数据 list_status=%s', list_status)
+        return None
+
+    out = []
+    for _, row in df.iterrows():
+        ts_code = str(row.get('ts_code', '')).strip()
+        if not ts_code:
+            continue
+        parsed = parse_hk_ts_code(ts_code)
+        if not parsed:
+            continue
+        out.append({
+            'ts_code':     ts_code,
+            'code':        parsed['code'],
+            'name':        str(row.get('name', '')).strip(),
+            'fullname':    str(row.get('fullname', '') or '').strip(),
+            'list_status': str(row.get('list_status', '') or '').strip(),
+            'list_date':   str(row.get('list_date', '') or '').strip(),
+            'curr_type':   str(row.get('curr_type', '') or '').strip(),
+        })
+
+    logger.info('[Tushare] get_hk_basic: %d 条 list_status=%s', len(out), list_status)
+    return out
+
+
+def _row_to_hk_kline_item(row) -> Optional[Dict]:
+    """单条 hk_daily 行 → 与 get_daily_klines 单条兼容的结构"""
+    trade_date = str(row.get('trade_date', '')).strip()
+    if len(trade_date) != 8:
+        return None
+    try:
+        k_time = datetime(
+            int(trade_date[:4]),
+            int(trade_date[4:6]),
+            int(trade_date[6:8]),
+            0, 0, 0,
+            tzinfo=_tz.utc,
+        )
+    except (ValueError, TypeError):
+        return None
+
+    return {
+        'k_time':    k_time,
+        'open':      _safe_float(row.get('open')),
+        'high':      _safe_float(row.get('high')),
+        'low':       _safe_float(row.get('low')),
+        'close':     _safe_float(row.get('close')),
+        'volume':    _safe_int(row.get('vol')),
+        'amount':    _safe_float(row.get('amount')),
+        'pct_chg':   _safe_float(row.get('pct_chg')),
+        'pre_close': _safe_float(row.get('pre_close')),
+        'change':    _safe_float(row.get('change')),
+    }
+
+
+def get_hk_daily_klines(
+    ts_code: str,
+    start_date: str,
+    end_date: str,
+) -> Optional[List[Dict]]:
+    """
+    单只港股历史日线 pro.hk_daily(ts_code=..., start_date=..., end_date=...)
+    返回与 get_daily_klines 相同（升序）
+    """
+    pro = _get_pro_api()
+    if not pro:
+        return None
+
+    df = _call_with_retry(
+        pro.hk_daily,
+        ts_code=ts_code,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    if df is None or df.empty:
+        logger.debug('[Tushare] get_hk_daily_klines: %s [%s~%s] 无数据',
+                     ts_code, start_date, end_date)
+        return None
+
+    items = []
+    for _, row in df.iterrows():
+        item = _row_to_hk_kline_item(row)
+        if item:
+            items.append(item)
+
+    items.reverse()
+    logger.debug('[Tushare] get_hk_daily_klines: %s 获取 %d 条', ts_code, len(items))
+    return items
+
+
+def get_hk_daily_by_date(trade_date: str) -> Optional[List[Dict]]:
+    """
+    指定交易日全市场港股日线（一次 API pro.hk_daily(trade_date=...)）。
+    全市场单日若超过 5000 行需 Tushare 侧分页，当前单次调用（文档上限 5000）。
+
+    返回字段与 get_daily_klines_by_date 对齐，含 ts_code / code / market：
+      code 为 normalize_hk_listing_code 后的路由键
+    """
+    pro = _get_pro_api()
+    if not pro:
+        return None
+
+    df = _call_with_retry(pro.hk_daily, trade_date=trade_date)
+    if df is None or df.empty:
+        logger.debug('[Tushare] get_hk_daily_by_date: %s 非交易日或无数据', trade_date)
+        return None
+
+    items = []
+    for _, row in df.iterrows():
+        ts_code = str(row.get('ts_code', '')).strip()
+        trade_d = str(row.get('trade_date', '')).strip()
+        if not ts_code or len(trade_d) != 8:
+            continue
+        parsed = parse_hk_ts_code(ts_code)
+        if not parsed:
+            continue
+
+        base = _row_to_hk_kline_item(row)
+        if not base:
+            continue
+
+        items.append({
+            'ts_code':   ts_code,
+            'code':      parsed['code'],
+            'market':    HK_MARKET,
+            **base,
+        })
+
+    logger.info('[Tushare] get_hk_daily_by_date: %s 获取 %d 条（全市场港股）',
+                trade_date, len(items))
+    return items or None
 
 
 # ═══════════════════════════════════════════════════════════════════════════

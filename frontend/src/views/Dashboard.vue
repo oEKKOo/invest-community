@@ -1858,7 +1858,8 @@ onMounted(() => {
 
 .sidebar-action-btn {
   flex: 1;
-  font-size: $apple-font-caption !important;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 // ---- Hot Assets ----

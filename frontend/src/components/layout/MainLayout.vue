@@ -299,7 +299,6 @@ import {
   User,
   DataLine,
   Coin,
-  Checked,
   ChatDotRound
 } from '@element-plus/icons-vue'
 import { globalSearch, type GlobalSearchResult } from '../../api/search'
@@ -332,7 +331,6 @@ const menuItems = computed(() => [
   { name: 'Groups', path: '/groups', label: '群组', icon: ChatDotRound },
   { name: 'Portfolios', path: '/portfolios', label: '投资组合', icon: TrendCharts },
   ...(authStore.isLoggedIn ? [{ name: 'MyHoldings', path: '/holdings', label: '我的持仓', icon: Coin }] : []),
-  ...(authStore.isLoggedIn ? [{ name: 'VerifyChannel', path: '/auth/verify', label: '认证中心', icon: Checked }] : []),
   ...(authStore.isAdmin ? [{ name: 'AdminPanel', path: '/admin', label: '管理后台', icon: Setting }] : []),
   { name: 'Profile', path: '/profile', label: '我的主页', icon: User }
 ])

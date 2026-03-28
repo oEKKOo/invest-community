@@ -156,8 +156,8 @@ onMounted(fetchData)
 
 <style scoped>
 .groups-page { max-width: 1100px; margin: 0 auto; }
-.page-header { display: flex; justify-content: space-between; margin-bottom: 16px; }
-.header-actions { display: flex; gap: 10px; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.header-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .filters { display: flex; gap: 12px; margin-bottom: 16px; }
 .group-card { margin-bottom: 16px; cursor: pointer; }
 .desc { color: #666; min-height: 40px; }

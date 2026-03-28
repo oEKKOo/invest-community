@@ -12,7 +12,8 @@
 
 数据源路由规则：
   market in {SH,SZ,BJ} → Tushare（A 股日线数据）
-  其他（US/HK）         → Finnhub（实时行情 + K 线）
+  market HK 日 K       → Tushare hk_daily（库空回补）；分钟线等仍可用 Finnhub
+  其他（如 US）         → Finnhub（实时行情 + K 线）
 """
 import json
 import logging
@@ -151,10 +152,10 @@ def asset_kline(request, pk):
     if not klines:
         from .tasks import _write_klines
         from .tushare_service import CN_MARKETS
+        from . import tushare_service as ts_svc
 
         if asset.market in CN_MARKETS and resolution == 'D':
             # A 股日线 → Tushare
-            from . import tushare_service as ts_svc
             ts_code = ts_svc.get_tushare_code(asset.code, asset.market)
             if ts_code and ts_svc.is_api_token_configured():
                 logger.info('[kline] 数据库无 %s [%s] 数据，从 Tushare 拉取', asset.code, resolution)
@@ -170,8 +171,24 @@ def asset_kline(request, pk):
                     ).order_by('-k_time')[:limit]
                     klines = list(queryset)
 
-        elif asset.finnhub_symbol:
-            # US/HK → Finnhub
+        elif asset.market == 'HK' and resolution == 'D' and ts_svc.is_api_token_configured():
+            ts_code = ts_svc.get_hk_tushare_code(asset.code)
+            if ts_code:
+                logger.info('[kline] 数据库无 %s [%s] 数据，从 Tushare 港股拉取', asset.code, resolution)
+                days = 365
+                from_dt = datetime.now(tz=py_tz.utc) - timedelta(days=days)
+                start_str = ts_svc.date_to_tushare_str(from_dt)
+                end_str   = ts_svc.date_to_tushare_str(datetime.now(tz=py_tz.utc))
+                items = ts_svc.get_hk_daily_klines(ts_code, start_str, end_str)
+                if items:
+                    _write_klines(asset, 'D', items, force_refetch=False)
+                    queryset = AssetKline.objects.filter(
+                        asset=asset, resolution=resolution
+                    ).order_by('-k_time')[:limit]
+                    klines = list(queryset)
+
+        if not klines and asset.finnhub_symbol:
+            # 美股 / 港股分钟线 / 港股日 K 未走通 Tushare 时回退
             from . import finnhub_service as fh
             logger.info('[kline] 数据库无 %s [%s] 数据，从 Finnhub 拉取', asset.code, resolution)
             days = 365 if resolution == 'D' else 30
@@ -550,6 +567,7 @@ def trigger_job(request):
     支持的 jobType：
     - SYMBOLS_SYNC:    同步股票列表（美股/港股），需传 exchange, market
     - CN_SYMBOLS_SYNC: 同步 A 股标的列表（Tushare），可传 listStatus
+    - HK_SYMBOLS_SYNC: 同步港股标的列表（Tushare hk_basic），可传 listStatus
     - KLINE_SYNC:      同步K线，可传 assetIds[], daysBack, resolution, marketFilter
     - QUOTE_REFRESH:   刷新行情快照（A股+美股自动路由），可传 assetIds[]
     - DQ_CHECK:        数据质量校验，可传 assetIds[]
@@ -575,6 +593,12 @@ def trigger_job(request):
             from .tasks import cn_symbols_sync
             list_status = request.data.get('listStatus', 'L')
             job = cn_symbols_sync(list_status=list_status)
+            return Response({'code': 0, 'data': DataJobLogSerializer(job).data})
+
+        elif job_type == 'HK_SYMBOLS_SYNC':
+            from .tasks import hk_symbols_sync
+            list_status = request.data.get('listStatus', 'L')
+            job = hk_symbols_sync(list_status=list_status)
             return Response({'code': 0, 'data': DataJobLogSerializer(job).data})
 
         elif job_type == 'KLINE_SYNC':

@@ -737,17 +737,7 @@ onMounted(() => {
 }
 
 .create-btn {
-  background: $gradient-primary !important;
-  border: none !important;
-  box-shadow: $shadow-purple !important;
   font-weight: 600 !important;
-  border-radius: 10px !important;
-  transition: $transition-all !important;
-
-  &:hover {
-    box-shadow: 0 8px 24px rgba(29, 78, 216, 0.3) !important;
-    transform: translateY(-1px);
-  }
 }
 
 .filter-tabs {
@@ -776,12 +766,12 @@ onMounted(() => {
   &:hover:not(.el-button--primary) {
     border-color: $apple-accent !important;
     color: $apple-accent !important;
-    background: rgba(0, 113, 227, 0.06) !important;
+    background: rgba(37, 99, 235, 0.06) !important;
   }
 
   &.el-button--primary {
-    background: rgba(0, 113, 227, 0.1) !important;
-    border-color: rgba(0, 113, 227, 0.2) !important;
+    background: rgba(37, 99, 235, 0.1) !important;
+    border-color: rgba(37, 99, 235, 0.22) !important;
     color: $apple-accent !important;
   }
 }
@@ -878,34 +868,6 @@ onMounted(() => {
   display: flex;
   gap: 0.75rem;
   justify-content: flex-end;
-
-  :deep(.el-button) {
-    border-radius: 10px !important;
-    font-weight: 500 !important;
-    padding: 0.625rem 1.5rem !important;
-    transition: all 0.2s ease !important;
-  }
-
-  :deep(.el-button--default) {
-    color: $apple-text-secondary !important;
-    border-color: rgba(0, 0, 0, 0.1) !important;
-    background: transparent !important;
-
-    &:hover {
-      border-color: $apple-accent !important;
-      color: $apple-accent !important;
-      background: rgba(0, 113, 227, 0.06) !important;
-    }
-  }
-
-  :deep(.el-button--primary) {
-    background: $apple-accent !important;
-    border-color: $apple-accent !important;
-
-    &:hover {
-      background: rgba(0, 113, 227, 0.9) !important;
-    }
-  }
 }
 
 .tags-input-wrapper {

@@ -87,6 +87,14 @@
               >
                 隐私设置
               </el-button>
+              <el-button
+                plain
+                size="large"
+                @click="router.push({ name: 'VerifyChannel' })"
+              >
+                <el-icon><Checked /></el-icon>
+                认证中心
+              </el-button>
             </template>
             <template v-else>
               <el-button 
@@ -851,7 +859,8 @@ import {
   Edit,
   Plus,
   FolderOpened,
-  MessageBox
+  MessageBox,
+  Checked
 } from '@element-plus/icons-vue'
 import ReportDialog from '@/components/ReportDialog.vue'
 import dayjs from 'dayjs'

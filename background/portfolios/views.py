@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 
 from rest_framework import status, permissions
@@ -101,7 +101,8 @@ def _build_portfolio_metrics(portfolios):
     if not asset_ids:
         return {p.id: {'totalReturn': float(p.returns_ytd), 'dailyReturn': None, 'sevenDayReturn': None} for p in portfolios}
 
-    cutoff = timezone.now() - timedelta(days=45)
+    # 需要足够长的日 K 才能计算「年初至今」加权收益（与 daily/7d 同源，避免 total 恒为库内 returns_ytd=0）
+    cutoff = timezone.now() - timedelta(days=400)
     rows = (
         AssetKline.objects
         .filter(asset_id__in=list(asset_ids), resolution='D', k_time__gte=cutoff)
@@ -114,13 +115,16 @@ def _build_portfolio_metrics(portfolios):
 
     today = timezone.now().date()
     target_7d = today - timedelta(days=7)
+    target_ytd = date(today.year, 1, 1)
 
     metrics = {}
     for p in portfolios:
         weighted_daily = Decimal('0')
         weighted_7d = Decimal('0')
+        weighted_ytd = Decimal('0')
         has_daily = False
         has_7d = False
+        has_ytd = False
         for asset_id, weight in portfolio_assets.get(p.id, []):
             series = per_asset_series.get(asset_id, [])
             if len(series) < 1:
@@ -128,15 +132,19 @@ def _build_portfolio_metrics(portfolios):
             latest = series[-1][1]
             prev = series[-2][1] if len(series) > 1 else None
             base_7d = _pick_close_before_or_equal(series, target_7d)
+            base_ytd = _pick_close_before_or_equal(series, target_ytd)
             if prev and prev > 0:
                 weighted_daily += weight * ((latest - prev) / prev)
                 has_daily = True
             if base_7d and base_7d > 0:
                 weighted_7d += weight * ((latest - base_7d) / base_7d)
                 has_7d = True
+            if base_ytd and base_ytd > 0:
+                weighted_ytd += weight * ((latest - base_ytd) / base_ytd)
+                has_ytd = True
 
         metrics[p.id] = {
-            'totalReturn': float(p.returns_ytd),
+            'totalReturn': float(weighted_ytd) if has_ytd else float(p.returns_ytd),
             'dailyReturn': float(weighted_daily) if has_daily else None,
             'sevenDayReturn': float(weighted_7d) if has_7d else None,
         }

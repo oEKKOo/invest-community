@@ -266,7 +266,7 @@ class Command(BaseCommand):
             self.stdout.write('[TIP] 导入完成后可运行以下命令同步 K 线和行情：')
             self.stdout.write('  python manage.py import_cn_stocks --kline-only --days 365')
             self.stdout.write('  python manage.py import_cn_stocks --quote-only')
-            self.stdout.write('  python manage.py sync_cn_data --task kline --days 365')
+            self.stdout.write('  python manage.py sync_market_data --task kline --days 365')
 
     # ── 内部方法 ──────────────────────────────────────────────────────────────
 

@@ -1343,21 +1343,6 @@ onMounted(async () => {
 .comment-actions {
   display: flex;
   justify-content: flex-end;
-
-  :deep(.el-button) {
-    border-radius: 10px !important;
-    font-weight: 500 !important;
-    padding: 0.625rem 1.25rem !important;
-  }
-
-  :deep(.el-button--primary) {
-    background: $apple-accent !important;
-    border-color: $apple-accent !important;
-
-    &:hover {
-      background: rgba(0, 113, 227, 0.9) !important;
-    }
-  }
 }
 
 .comment-reply-form {
