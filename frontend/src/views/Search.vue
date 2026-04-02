@@ -172,6 +172,7 @@ import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Search } from '@element-plus/icons-vue'
 import { globalSearch, type GlobalSearchType, type GlobalSearchResult } from '../api/search'
+import { preloadAssetDetailCharts } from '../utils/preload'
 
 const route = useRoute()
 const router = useRouter()
@@ -252,6 +253,7 @@ const goPost = (id: number) => {
 }
 
 const goAsset = (id: number) => {
+  preloadAssetDetailCharts()
   router.push({ name: 'AssetDetail', params: { assetId: id } })
 }
 

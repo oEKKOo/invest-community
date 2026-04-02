@@ -24,6 +24,9 @@ from typing import Optional
 from django.http import StreamingHttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.core.cache import cache
+from django.conf import settings
+from django.db.models import Q, Max
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -127,6 +130,11 @@ def asset_kline(request, pk):
         'M': 'M', '1mo': 'M',
     }
     resolution = interval_map.get(interval, 'D')
+    cache_ttl = int(getattr(settings, 'KLINE_API_CACHE_TTL', 60))
+    cache_key = f'kline:v1:{asset.id}:{resolution}:{limit}:{from_param or ""}:{to_param or ""}'
+    cached_payload = cache.get(cache_key)
+    if cached_payload is not None:
+        return Response({'code': 0, 'data': cached_payload})
 
     # 构建查询
     queryset = AssetKline.objects.filter(asset=asset, resolution=resolution)
@@ -206,17 +214,16 @@ def asset_kline(request, pk):
     klines.reverse()
 
     serializer = KlineItemSerializer(klines, many=True)
-    return Response({
-        'code': 0,
-        'data': {
-            'assetId': asset.id,
-            'code': asset.code,
-            'interval': interval,
-            'resolution': resolution,
-            'count': len(klines),
-            'items': serializer.data,
-        }
-    })
+    payload = {
+        'assetId': asset.id,
+        'code': asset.code,
+        'interval': interval,
+        'resolution': resolution,
+        'count': len(klines),
+        'items': serializer.data,
+    }
+    cache.set(cache_key, payload, cache_ttl)
+    return Response({'code': 0, 'data': payload})
 
 
 # ─────────────────────────────────────────────────────────────
@@ -341,15 +348,28 @@ def asset_quotes_bulk(request):
     asset_map = {a.id: a for a in assets}
     results = []
 
+    latest_times = AssetQuoteSnapshot.objects.filter(
+        asset_id__in=asset_ids
+    ).values('asset_id').annotate(latest_quote_time=Max('quote_time'))
+    latest_time_map = {row['asset_id']: row['latest_quote_time'] for row in latest_times}
+
+    snapshot_q = Q()
+    for aid, latest_quote_time in latest_time_map.items():
+        if latest_quote_time is not None:
+            snapshot_q |= Q(asset_id=aid, quote_time=latest_quote_time)
+
+    latest_snapshot_map = {}
+    if snapshot_q:
+        latest_snapshots = AssetQuoteSnapshot.objects.filter(snapshot_q)
+        latest_snapshot_map = {snap.asset_id: snap for snap in latest_snapshots}
+
     for asset_id in asset_ids:
         asset = asset_map.get(asset_id)
         if not asset:
             results.append({'assetId': asset_id, 'error': '资产不存在'})
             continue
 
-        snapshot = AssetQuoteSnapshot.objects.filter(
-            asset=asset
-        ).order_by('-quote_time').first()
+        snapshot = latest_snapshot_map.get(asset_id)
 
         if snapshot:
             results.append({
@@ -713,9 +733,14 @@ def market_rankings(request):
     rank_type = request.query_params.get('type', 'gainers')
     limit = min(int(request.query_params.get('limit', 10)), 50)
     market = request.query_params.get('market')  # 可选市场过滤
+    cache_ttl = int(getattr(settings, 'MARKET_RANKINGS_CACHE_TTL', 20))
+    cache_key = f'rankings:v2:{rank_type}:{market or "ALL"}:{limit}'
+    cached_payload = cache.get(cache_key)
+    if cached_payload is not None:
+        return Response({'code': 0, 'data': cached_payload})
 
     # 获取每个资产的最新快照（使用子查询取最新）
-    from django.db.models import OuterRef, Subquery, Max
+    from django.db.models import OuterRef, Subquery
 
     latest_times = AssetQuoteSnapshot.objects.filter(
         asset=OuterRef('asset')
@@ -754,14 +779,13 @@ def market_rankings(request):
             'quoteTime': snap.quote_time.isoformat() if snap.quote_time else None,
         })
 
-    return Response({
-        'code': 0,
-        'data': {
-            'type': rank_type,
-            'market': market,
-            'items': items,
-        }
-    })
+    payload = {
+        'type': rank_type,
+        'market': market,
+        'items': items,
+    }
+    cache.set(cache_key, payload, cache_ttl)
+    return Response({'code': 0, 'data': payload})
 
 
 # ─────────────────────────────────────────────────────────────

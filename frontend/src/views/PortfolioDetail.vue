@@ -428,18 +428,14 @@ import { useRoute } from 'vue-router'
 import { usePortfoliosStore } from '../stores/portfolios'
 import { useAuthStore } from '../stores/auth'
 import { ElMessage } from 'element-plus'
-import { use } from 'echarts/core'
-import { CanvasRenderer } from 'echarts/renderers'
-import { PieChart, LineChart } from 'echarts/charts'
-import { TooltipComponent, LegendComponent, GridComponent, MarkLineComponent } from 'echarts/components'
-import VChart from 'vue-echarts'
 import {
   Star,
   Share,
   Warning
 } from '@element-plus/icons-vue'
 import ReportDialog from '@/components/ReportDialog.vue'
-import dayjs from 'dayjs'
+import { dayjs } from '@/utils/date'
+import { createLazyChartComponent, loadPortfolioDetailChartComponent } from '@/utils/chart-loader'
 import { getHoldingPerformance } from '../api/holdings'
 import type { HoldingPerformanceItem } from '../types'
 import {
@@ -449,7 +445,7 @@ import {
   getPortfolioReturnsHistory
 } from '../api/portfolios'
 
-use([CanvasRenderer, PieChart, LineChart, TooltipComponent, LegendComponent, GridComponent, MarkLineComponent])
+const VChart = createLazyChartComponent(loadPortfolioDetailChartComponent)
 
 const route = useRoute()
 const portfoliosStore = usePortfoliosStore()

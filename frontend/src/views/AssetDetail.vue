@@ -8,12 +8,7 @@
       </el-breadcrumb>
     </div>
 
-    <!-- 加载状态-->
-    <div v-if="assetLoading" class="loading-wrapper">
-      <el-skeleton :rows="8" animated />
-    </div>
-
-    <template v-else-if="asset">
+    <template v-if="asset">
       <!-- 区块 1: Asset Hero 卡片 -->
       <div class="quote-header-card card hero-card">
         <div class="asset-title">
@@ -93,7 +88,7 @@
       </div>
 
       <!-- 区块 2 & 3: K线图 + 分时图-->
-      <div class="chart-card card">
+      <div ref="chartSectionRef" class="chart-card card">
         <div class="card-header">
           <h3 class="card-title">走势图</h3>
           <div class="chart-type-tabs">
@@ -110,13 +105,16 @@
           </div>
         </div>
 
+        <div v-if="!shouldRenderCharts" class="chart-lazy-skeleton">
+          <el-skeleton :rows="6" animated />
+        </div>
         <KlineChart
-          v-if="chartType === 'kline'"
+          v-else-if="chartType === 'kline'"
           :assetId="Number(assetId)"
-          :limit="200"
+          :limit="150"
         />
         <IntradayChart
-          v-else-if="chartType === 'intraday'"
+          v-else
           :assetId="Number(assetId)"
         />
       </div>
@@ -262,6 +260,9 @@
         行情数据来源：Finnhub Finance，仅供学习参考，不构成投资建议。请自行承担投资决策风险。
       </div>
     </template>
+    <div v-else-if="assetLoading" class="hero-loading card">
+      <el-skeleton :rows="6" animated />
+    </div>
 
     <!-- 资产不存在-->
     <div v-else-if="!assetLoading" class="not-found">
@@ -274,20 +275,21 @@
 
 <script setup lang="ts">
 // @ts-nocheck
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, defineAsyncComponent, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { InfoFilled } from '@element-plus/icons-vue'
 import { get } from '@/api/index'
-import { getAssetQuote, getAssetContents } from '@/api/market'
+import { getAssetContents } from '@/api/market'
 import { createPost } from '@/api/posts'
 import { useAuthStore } from '@/stores/auth'
 import { useMarketStore } from '@/stores/market'
 import { useQuoteStream } from '@/composables/useQuoteStream'
-import KlineChart from '@/components/market/KlineChart.vue'
-import IntradayChart from '@/components/market/IntradayChart.vue'
 import type { AssetQuote } from '@/types/market'
 import type { Asset } from '@/types'
+
+const KlineChart = defineAsyncComponent(() => import('@/components/market/KlineChart.vue'))
+const IntradayChart = defineAsyncComponent(() => import('@/components/market/IntradayChart.vue'))
 
 // 扩展 Asset 类型以包含行情字段
 type AssetDetail = Asset & {
@@ -299,6 +301,10 @@ type AssetDetail = Asset & {
   logo_url?: string
   finnhub_symbol?: string
 }
+
+const ASSET_DETAIL_CACHE_TTL = 5 * 60 * 1000
+const assetDetailCache = new Map<string, { data: AssetDetail; fetchedAt: number }>()
+const assetDetailRequests = new Map<string, Promise<AssetDetail>>()
 
 const props = defineProps<{ assetId: string }>()
 const route = useRoute()
@@ -319,6 +325,9 @@ const quoteError = ref(false)
 
 // 图表类型
 const chartType = ref<'kline' | 'intraday'>('kline')
+const chartSectionRef = ref<HTMLElement | null>(null)
+const shouldRenderCharts = ref(false)
+let chartObserver: IntersectionObserver | null = null
 
 // 相关内容
 const relatedContents = ref<any[]>([])
@@ -337,6 +346,8 @@ const quickPosting = ref(false)
 const quoteStream = useQuoteStream(Number(assetId.value))
 const connectSSE = quoteStream.connect
 const disconnectSSE = quoteStream.disconnect
+let quoteStreamConnectTimer: ReturnType<typeof setTimeout> | null = null
+let quoteStreamConnectScheduled = false
 
 // 计算属性
 const marketLabel = computed(() => {
@@ -407,27 +418,117 @@ const formatDate = (str: string) => {
   return str.substring(0, 10)
 }
 
-// 加载资产基础信息
-const loadAsset = async () => {
+const getCachedAssetDetail = (id: string) => {
+  const cached = assetDetailCache.get(id)
+  if (!cached) return null
+  if (Date.now() - cached.fetchedAt >= ASSET_DETAIL_CACHE_TTL) return null
+  return cached.data
+}
+
+const fetchAssetDetail = async (id: string, forceRefresh = false) => {
+  if (!forceRefresh) {
+    const cached = getCachedAssetDetail(id)
+    if (cached) return cached
+  }
+
+  const inflight = assetDetailRequests.get(id)
+  if (inflight) return inflight
+
+  const request = get<AssetDetail>(`/assets/${id}/`)
+    .then((data) => {
+      assetDetailCache.set(id, { data, fetchedAt: Date.now() })
+      return data
+    })
+    .finally(() => {
+      assetDetailRequests.delete(id)
+    })
+
+  assetDetailRequests.set(id, request)
+  return request
+}
+
+const applyAssetData = (data: AssetDetail) => {
+  asset.value = data
+  document.title = `${data.code} - ${data.name} - 投研社区`
+
+  if (data.quote && !quote.value) {
+    quote.value = data.quote
+    marketStore.updateQuoteFromStream({ assetId: Number(assetId.value), ...data.quote })
+  }
+}
+
+const scheduleQuoteStreamConnect = () => {
+  if (quoteStreamConnectScheduled) return
+  quoteStreamConnectScheduled = true
+
+  const connect = () => {
+    quoteStreamConnectTimer = null
+    quoteStreamConnectScheduled = false
+    connectSSE()
+  }
+
+  if ('requestIdleCallback' in window) {
+    ;(window as any).requestIdleCallback(connect, { timeout: 1200 })
+    return
+  }
+
+  quoteStreamConnectTimer = window.setTimeout(connect, 150)
+}
+
+// 首屏并发加载：资产详情 + 行情
+const loadInitialData = async () => {
+  const currentAssetId = String(assetId.value)
+  const numericAssetId = Number(currentAssetId)
+  const cachedAsset = getCachedAssetDetail(currentAssetId)
+  const cachedQuote = marketStore.getCachedQuote(numericAssetId)
+
   assetLoading.value = true
+  quoteLoading.value = !cachedQuote
+  quoteError.value = false
+
+  if (cachedAsset) {
+    applyAssetData(cachedAsset)
+    assetLoading.value = false
+  }
+
+  if (cachedQuote) {
+    quote.value = cachedQuote
+  }
+
   try {
-    const data = await get<AssetDetail>(`/assets/${assetId.value}/`)
-    asset.value = data
-    // 设置页面标题
-    document.title = `${data.code} - ${data.name} - 投研社区`
-    // 如果资产详情里已有行情数据，直接使用
-    if (data.quote) {
-      quote.value = data.quote
-      // 同步到market store（供 watch 监听）并启动 SSE 实时推送
-      marketStore.updateQuoteFromStream({ assetId: Number(assetId.value), ...data.quote })
-      connectSSE()
-    } else {
-      loadQuote()
+    const [assetRes, quoteRes] = await Promise.allSettled([
+      fetchAssetDetail(currentAssetId),
+      marketStore.fetchQuote(numericAssetId)
+    ])
+
+    if (assetRes.status === 'fulfilled') {
+      applyAssetData(assetRes.value)
+    } else if (!cachedAsset) {
+      asset.value = null
+    }
+
+    // 行情接口结果优先（通常更实时）
+    if (quoteRes.status === 'fulfilled' && quoteRes.value) {
+      quote.value = quoteRes.value
+      quoteError.value = false
+      marketStore.updateQuoteFromStream(quoteRes.value)
+    } else if (!quote.value) {
+      quoteError.value = true
+    }
+
+    if (quote.value) {
+      scheduleQuoteStreamConnect()
     }
   } catch (e) {
-    asset.value = null
+    if (!cachedAsset) {
+      asset.value = null
+    }
+    if (!quote.value) {
+      quoteError.value = true
+    }
   } finally {
     assetLoading.value = false
+    quoteLoading.value = false
   }
 }
 
@@ -436,11 +537,14 @@ const loadQuote = async () => {
   quoteLoading.value = true
   quoteError.value = false
   try {
-    const data = await getAssetQuote(Number(assetId.value))
+    const data = await marketStore.fetchQuote(Number(assetId.value), true)
     quote.value = data
-    marketStore.updateQuoteFromStream(data)
-    // 启动 SSE 实时推送
-    connectSSE()
+    if (data) {
+      marketStore.updateQuoteFromStream(data)
+      scheduleQuoteStreamConnect()
+    } else {
+      quoteError.value = true
+    }
   } catch (e) {
     quoteError.value = true
     quote.value = null
@@ -471,6 +575,44 @@ const changeContentSort = (sort: 'new' | 'hot') => {
   contentSort.value = sort
   contentPage.value = 1
   loadContents()
+}
+
+const scheduleLoadContents = () => {
+  const loader = () => loadContents()
+  if ('requestIdleCallback' in window) {
+    ;(window as any).requestIdleCallback(loader, { timeout: 1500 })
+  } else {
+    window.setTimeout(loader, 250)
+  }
+}
+
+const initChartObserver = () => {
+  if (!chartSectionRef.value || shouldRenderCharts.value) return
+  if (typeof IntersectionObserver === 'undefined') {
+    shouldRenderCharts.value = true
+    return
+  }
+
+  chartObserver?.disconnect()
+  chartObserver = null
+
+  const rect = chartSectionRef.value.getBoundingClientRect()
+  if (rect.top <= window.innerHeight + 60) {
+    shouldRenderCharts.value = true
+    return
+  }
+
+  chartObserver = new IntersectionObserver(
+    (entries) => {
+      if (entries.some(entry => entry.isIntersecting)) {
+        shouldRenderCharts.value = true
+        chartObserver?.disconnect()
+        chartObserver = null
+      }
+    },
+    { rootMargin: '60px 0px' }
+  )
+  chartObserver.observe(chartSectionRef.value)
 }
 
 // 快速发帖
@@ -505,12 +647,31 @@ watch(
   }
 )
 
+watch(
+  () => [asset.value?.id, assetLoading.value],
+  async ([id, loading]) => {
+    if (!id || loading || shouldRenderCharts.value) return
+    await nextTick()
+    initChartObserver()
+  }
+)
+
 onMounted(() => {
-  loadAsset()
-  loadContents()
+  loadInitialData()
+  scheduleLoadContents()
+  nextTick(() => {
+    initChartObserver()
+  })
 })
 
 onUnmounted(() => {
+  chartObserver?.disconnect()
+  chartObserver = null
+  if (quoteStreamConnectTimer) {
+    clearTimeout(quoteStreamConnectTimer)
+    quoteStreamConnectTimer = null
+  }
+  quoteStreamConnectScheduled = false
   disconnectSSE()
 })
 </script>
@@ -692,6 +853,11 @@ onUnmounted(() => {
   padding: $market-space-6;
 }
 
+.chart-lazy-skeleton {
+  min-height: 360px;
+  padding-top: $market-space-3;
+}
+
 .chart-type-tabs {
   display: flex;
   gap: $market-space-2;
@@ -790,6 +956,9 @@ onUnmounted(() => {
 
 // 相关内容
 .contents-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 520px;
+
   .card-title {
     font-size: $market-font-h2;
     font-weight: 700;
@@ -933,6 +1102,9 @@ onUnmounted(() => {
 
 // 快速发帖
 .quick-post-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 280px;
+
   .card-title {
     font-size: $market-font-h2;
     font-weight: 700;
@@ -1001,6 +1173,10 @@ onUnmounted(() => {
 
 .loading-wrapper {
   padding: 2rem;
+}
+
+.hero-loading {
+  min-height: 220px;
 }
 
 .not-found {

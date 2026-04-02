@@ -406,11 +406,7 @@ import { getAssetsWithQuote } from '../api/market'
 import { getMyHoldings, getHoldingPerformance } from '../api/holdings'
 import type { HoldingPerformance, HoldingPerformanceItem } from '../types'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { use } from 'echarts/core'
-import { CanvasRenderer } from 'echarts/renderers'
-import { PieChart } from 'echarts/charts'
-import { TooltipComponent, LegendComponent, GraphicComponent } from 'echarts/components'
-import VChart from 'vue-echarts'
+import { createLazyChartComponent, loadPortfoliosChartComponent } from '@/utils/chart-loader'
 import {
   Plus,
   Star,
@@ -418,7 +414,7 @@ import {
   InfoFilled
 } from '@element-plus/icons-vue'
 
-use([CanvasRenderer, PieChart, TooltipComponent, LegendComponent, GraphicComponent])
+const VChart = createLazyChartComponent(loadPortfoliosChartComponent)
 
 // 扩展资产类型，包含持仓金额字段
 interface FormAsset extends PortfolioAsset {

@@ -32,6 +32,12 @@ const GroupDetail = () => import('../views/GroupDetail.vue')
 const GroupJoinRequests = () => import('../views/GroupJoinRequests.vue')
 const GroupInvites = () => import('../views/GroupInvites.vue')
 
+const routePreloaders: Record<string, () => void> = {
+  assetDetailCharts: () => {
+    void import('@/utils/preload').then(({ preloadAssetDetailCharts }) => preloadAssetDetailCharts())
+  }
+}
+
 const routes: RouteRecordRaw[] = [
   {
     path: '/login',
@@ -54,7 +60,7 @@ const routes: RouteRecordRaw[] = [
         path: '',
         name: 'Dashboard',
         component: Dashboard,
-        meta: { title: 'Dashboard' }
+        meta: { title: 'Dashboard', preload: 'assetDetailCharts' }
       },
       {
         path: '/search',
@@ -250,6 +256,11 @@ router.beforeEach(async (to, from, next) => {
   if (to.name === 'Login' && authStore.isLoggedIn) {
     next('/')
     return
+  }
+
+  const preloadKey = to.meta?.preload as string | undefined
+  if (preloadKey && routePreloaders[preloadKey]) {
+    routePreloaders[preloadKey]()
   }
   
   next()

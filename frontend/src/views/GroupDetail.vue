@@ -161,7 +161,7 @@
 </template>
 
 <script setup lang="ts">
-import dayjs from 'dayjs'
+import { dayjs } from '../utils/date'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'

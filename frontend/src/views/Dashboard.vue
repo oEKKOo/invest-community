@@ -43,7 +43,7 @@
               v-for="(item, idx) in displayedRankings"
               :key="item.assetId"
               class="rank-card"
-              @click="$router.push(`/assets/${item.assetId}`)"
+              @click="openAssetDetail(item.assetId)"
             >
               <div class="rank-card-top">
                 <span class="rank-num">#{{ idx + 1 }}</span>
@@ -86,9 +86,9 @@
               >{{ tab.label }}</button>
             </div>
           </div>
-          <div class="chart-area">
+          <div ref="marketChartSectionRef" class="chart-area">
             <v-chart
-              v-if="dashboardStore.dashboardData?.marketSeries?.length"
+              v-if="dashboardChartMounted && dashboardStore.dashboardData?.marketSeries?.length"
               class="echarts-chart"
               :option="chartOption"
               autoresize
@@ -237,7 +237,7 @@
                 v-for="asset in post.assets.slice(0, 4)"
                 :key="asset.id"
                 class="asset-chip"
-                @click.stop="$router.push(`/assets/${asset.id}`)"
+                  @click.stop="openAssetDetail(asset.id)"
               >
                 <span class="asset-chip-code">{{ asset.code }}</span>
                 <span v-if="asset.name" class="asset-chip-name">{{ asset.name }}</span>
@@ -395,7 +395,7 @@
               v-for="(asset, idx) in hotAssets"
               :key="asset.assetId"
               class="hot-asset-item"
-              @click="$router.push(`/assets/${asset.assetId}`)"
+              @click="openAssetDetail(asset.assetId)"
             >
               <span class="hot-rank-num" :class="idx < 3 ? 'hot-top3' : ''">{{ idx + 1 }}</span>
               <div class="hot-asset-info">
@@ -583,18 +583,14 @@
 
 <script setup lang="ts">
 // @ts-nocheck
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter } from 'vue-router'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useMarketStore } from '@/stores/market'
 import { usePortfoliosStore } from '@/stores/portfolios'
 import { useAuthStore } from '@/stores/auth'
 import { getPosts } from '@/api/posts'
 import { getAdminStats } from '@/api/admin'
-import { use } from 'echarts/core'
-import { CanvasRenderer } from 'echarts/renderers'
-import { LineChart } from 'echarts/charts'
-import { GridComponent, TooltipComponent } from 'echarts/components'
-import VChart from 'vue-echarts'
 import {
   InfoFilled,
   Star,
@@ -605,18 +601,21 @@ import {
   Lock,
   Setting
 } from '@element-plus/icons-vue'
-import dayjs from 'dayjs'
+import { dayjs } from '@/utils/date'
+import { preloadAssetDetailCharts } from '@/utils/preload'
+import { createLazyChartComponent, loadDashboardChartComponent } from '@/utils/chart-loader'
 import type { Post } from '@/types'
 import type { MarketRankingItem } from '@/types/market'
 import type { Portfolio } from '@/types'
 
-use([CanvasRenderer, LineChart, GridComponent, TooltipComponent])
+const VChart = createLazyChartComponent(loadDashboardChartComponent)
 
 // ==================== Stores ====================
 const dashboardStore = useDashboardStore()
 const marketStore = useMarketStore()
 const portfoliosStore = usePortfoliosStore()
 const authStore = useAuthStore()
+const router = useRouter()
 
 // ==================== Constants ====================
 const MEDALS = ['🥇', '🥈', '🥉']
@@ -641,6 +640,10 @@ const marketLoading = ref(false)
 const activeRankType = ref<'gainers' | 'losers' | 'active'>('gainers')
 const displayedRankings = ref<MarketRankingItem[]>([])
 const activeChartTab = ref('7d')
+const marketChartSectionRef = ref<HTMLElement | null>(null)
+const shouldLoadMarketChart = ref(false)
+const dashboardChartMounted = ref(false)
+let marketChartObserver: IntersectionObserver | null = null
 
 const fetchMarketRankings = async (type: string = activeRankType.value) => {
   marketLoading.value = true
@@ -658,6 +661,53 @@ const fetchMarketRankings = async (type: string = activeRankType.value) => {
 const switchRankType = async (type: string) => {
   activeRankType.value = type
   await fetchMarketRankings(type)
+}
+
+const openAssetDetail = (targetAssetId: number) => {
+  preloadAssetDetailCharts()
+  router.push(`/assets/${targetAssetId}`)
+}
+
+const initMarketChartObserver = () => {
+  if (!marketChartSectionRef.value || shouldLoadMarketChart.value) return
+
+  if (typeof IntersectionObserver === 'undefined') {
+    shouldLoadMarketChart.value = true
+    dashboardChartMounted.value = true
+    return
+  }
+
+  marketChartObserver?.disconnect()
+  marketChartObserver = null
+
+  const rect = marketChartSectionRef.value.getBoundingClientRect()
+  if (rect.top <= window.innerHeight + 80) {
+    shouldLoadMarketChart.value = true
+    dashboardChartMounted.value = true
+    return
+  }
+
+  marketChartObserver = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        shouldLoadMarketChart.value = true
+        dashboardChartMounted.value = true
+        marketChartObserver?.disconnect()
+        marketChartObserver = null
+      }
+    },
+    { rootMargin: '80px 0px' }
+  )
+  marketChartObserver.observe(marketChartSectionRef.value)
+}
+
+const scheduleMarketChartLoad = () => {
+  const trigger = () => initMarketChartObserver()
+  if ('requestIdleCallback' in window) {
+    ;(window as any).requestIdleCallback(trigger, { timeout: 1200 })
+  } else {
+    window.setTimeout(trigger, 120)
+  }
 }
 
 // ECharts 配置
@@ -821,10 +871,15 @@ const fetchTopPortfolios = async () => {
 // ============================================================
 const hotAssetsLoading = ref(false)
 const hotAssets = ref<MarketRankingItem[]>([])
+const secondaryDataLoaded = ref(false)
+const secondaryDataInflight = ref(false)
+const SECONDARY_CACHE_TTL = 60 * 1000
+let secondaryDataFetchedAt = 0
 
 const fetchHotAssets = async () => {
   hotAssetsLoading.value = true
   try {
+    // 优先使用已缓存榜单，避免重复请求
     const items = await marketStore.fetchRankings('active')
     hotAssets.value = items.slice(0, 8)
   } catch (e) {
@@ -941,15 +996,45 @@ const formatNumber = (n: number | string | null | undefined) => {
 // 生命周期
 // ============================================================
 onMounted(() => {
-  // 并行加载所有数据
+  // 首屏优先加载最小数据集
   Promise.allSettled([
     dashboardStore.fetchDashboardData(),
-    fetchMarketRankings(),
-    fetchFeed(),
-    fetchTopPortfolios(),
-    fetchHotAssets(),
-    fetchAdminStatsData()
+    fetchMarketRankings()
   ])
+
+  scheduleMarketChartLoad()
+
+  const loadSecondaryData = () => {
+    if (secondaryDataInflight.value) return
+    if (
+      secondaryDataLoaded.value &&
+      Date.now() - secondaryDataFetchedAt < SECONDARY_CACHE_TTL
+    ) {
+      return
+    }
+    secondaryDataInflight.value = true
+
+    Promise.allSettled([
+      fetchFeed(),
+      fetchTopPortfolios(),
+      fetchHotAssets(),
+      fetchAdminStatsData()
+    ]).finally(() => {
+      secondaryDataInflight.value = false
+      secondaryDataLoaded.value = true
+      secondaryDataFetchedAt = Date.now()
+    })
+  }
+  if ('requestIdleCallback' in window) {
+    ;(window as any).requestIdleCallback(loadSecondaryData, { timeout: 1500 })
+  } else {
+    window.setTimeout(loadSecondaryData, 250)
+  }
+})
+
+onBeforeUnmount(() => {
+  marketChartObserver?.disconnect()
+  marketChartObserver = null
 })
 </script>
 

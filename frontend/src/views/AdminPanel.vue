@@ -583,7 +583,7 @@ import {
   Close,
   InfoFilled
 } from '@element-plus/icons-vue'
-import dayjs from 'dayjs'
+import { dayjs } from '@/utils/date'
 
 // 状态
 const loading = ref(false)

@@ -92,18 +92,14 @@
             :key="asset.id"
             :to="{ name: 'AssetDetail', params: { assetId: asset.id } }"
             class="asset-chip-link"
+            @mouseenter="preloadAssetDetailCharts"
+            @mousedown="preloadAssetDetailCharts"
           >
             <el-tag
               size="default"
               :type="getAssetMarketType(asset.market)"
               class="asset-chip-tag"
             >
-              <el-icon style="margin-right:4px;">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6">
-                  <path d="M4 17 10 11 14 15 20 7" />
-                  <path d="M14 7h6v6" />
-                </svg>
-              </el-icon>
               {{ asset.code }} · {{ asset.name }}
               <span v-if="asset.market" class="market-suffix">({{ asset.market }})</span>
             </el-tag>
@@ -238,7 +234,6 @@
                       v-if="canEditOrDelete(comment)"
                       link
                       size="small"
-                      type="danger"
                       @click="handleDeleteComment(comment)"
                     >
                       删除
@@ -247,7 +242,6 @@
                       v-if="authStore.isLoggedIn"
                       link
                       size="small"
-                      type="danger"
                       @click="openReportDialog('COMMENT', comment.id, comment.body)"
                     >
                       举报
@@ -353,7 +347,6 @@
                         v-if="canEditOrDelete(reply)"
                         link
                         size="small"
-                        type="danger"
                         @click="handleDeleteComment(reply)"
                       >
                         删除
@@ -362,7 +355,6 @@
                         v-if="authStore.isLoggedIn"
                         link
                         size="small"
-                        type="danger"
                         @click="openReportDialog('COMMENT', reply.id, reply.body)"
                       >
                         举报
@@ -572,7 +564,8 @@ import {
   Star,
   Share
 } from '@element-plus/icons-vue'
-import dayjs from 'dayjs'
+import { dayjs } from '../utils/date'
+import { preloadAssetDetailCharts } from '../utils/preload'
 
 const route = useRoute()
 const postsStore = usePostsStore()

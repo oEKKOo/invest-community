@@ -60,7 +60,7 @@ src/
 - 权限控制
 
 ### 🏠 Dashboard
-- 市场情绪图表
+-  图表
 - 热门讨论展示
 - 顶级投资组合
 - 社区统计数据
@@ -155,6 +155,41 @@ VITE_APP_TITLE=InvestHub Community
 - 懒加载页面组件
 - 嵌套路由结构
 - 路由守卫验证
+
+### 首开性能优化（1s目标）
+
+- 路由级懒加载 + 首页到资产详情的按需预热（仅预热图表代码）
+- ECharts/lightweight-charts 统一异步加载，图表库 Promise 缓存，避免重复下载与注册
+- 图表实例单次初始化，切换仅更新数据，不重复 init
+- 行情榜单、K线、分时接口增加 in-flight 去重和短TTL缓存
+- Vite 构建启用 `gzip + brotli` 压缩，细化 `vendor` 与页面级分包
+
+### Nginx 静态资源缓存与压缩示例
+
+```nginx
+gzip on;
+gzip_vary on;
+gzip_min_length 10240;
+gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+
+brotli on;
+brotli_comp_level 6;
+brotli_types text/plain text/css application/javascript application/json image/svg+xml;
+
+location ~* \.(js|css|png|jpg|jpeg|gif|svg|woff2)$ {
+    expires 30d;
+    add_header Cache-Control "public, max-age=2592000, immutable";
+}
+```
+
+### 构建体积快照（2026-04-02）
+
+- `Dashboard` 页面 chunk：`24.44 kB`（gzip `7.92 kB`，br `6.73 kB`）
+- `AssetDetail` 页面 chunk：`14.84 kB`（gzip `5.93 kB`，br `5.00 kB`）
+- `vendor-lightweight-chart`：`190.88 kB`（gzip `59.23 kB`，br `51.32 kB`）
+- `vendor-echarts-dashboard`：`542.17 kB`（gzip `178.98 kB`，br `150.95 kB`）
+
+说明：ECharts 与 lightweight-charts 已从首屏主 bundle 中剥离，进入对应页面或触发预热后再加载。
 
 ## 🚀 部署
 

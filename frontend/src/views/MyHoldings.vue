@@ -421,18 +421,9 @@ import type { AssetWithQuote } from '@/api/market'
 import { getAssetsWithQuote } from '@/api/market'
 import { getMyHoldings, upsertHolding, updateHolding, deleteHolding, getHoldingPerformance, getHoldingReturnsHistory } from '@/api/holdings'
 import type { HoldingReturnsHistory } from '@/api/holdings'
-import { use } from 'echarts/core'
-import { CanvasRenderer } from 'echarts/renderers'
-import { LineChart } from 'echarts/charts'
-import {
-  GridComponent,
-  TooltipComponent,
-  LegendComponent,
-  MarkLineComponent,
-} from 'echarts/components'
-import VChart from 'vue-echarts'
+import { createLazyChartComponent, loadHoldingsChartComponent } from '@/utils/chart-loader'
 
-use([CanvasRenderer, LineChart, GridComponent, TooltipComponent, LegendComponent, MarkLineComponent])
+const VChart = createLazyChartComponent(loadHoldingsChartComponent)
 
 const router = useRouter()
 

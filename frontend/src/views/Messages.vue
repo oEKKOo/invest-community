@@ -105,7 +105,7 @@
 <script setup lang="ts">
 // @ts-nocheck
 import { onMounted, ref } from 'vue'
-import dayjs from 'dayjs'
+import { dayjs } from '@/utils/date'
 import { useMessagesStore } from '@/stores/messages'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage } from 'element-plus'

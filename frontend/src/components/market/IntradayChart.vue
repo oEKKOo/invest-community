@@ -14,7 +14,7 @@
     </div>
 
     <div class="chart-container" v-else-if="items.length > 0">
-      <v-chart class="intraday-echart" :option="chartOption" :autoresize="true" />
+      <div ref="chartRef" class="intraday-echart"></div>
     </div>
 
     <div class="chart-empty" v-else>
@@ -31,20 +31,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
-import VChart from 'vue-echarts'
-import { use } from 'echarts/core'
-import { LineChart, BarChart } from 'echarts/charts'
-import {
-  TooltipComponent,
-  GridComponent,
-  DataZoomComponent
-} from 'echarts/components'
-import { CanvasRenderer } from 'echarts/renderers'
+// @ts-nocheck
+import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { getAssetIntraday } from '../../api/market'
+import { loadLightweightCharts } from '@/utils/chart-loader'
 import type { IntradayItem } from '../../types/market'
-
-use([LineChart, BarChart, TooltipComponent, GridComponent, DataZoomComponent, CanvasRenderer])
 
 const props = defineProps<{
   assetId: number
@@ -54,111 +45,123 @@ const props = defineProps<{
 const items = ref<IntradayItem[]>([])
 const loading = ref(false)
 const error = ref(false)
+const chartRef = ref<HTMLDivElement | null>(null)
+let chart: ReturnType<typeof createChart> | null = null
+let resizeObserver: ResizeObserver | null = null
+let priceSeries: any = null
+let avgSeries: any = null
+let requestSeq = 0
+let lightweightCharts: Awaited<ReturnType<typeof loadLightweightCharts>> | null = null
 
-const chartOption = computed(() => {
-  const times = items.value.map(d => d.time)
-  const prices = items.value.map(d => d.price)
-  const avgPrices = items.value.map(d => d.avgPrice)
+const toUnixTime = (input: string) => Math.floor(new Date(input).getTime() / 1000)
 
-  // 判断涨跌
-  const firstPrice = prices[0] || 0
-  const lastPrice = prices[prices.length - 1] || firstPrice
+const ensureChart = async (lineColor: string) => {
+  if (chart || !chartRef.value) return
+  await nextTick()
+  if (!chartRef.value) return
+
+  lightweightCharts = lightweightCharts || await loadLightweightCharts()
+  chart = lightweightCharts.createChart(chartRef.value, {
+    layout: {
+      background: { type: lightweightCharts.ColorType.Solid, color: 'transparent' },
+      textColor: '#8e8e93'
+    },
+    grid: {
+      vertLines: { color: 'rgba(0,0,0,0.03)' },
+      horzLines: { color: 'rgba(0,0,0,0.03)' }
+    },
+    rightPriceScale: { borderColor: 'rgba(0,0,0,0.08)' },
+    timeScale: { borderColor: 'rgba(0,0,0,0.08)', timeVisible: true },
+    width: chartRef.value.clientWidth || 600,
+    height: 350
+  })
+
+  priceSeries = chart.addSeries(lightweightCharts.AreaSeries, {
+    lineColor,
+    topColor: lineColor === '#e85d5d' ? 'rgba(232,93,93,0.2)' : 'rgba(22,163,74,0.2)',
+    bottomColor: 'rgba(255,255,255,0)',
+    lineWidth: 2
+  })
+
+  avgSeries = chart.addSeries(lightweightCharts.LineSeries, {
+    color: '#3B82F6',
+    lineWidth: 1
+  })
+  resizeObserver = new ResizeObserver(() => {
+    if (chart && chartRef.value) {
+      chart.applyOptions({ width: chartRef.value.clientWidth || 600 })
+    }
+  })
+  resizeObserver.observe(chartRef.value)
+}
+
+const renderChart = async () => {
+  if (items.value.length === 0) return
+  const firstPrice = Number(items.value[0]?.price || 0)
+  const lastPrice = Number(items.value[items.value.length - 1]?.price || firstPrice)
   const lineColor = lastPrice >= firstPrice ? '#e85d5d' : '#16a34a'
 
-  return {
-    backgroundColor: 'transparent',
-    animation: false,
-    tooltip: {
-      trigger: 'axis',
-      backgroundColor: '#FFFFFF',
-      borderColor: 'rgba(0,0,0,0.08)',
-      borderWidth: 1,
-      borderRadius: 8,
-      padding: [8, 12],
-      textStyle: { color: '#1d1d1f', fontSize: 12, fontFamily: 'Inter, sans-serif' },
-      boxShadow: '0 4px 12px rgba(15, 23, 42, 0.08)',
-      formatter: (params: any[]) => {
-        if (!params?.length) return ''
-        const p = params[0]
-        const avg = items.value[p.dataIndex]?.avgPrice?.toFixed(2)
-        return `<div>
-          <div style="color:#1F2937;font-weight:600">${p.name}</div>
-          <div>价格：<span style="color:${lineColor};font-weight:600">${p.value?.toFixed(2)}</span></div>
-          ${avg ? `<div>均价：<span style="color:#3B82F6">${avg}</span></div>` : ''}
-        </div>`
-      }
-    },
-    grid: { left: '10%', right: '4%', top: '8%', bottom: '15%' },
-    xAxis: {
-      type: 'category',
-      data: times,
-      boundaryGap: false,
-      axisLine: { lineStyle: { color: 'rgba(0,0,0,0.05)' } },
-      axisTick: { show: false },
-      axisLabel: { color: '#8e8e93', fontSize: 11, interval: Math.floor(times.length / 6) },
-      splitLine: { show: false }
-    },
-    yAxis: {
-      scale: true,
-      axisLine: { show: false },
-      axisTick: { show: false },
-      axisLabel: { color: '#8e8e93', fontSize: 11 },
-      splitLine: { lineStyle: { color: 'rgba(0,0,0,0.03)', type: 'dashed' } }
-    },
-    dataZoom: [{
-      type: 'inside',
-      start: 0,
-      end: 100
-    }],
-    series: [
-      {
-        name: '价格',
-        type: 'line',
-        data: prices,
-        smooth: true,
-        lineStyle: { color: lineColor, width: 2 },
-        itemStyle: { color: lineColor },
-        areaStyle: {
-          color: {
-            type: 'linear',
-            x: 0, y: 0, x2: 0, y2: 1,
-            colorStops: [
-              { offset: 0, color: lineColor.replace(')', ', 0.3)').replace('rgb', 'rgba') },
-              { offset: 1, color: lineColor.replace(')', ', 0)').replace('rgb', 'rgba') }
-            ]
-          }
-        },
-        showSymbol: false
-      },
-      {
-        name: '均价',
-        type: 'line',
-        data: avgPrices,
-        smooth: true,
-        lineStyle: { color: '#3B82F6', width: 1, type: 'dashed' },
-        itemStyle: { color: '#3B82F6' },
-        showSymbol: false
-      }
-    ]
+  await ensureChart(lineColor)
+  if (!chart || !priceSeries || !avgSeries) return
+
+  // 根据涨跌更新主线颜色
+  priceSeries.applyOptions({
+    lineColor,
+    topColor: lineColor === '#e85d5d' ? 'rgba(232,93,93,0.2)' : 'rgba(22,163,74,0.2)'
+  })
+
+  const priceData = new Array(items.value.length)
+  const avgData = new Array(items.value.length)
+  for (let i = 0; i < items.value.length; i++) {
+    const item = items.value[i]
+    const time = toUnixTime(item.time)
+    const price = Number(item.price)
+    priceData[i] = { time, value: price }
+    avgData[i] = { time, value: Number(item.avgPrice || item.price) }
   }
-})
+
+  priceSeries.setData(priceData)
+  avgSeries.setData(avgData)
+  chart.timeScale().fitContent()
+}
 
 const fetchData = async () => {
+  const seq = ++requestSeq
   loading.value = true
   error.value = false
   try {
     const res = await getAssetIntraday(props.assetId, props.date ? { date: props.date } : undefined)
+    if (seq !== requestSeq) return
     items.value = res.items
   } catch (e) {
+    if (seq !== requestSeq) return
     error.value = true
     items.value = []
   } finally {
+    if (seq !== requestSeq) return
     loading.value = false
+    if (!error.value && items.value.length > 0) {
+      await nextTick()
+      await renderChart()
+    } else if (priceSeries && avgSeries) {
+      priceSeries.setData([])
+      avgSeries.setData([])
+    }
   }
 }
 
 watch(() => props.assetId, fetchData)
+watch(() => props.date, fetchData)
 onMounted(fetchData)
+
+onUnmounted(() => {
+  resizeObserver?.disconnect()
+  resizeObserver = null
+  chart?.remove()
+  priceSeries = null
+  avgSeries = null
+  chart = null
+})
 </script>
 
 <style lang="scss" scoped>

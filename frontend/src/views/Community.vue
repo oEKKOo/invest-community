@@ -267,6 +267,8 @@
               :to="{ name: 'AssetDetail', params: { assetId: asset.id } }"
               class="asset-link-tag"
               @click.stop
+              @mouseenter="preloadAssetDetailCharts"
+              @mousedown="preloadAssetDetailCharts"
             >
               <el-tag size="small" :type="getAssetMarketTagType(asset.market)" class="asset-tag">
                 {{ asset.code }}
@@ -354,9 +356,10 @@ import {
   StarFilled,
   Warning
 } from '@element-plus/icons-vue'
-import dayjs from 'dayjs'
+import { dayjs } from '@/utils/date'
 import AssetSelect from '@/components/market/AssetSelect.vue'
 import ReportDialog from '@/components/ReportDialog.vue'
+import { preloadAssetDetailCharts } from '@/utils/preload'
 
 const postsStore = usePostsStore()
 const authStore = useAuthStore()

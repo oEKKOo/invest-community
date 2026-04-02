@@ -39,12 +39,7 @@
 
     <!-- K线图 -->
     <div class="chart-container" v-else-if="klineData.length > 0">
-      <v-chart
-        ref="chartRef"
-        class="kline-echart"
-        :option="chartOption"
-        :autoresize="true"
-      />
+      <div ref="chartRef" class="kline-echart"></div>
     </div>
 
     <div class="chart-empty" v-else>
@@ -61,34 +56,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import VChart from 'vue-echarts'
-import { use } from 'echarts/core'
-import { CandlestickChart, BarChart, LineChart } from 'echarts/charts'
-import {
-  TitleComponent,
-  TooltipComponent,
-  GridComponent,
-  DataZoomComponent,
-  LegendComponent,
-  MarkLineComponent
-} from 'echarts/components'
-import { CanvasRenderer } from 'echarts/renderers'
+// @ts-nocheck
+import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { getAssetKline } from '../../api/market'
+import { loadLightweightCharts } from '@/utils/chart-loader'
 import type { AssetKlineItem } from '../../types/market'
 
-use([
-  CandlestickChart, BarChart, LineChart,
-  TitleComponent, TooltipComponent, GridComponent,
-  DataZoomComponent, LegendComponent, MarkLineComponent,
-  CanvasRenderer
-])
-
-const props = withDefaults(defineProps<{
+interface KlineChartProps {
   assetId: number
   interval?: '1d' | '60m' | '15m'
   limit?: number
-}>(), {
+}
+
+const props = withDefaults(defineProps<KlineChartProps>(), {
   interval: '1d',
   limit: 200
 })
@@ -98,8 +78,14 @@ const klineData = ref<AssetKlineItem[]>([])
 const loading = ref(false)
 const error = ref(false)
 const loadingTooLong = ref(false)
-const chartRef = ref()
+const chartRef = ref<HTMLDivElement | null>(null)
 let loadingTimer: ReturnType<typeof setTimeout> | null = null
+let resizeObserver: ResizeObserver | null = null
+let chart: ReturnType<typeof createChart> | null = null
+let candlesSeries: any = null
+let volumesSeries: any = null
+let requestSeq = 0
+let lightweightCharts: Awaited<ReturnType<typeof loadLightweightCharts>> | null = null
 
 const intervalTabs = [
   { label: '日K', value: '1d' },
@@ -107,177 +93,99 @@ const intervalTabs = [
   { label: '15m', value: '15m' }
 ]
 
-// 数字格式化
-const formatVol = (val: number) => {
-  if (val >= 1e8) return `${(val / 1e8).toFixed(2)}亿`
-  if (val >= 1e4) return `${(val / 1e4).toFixed(2)}万`
-  return String(val)
+const toUnixTime = (input: string) => {
+  return Math.floor(new Date(input).getTime() / 1000)
 }
 
-// ECharts 配置
-const chartOption = computed(() => {
-  const times = klineData.value.map(d => {
-    const t = new Date(d.time)
-    if (currentInterval.value === '1d') {
-      return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`
-    }
-    return `${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`
+const ensureChart = async () => {
+  if (chart || !chartRef.value) return
+  await nextTick()
+  if (!chartRef.value) return
+  lightweightCharts = lightweightCharts || await loadLightweightCharts()
+  chart = lightweightCharts.createChart(chartRef.value, {
+    layout: {
+      background: { type: lightweightCharts.ColorType.Solid, color: 'transparent' },
+      textColor: '#8e8e93'
+    },
+    grid: {
+      vertLines: { color: 'rgba(0,0,0,0.03)' },
+      horzLines: { color: 'rgba(0,0,0,0.03)' }
+    },
+    rightPriceScale: {
+      borderColor: 'rgba(0,0,0,0.08)'
+    },
+    timeScale: {
+      borderColor: 'rgba(0,0,0,0.08)',
+      timeVisible: currentInterval.value !== '1d'
+    },
+    width: chartRef.value.clientWidth || 600,
+    height: 450
   })
 
-  const ohlcv = klineData.value.map(d => [
-    parseFloat(String(d.open)),
-    parseFloat(String(d.close)),
-    parseFloat(String(d.low)),
-    parseFloat(String(d.high))
-  ])
+  candlesSeries = chart.addSeries(lightweightCharts.CandlestickSeries, {
+    upColor: '#e85d5d',
+    downColor: '#16a34a',
+    borderVisible: false,
+    wickUpColor: '#e85d5d',
+    wickDownColor: '#16a34a'
+  })
 
-  const volumes = klineData.value.map(d => d.volume || 0)
-  const upColors = klineData.value.map((d, i) =>
-    parseFloat(String(d.close)) >= parseFloat(String(d.open)) ? '#e85d5d' : '#16a34a'
-  )
+  volumesSeries = chart.addSeries(lightweightCharts.HistogramSeries, {
+    color: 'rgba(59,130,246,0.4)',
+    priceFormat: { type: 'volume' },
+    priceScaleId: ''
+  })
+  volumesSeries.priceScale().applyOptions({
+    scaleMargins: { top: 0.8, bottom: 0 }
+  })
 
-  return {
-    backgroundColor: 'transparent',
-    animation: false,
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'cross' },
-      backgroundColor: '#FFFFFF',
-      borderColor: 'rgba(0,0,0,0.08)',
-      borderWidth: 1,
-      borderRadius: 8,
-      padding: [8, 12],
-      textStyle: { color: '#1d1d1f', fontSize: 12, fontFamily: 'Inter, sans-serif' },
-      boxShadow: '0 4px 12px rgba(15, 23, 42, 0.08)',
-      formatter: (params: any[]) => {
-        if (!params || !params[0]) return ''
-        const d = klineData.value[params[0].dataIndex]
-        if (!d) return ''
-        const o = parseFloat(String(d.open)).toFixed(2)
-        const h = parseFloat(String(d.high)).toFixed(2)
-        const l = parseFloat(String(d.low)).toFixed(2)
-        const c = parseFloat(String(d.close)).toFixed(2)
-        const v = formatVol(d.volume || 0)
-        return `<div style="line-height:1.8">
-          <div style="color:#1F2937;font-weight:600">${params[0].name}</div>
-          <div>开：<span style="color:#3B82F6">${o}</span></div>
-          <div>高：<span style="color:#f56c6c">${h}</span></div>
-          <div>低：<span style="color:#67c23a">${l}</span></div>
-          <div>收：<span style="color:#1F2937;font-weight:600">${c}</span></div>
-          <div>量：<span style="color:#4B5563">${v}</span></div>
-        </div>`
-      }
-    },
-    axisPointer: {
-      link: [{ xAxisIndex: 'all' }]
-    },
-    grid: [
-      { left: '10%', right: '4%', top: '8%', height: '60%' },
-      { left: '10%', right: '4%', top: '70%', height: '20%' }
-    ],
-    xAxis: [
-      {
-        type: 'category',
-        data: times,
-        gridIndex: 0,
-        scale: true,
-        boundaryGap: false,
-        axisLine: { lineStyle: { color: 'rgba(0,0,0,0.05)' } },
-        axisTick: { show: false },
-        axisLabel: {
-          color: '#8e8e93',
-          fontSize: 11,
-          interval: Math.floor(times.length / 8)
-        },
-        splitLine: { show: false }
-      },
-      {
-        type: 'category',
-        data: times,
-        gridIndex: 1,
-        scale: true,
-        boundaryGap: false,
-        axisLine: { lineStyle: { color: 'rgba(0,0,0,0.05)' } },
-        axisTick: { show: false },
-        axisLabel: { show: false },
-        splitLine: { show: false }
-      }
-    ],
-    yAxis: [
-      {
-        scale: true,
-        gridIndex: 0,
-        splitNumber: 5,
-        axisLine: { show: false },
-        axisTick: { show: false },
-        axisLabel: { color: '#8e8e93', fontSize: 11 },
-        splitLine: { lineStyle: { color: 'rgba(0,0,0,0.03)', type: 'dashed' } }
-      },
-      {
-        scale: true,
-        gridIndex: 1,
-        splitNumber: 2,
-        axisLine: { show: false },
-        axisTick: { show: false },
-        axisLabel: {
-          color: '#8e8e93',
-          fontSize: 10,
-          formatter: (v: number) => formatVol(v)
-        },
-        splitLine: { show: false }
-      }
-    ],
-    dataZoom: [
-      {
-        type: 'inside',
-        xAxisIndex: [0, 1],
-        start: Math.max(0, 100 - Math.round(60 / klineData.value.length * 100)),
-        end: 100
-      },
-      {
-        type: 'slider',
-        xAxisIndex: [0, 1],
-        start: Math.max(0, 100 - Math.round(60 / klineData.value.length * 100)),
-        end: 100,
-        top: '93%',
-        height: 20,
-        borderColor: 'rgba(0,0,0,0.1)',
-        backgroundColor: 'rgba(0,0,0,0.03)',
-        fillerColor: 'rgba(29,78,216,0.1)',
-        handleStyle: { color: '#1D4ED8' },
-        textStyle: { color: '#6B7280' }
-      }
-    ],
-    series: [
-      {
-        name: 'K线',
-        type: 'candlestick',
-        xAxisIndex: 0,
-        yAxisIndex: 0,
-        data: ohlcv,
-        itemStyle: {
-          color: '#e85d5d',
-          color0: '#16a34a',
-          borderColor: '#e85d5d',
-          borderColor0: '#16a34a'
-        }
-      },
-      {
-        name: '成交量',
-        type: 'bar',
-        xAxisIndex: 1,
-        yAxisIndex: 1,
-        data: volumes,
-        itemStyle: {
-          color: (params: any) => upColors[params.dataIndex] || '#6B7280',
-          opacity: 0.7
-        }
-      }
-    ]
+  resizeObserver = new ResizeObserver(() => {
+    if (chart && chartRef.value) {
+      chart.applyOptions({ width: chartRef.value.clientWidth || 600 })
+    }
+  })
+  resizeObserver.observe(chartRef.value)
+}
+
+const renderChart = async () => {
+  if (klineData.value.length === 0) return
+  await ensureChart()
+  if (!chart || !candlesSeries || !volumesSeries) return
+
+  const candlesData = new Array(klineData.value.length)
+  const volumesData = new Array(klineData.value.length)
+  for (let i = 0; i < klineData.value.length; i++) {
+    const item = klineData.value[i]
+    const time = toUnixTime(item.time)
+    const open = Number(item.open)
+    const close = Number(item.close)
+    candlesData[i] = {
+      time,
+      open,
+      high: Number(item.high),
+      low: Number(item.low),
+      close
+    }
+    volumesData[i] = {
+      time,
+      value: Number(item.volume || 0),
+      color: close >= open ? 'rgba(232,93,93,0.45)' : 'rgba(22,163,74,0.45)'
+    }
   }
-})
+
+  chart.applyOptions({
+    timeScale: {
+      borderColor: 'rgba(0,0,0,0.08)',
+      timeVisible: currentInterval.value !== '1d'
+    }
+  })
+  candlesSeries.setData(candlesData)
+  volumesSeries.setData(volumesData)
+  chart.timeScale().fitContent()
+}
 
 const fetchKlineData = async () => {
+  const seq = ++requestSeq
   loading.value = true
   error.value = false
   loadingTooLong.value = false
@@ -292,13 +200,23 @@ const fetchKlineData = async () => {
       interval: currentInterval.value as any,
       limit: props.limit
     })
+    if (seq !== requestSeq) return
     klineData.value = res.items
   } catch (e) {
+    if (seq !== requestSeq) return
     error.value = true
     klineData.value = []
   } finally {
+    if (seq !== requestSeq) return
     loading.value = false
     if (loadingTimer) clearTimeout(loadingTimer)
+    if (!error.value && klineData.value.length > 0) {
+      await nextTick()
+      await renderChart()
+    } else if (candlesSeries && volumesSeries) {
+      candlesSeries.setData([])
+      volumesSeries.setData([])
+    }
   }
 }
 
@@ -311,12 +229,28 @@ watch(() => props.assetId, () => {
   fetchKlineData()
 })
 
+watch(
+  () => props.interval,
+  (nextInterval) => {
+    if (nextInterval && nextInterval !== currentInterval.value) {
+      currentInterval.value = nextInterval
+      fetchKlineData()
+    }
+  }
+)
+
 onMounted(() => {
   fetchKlineData()
 })
 
 onUnmounted(() => {
   if (loadingTimer) clearTimeout(loadingTimer)
+  resizeObserver?.disconnect()
+  resizeObserver = null
+  chart?.remove()
+  candlesSeries = null
+  volumesSeries = null
+  chart = null
 })
 </script>
 

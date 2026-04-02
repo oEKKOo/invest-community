@@ -58,6 +58,8 @@
             :key="item.assetId"
             :to="{ name: 'AssetDetail', params: { assetId: item.assetId } }"
             class="ranking-item"
+            @mouseenter="preloadAssetDetailCharts"
+            @mousedown="preloadAssetDetailCharts"
           >
             <span class="rank-badge" :class="getRankClass(item.rank)">{{ item.rank }}</span>
             <div class="asset-info">
@@ -99,6 +101,8 @@
             :key="item.assetId"
             :to="{ name: 'AssetDetail', params: { assetId: item.assetId } }"
             class="ranking-item"
+            @mouseenter="preloadAssetDetailCharts"
+            @mousedown="preloadAssetDetailCharts"
           >
             <span class="rank-badge" :class="getRankClass(item.rank)">{{ item.rank }}</span>
             <div class="asset-info">
@@ -140,6 +144,8 @@
             :key="item.assetId"
             :to="{ name: 'AssetDetail', params: { assetId: item.assetId } }"
             class="ranking-item"
+            @mouseenter="preloadAssetDetailCharts"
+            @mousedown="preloadAssetDetailCharts"
           >
             <span class="rank-badge" :class="getRankClass(item.rank)">{{ item.rank }}</span>
             <div class="asset-info">
@@ -168,6 +174,7 @@ import { ref, onMounted } from 'vue'
 import { InfoFilled } from '@element-plus/icons-vue'
 import { getMarketRankings } from '../api/market'
 import type { MarketRankingItem } from '../types/market'
+import { preloadAssetDetailCharts } from '../utils/preload'
 
 const selectedMarket = ref('')
 

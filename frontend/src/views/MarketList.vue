@@ -122,6 +122,8 @@
           :to="{ name: 'AssetDetail', params: { assetId: item.id } }"
           class="list-row"
           :class="getChangePctClass(item.changePct)"
+          @mouseenter="preloadAssetDetailCharts"
+          @mousedown="preloadAssetDetailCharts"
         >
           <div class="col-code">
             <span class="asset-code">{{ item.code }}</span>
@@ -175,6 +177,7 @@ import { ref, onMounted } from 'vue'
 import { InfoFilled } from '@element-plus/icons-vue'
 import { getAssetsWithQuote } from '../api/market'
 import type { AssetWithQuote } from '../api/market'
+import { preloadAssetDetailCharts } from '../utils/preload'
 
 const searchQ = ref('') 
 const filterMarket = ref('')

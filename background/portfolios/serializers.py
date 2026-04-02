@@ -137,6 +137,9 @@ class PortfolioListSerializer(serializers.ModelSerializer):
     def get_isLiked(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
+            liked_portfolio_ids = self.context.get('liked_portfolio_ids')
+            if liked_portfolio_ids is not None:
+                return obj.id in liked_portfolio_ids
             return Like.objects.filter(
                 user=request.user, target_type='PORTFOLIO', target_id=obj.id
             ).exists()
@@ -145,6 +148,9 @@ class PortfolioListSerializer(serializers.ModelSerializer):
     def get_isFavorited(self, obj):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
+            favorited_portfolio_ids = self.context.get('favorited_portfolio_ids')
+            if favorited_portfolio_ids is not None:
+                return obj.id in favorited_portfolio_ids
             return PortfolioFavorite.objects.filter(
                 user=request.user, portfolio_id=obj.id
             ).exists()

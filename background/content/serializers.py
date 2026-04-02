@@ -166,6 +166,9 @@ class ContentListSerializer(serializers.ModelSerializer):
     def get_isLiked(self, obj):
         user = self.context.get('request').user
         if user.is_authenticated:
+            liked_post_ids = self.context.get('liked_post_ids')
+            if liked_post_ids is not None:
+                return obj.id in liked_post_ids
             return Like.objects.filter(
                 user=user, target_type='POST', target_id=obj.id
             ).exists()
@@ -174,6 +177,9 @@ class ContentListSerializer(serializers.ModelSerializer):
     def get_isFavorited(self, obj):
         user = self.context.get('request').user
         if user.is_authenticated:
+            favorited_post_ids = self.context.get('favorited_post_ids')
+            if favorited_post_ids is not None:
+                return obj.id in favorited_post_ids
             return Favorite.objects.filter(user=user, content=obj).exists()
         return False
 

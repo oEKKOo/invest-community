@@ -1,18 +1,9 @@
 import axios from 'axios'
 import type { ApiResponse } from '../types'
-// Note: Import useAuthStore inside interceptors to avoid circular dependency
-// import { useAuthStore } from '@/stores/auth'
-import { ElMessage } from 'element-plus'
+import { notifyError } from '../utils/notify'
+import { getAccessToken, refreshAccessToken, clearAuthStorage } from './auth-token'
 
-const TOKEN_KEY = 'investhub_token'
-const REFRESH_TOKEN_KEY = 'investhub_refresh_token'
-const USER_KEY = 'investhub_user'
-
-const clearAuthStorage = () => {
-  localStorage.removeItem(TOKEN_KEY)
-  localStorage.removeItem(REFRESH_TOKEN_KEY)
-  localStorage.removeItem(USER_KEY)
-}
+let refreshingPromise: Promise<string> | null = null
 
 // 创建axios实例
 const api = axios.create({
@@ -26,8 +17,7 @@ const api = axios.create({
 // 请求拦截器 - 添加认证token
 api.interceptors.request.use(
   (config) => {
-    // 从localStorage获取token，避免循环依赖
-    const token = localStorage.getItem('investhub_token')
+    const token = getAccessToken()
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -45,7 +35,7 @@ api.interceptors.response.use(
     
     // API返回code !== 0表示业务错误
     if (data.code !== 0) {
-      ElMessage.error(data.message || '请求失败')
+      void notifyError(data.message || '请求失败')
       return Promise.reject(new Error(data.message || '请求失败'))
     }
     
@@ -55,32 +45,25 @@ api.interceptors.response.use(
     const { response } = error
     
     if (response?.status === 401) {
-      // token过期，尝试刷新
-      const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
-      if (refreshToken) {
-        try {
-          // 动态导入避免循环依赖
-          const { useAuthStore } = await import('../stores/auth')
-          const authStore = useAuthStore()
-          await authStore.refreshTokens()
-          // 重新发送原请求
-          return api.request(error.config)
-        } catch (refreshError) {
-          // 刷新失败，清除token并跳转登录
-          clearAuthStorage()
-          window.location.href = '/login'
-          return Promise.reject(refreshError)
+      try {
+        if (!refreshingPromise) {
+          refreshingPromise = refreshAccessToken().finally(() => {
+            refreshingPromise = null
+          })
         }
-      } else {
+        await refreshingPromise
+        return api.request(error.config)
+      } catch (refreshError) {
         clearAuthStorage()
         window.location.href = '/login'
+        return Promise.reject(refreshError)
       }
     } else if (response?.status >= 500) {
-      ElMessage.error('服务器错误，请稍后重试')
+      void notifyError('服务器错误，请稍后重试')
     } else if (response?.data?.message) {
-      ElMessage.error(response.data.message)
+      void notifyError(response.data.message)
     } else {
-      ElMessage.error('网络错误，请检查网络连接')
+      void notifyError('网络错误，请检查网络连接')
     }
     
     return Promise.reject(error)

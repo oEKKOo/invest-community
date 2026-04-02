@@ -8,6 +8,7 @@ from django.db.models import Q, F
 from django.db import transaction
 from django.utils import timezone
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 import os
 import re
 
@@ -1170,21 +1171,93 @@ def admin_board_detail(request, pk):
 def dashboard_overview(request):
     """Dashboard概览数据"""
     from portfolios.models import Portfolio
-    
-    # 热门帖子
-    trending_posts = Content.objects.filter(status='PUBLISHED').prefetch_related('boards', 'assets').order_by('-like_count', '-comment_count')[:10]
-    trending_serializer = ContentListSerializer(trending_posts, many=True, context={'request': request})
-    
-    # 热门组合
-    top_portfolios = Portfolio.objects.filter(is_public=True).order_by('-returns_ytd')[:5]
     from portfolios.serializers import PortfolioListSerializer
-    portfolio_serializer = PortfolioListSerializer(top_portfolios, many=True, context={'request': request})
+    from portfolios.models import PortfolioFavorite
+    from django.conf import settings
+    from django.db.models import Count
     
+    cache_ttl = int(getattr(settings, 'DASHBOARD_OVERVIEW_CACHE_TTL', 30))
+    user_key = request.user.id if request.user.is_authenticated else 'anon'
+    cache_key = f'dashboard:overview:v2:{user_key}'
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return Response({'code': 0, 'data': cached})
+
+    # 热门帖子（补充作者 select_related，避免 author 字段 N+1）
+    trending_posts = list(
+        Content.objects
+        .filter(status='PUBLISHED')
+        .select_related('author')
+        .prefetch_related('boards', 'assets', 'attachments', 'meta', 'poll__options')
+        .order_by('-like_count', '-comment_count')[:10]
+    )
+    trending_ids = [item.id for item in trending_posts]
+    liked_post_ids = set()
+    favorited_post_ids = set()
+    if request.user.is_authenticated and trending_ids:
+        liked_post_ids = set(
+            Like.objects.filter(
+                user=request.user, target_type='POST', target_id__in=trending_ids
+            ).values_list('target_id', flat=True)
+        )
+        favorited_post_ids = set(
+            Favorite.objects.filter(
+                user=request.user, content_id__in=trending_ids
+            ).values_list('content_id', flat=True)
+        )
+
+    trending_serializer = ContentListSerializer(
+        trending_posts,
+        many=True,
+        context={
+            'request': request,
+            'liked_post_ids': liked_post_ids,
+            'favorited_post_ids': favorited_post_ids,
+        }
+    )
+
+    # 热门组合（补充 owner / assets 预加载，避免序列化 N+1）
+    top_portfolios = list(
+        Portfolio.objects
+        .filter(is_public=True)
+        .select_related('owner')
+        .prefetch_related('assets', 'assets__asset')
+        .annotate(
+            favorites_count=Count('favorites', distinct=True),
+            asset_count=Count('assets', distinct=True),
+        )
+        .order_by('-returns_ytd')[:5]
+    )
+    portfolio_ids = [item.id for item in top_portfolios]
+    liked_portfolio_ids = set()
+    favorited_portfolio_ids = set()
+    if request.user.is_authenticated and portfolio_ids:
+        liked_portfolio_ids = set(
+            Like.objects.filter(
+                user=request.user, target_type='PORTFOLIO', target_id__in=portfolio_ids
+            ).values_list('target_id', flat=True)
+        )
+        favorited_portfolio_ids = set(
+            PortfolioFavorite.objects.filter(
+                user=request.user, portfolio_id__in=portfolio_ids
+            ).values_list('portfolio_id', flat=True)
+        )
+
+    portfolio_serializer = PortfolioListSerializer(
+        top_portfolios,
+        many=True,
+        context={
+            'request': request,
+            'liked_portfolio_ids': liked_portfolio_ids,
+            'favorited_portfolio_ids': favorited_portfolio_ids,
+        }
+    )
+
     # 社区统计
     active_investors_count = User.objects.filter(is_active=True).count()
     strategies_shared_count = Portfolio.objects.filter(is_public=True).count()
-    
-    # 模拟市场数据（实际项目中应该从真实数据源获取）
+
+    # 模拟市场数据（实际项目中可替换为真实行情）
     market_series = [
         {"name": "Mon", "value": 4200},
         {"name": "Tue", "value": 4150},
@@ -1192,19 +1265,18 @@ def dashboard_overview(request):
         {"name": "Thu", "value": 4250},
         {"name": "Fri", "value": 4400},
     ]
-    
-    return Response({
-        'code': 0,
-        'data': {
-            'marketSeries': market_series,
-            'trendingPosts': trending_serializer.data,
-            'topPortfolios': portfolio_serializer.data,
-            'communityStats': {
-                'activeInvestorsCount': active_investors_count,
-                'strategiesSharedCount': strategies_shared_count
-            }
+
+    data = {
+        'marketSeries': market_series,
+        'trendingPosts': trending_serializer.data,
+        'topPortfolios': portfolio_serializer.data,
+        'communityStats': {
+            'activeInvestorsCount': active_investors_count,
+            'strategiesSharedCount': strategies_shared_count
         }
-    })
+    }
+    cache.set(cache_key, data, cache_ttl)
+    return Response({'code': 0, 'data': data})
 
 
 @api_view(['GET'])

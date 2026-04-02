@@ -10,6 +10,15 @@ import type {
 } from '@/types/market'
 import type { PaginatedResponse } from '@/types'
 
+const KLINE_CACHE_TTL = 60 * 1000
+const INTRADAY_CACHE_TTL = 30 * 1000
+const klineCache = new Map<string, { data: AssetKlineData; fetchedAt: number }>()
+const klineInflight = new Map<string, Promise<AssetKlineData>>()
+const intradayCache = new Map<string, { data: IntradayData; fetchedAt: number }>()
+const intradayInflight = new Map<string, Promise<IntradayData>>()
+
+const isValidCache = (fetchedAt: number, ttl: number) => Date.now() - fetchedAt < ttl
+
 // =============================================
 // 行情接口
 // =============================================
@@ -28,7 +37,26 @@ export interface GetKlineParams {
 }
 
 export const getAssetKline = (assetId: number, params?: GetKlineParams): Promise<AssetKlineData> => {
-  return get(`/assets/${assetId}/kline/`, { params })
+  const cacheKey = `${assetId}:${params?.interval || '1d'}:${params?.limit || ''}:${params?.from || ''}:${params?.to || ''}`
+  const cached = klineCache.get(cacheKey)
+  if (cached && isValidCache(cached.fetchedAt, KLINE_CACHE_TTL)) {
+    return Promise.resolve(cached.data)
+  }
+
+  const inflight = klineInflight.get(cacheKey)
+  if (inflight) return inflight
+
+  const request = get<AssetKlineData>(`/assets/${assetId}/kline/`, { params })
+    .then((data) => {
+      klineCache.set(cacheKey, { data, fetchedAt: Date.now() })
+      return data
+    })
+    .finally(() => {
+      klineInflight.delete(cacheKey)
+    })
+
+  klineInflight.set(cacheKey, request)
+  return request
 }
 
 // 获取分时数据
@@ -46,7 +74,26 @@ export interface IntradayData {
 }
 
 export const getAssetIntraday = (assetId: number, params?: GetIntradayParams): Promise<IntradayData> => {
-  return get(`/assets/${assetId}/intraday/`, { params })
+  const cacheKey = `${assetId}:${params?.date || 'latest'}:${params?.interval || 'default'}`
+  const cached = intradayCache.get(cacheKey)
+  if (cached && isValidCache(cached.fetchedAt, INTRADAY_CACHE_TTL)) {
+    return Promise.resolve(cached.data)
+  }
+
+  const inflight = intradayInflight.get(cacheKey)
+  if (inflight) return inflight
+
+  const request = get<IntradayData>(`/assets/${assetId}/intraday/`, { params })
+    .then((data) => {
+      intradayCache.set(cacheKey, { data, fetchedAt: Date.now() })
+      return data
+    })
+    .finally(() => {
+      intradayInflight.delete(cacheKey)
+    })
+
+  intradayInflight.set(cacheKey, request)
+  return request
 }
 
 // 批量获取行情

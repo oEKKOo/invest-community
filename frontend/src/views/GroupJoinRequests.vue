@@ -49,7 +49,7 @@
 </template>
 
 <script setup lang="ts">
-import dayjs from 'dayjs'
+import { dayjs } from '../utils/date'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'

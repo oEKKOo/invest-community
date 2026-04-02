@@ -863,7 +863,7 @@ import {
   Checked
 } from '@element-plus/icons-vue'
 import ReportDialog from '@/components/ReportDialog.vue'
-import dayjs from 'dayjs'
+import { dayjs } from '@/utils/date'
 import { getMyLikes } from '@/api/likes'
 import { getMyFavorites, uploadContentAttachment } from '@/api/posts'
 import type { User } from '@/types'

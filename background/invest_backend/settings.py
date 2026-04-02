@@ -291,6 +291,14 @@ MARKET_DATA_SNAPSHOT_RETENTION_DAYS = int(os.environ.get('MARKET_DATA_SNAPSHOT_R
 # 建议：免费版 Finnhub Key 速率限制 60 次/分，TOP_N 不超过 30
 QUOTE_REFRESH_POPULAR_TOP_N = int(os.environ.get('QUOTE_REFRESH_POPULAR_TOP_N', 20))
 
+# 热点接口缓存（秒）
+# dashboard/overview：首页聚合数据
+# market/rankings：行情榜单（首页卡片/榜单页）
+# assets/{id}/kline：K线热点接口
+DASHBOARD_OVERVIEW_CACHE_TTL = int(os.environ.get('DASHBOARD_OVERVIEW_CACHE_TTL', 30))
+MARKET_RANKINGS_CACHE_TTL = int(os.environ.get('MARKET_RANKINGS_CACHE_TTL', 20))
+KLINE_API_CACHE_TTL = int(os.environ.get('KLINE_API_CACHE_TTL', 60))
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Tushare 行情数据接入配置（A 股：沪深京三市）
 # 规范：

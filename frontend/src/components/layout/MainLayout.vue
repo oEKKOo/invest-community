@@ -237,7 +237,7 @@
           <div class="notif-drawer-header">
             <h3>最新通知</h3>
             <el-button
-              v-if="notificationsStore.items.length"
+              v-if="notificationItems.length"
               type="text"
               size="small"
               @click="handleMarkAllRead"
@@ -246,16 +246,16 @@
             </el-button>
           </div>
 
-          <el-skeleton v-if="notificationsStore.loading" :rows="4" animated />
+          <el-skeleton v-if="notificationLoading" :rows="4" animated />
 
           <el-empty
-            v-else-if="!notificationsStore.items.length"
+            v-else-if="!notificationItems.length"
             description="暂时没有通知"
           />
 
           <div v-else class="notif-list">
             <div
-              v-for="item in notificationsStore.items"
+              v-for="item in notificationItems"
               :key="item.id"
               class="notif-item"
               :class="{ unread: !item.is_read }"
@@ -286,10 +286,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch, reactive } from 'vue'
+import { ref, computed, onBeforeUnmount, watch, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
-import { useNotificationsStore } from '../../stores/notifications'
 import { ElMessage } from 'element-plus'
 import {
   House,
@@ -301,13 +300,13 @@ import {
   Coin,
   ChatDotRound
 } from '@element-plus/icons-vue'
-import { globalSearch, type GlobalSearchResult } from '../../api/search'
-import { getNotificationsStreamUrl } from '../../api/notifications'
+import { preloadAssetDetailCharts } from '../../utils/preload'
+import type { GlobalSearchResult } from '../../api/search'
+import type { Notification } from '../../types'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
-const notificationsStore = useNotificationsStore()
 
 const searchQuery = ref('')
 const searchFocused = ref(false)
@@ -323,6 +322,69 @@ const searchResults = reactive<GlobalSearchResult>({
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 const notificationDrawerVisible = ref(false)
 let notificationEventSource: EventSource | null = null
+let notificationsBootstrapped = false
+let searchApiLoader: Promise<typeof import('../../api/search')> | null = null
+let notificationsApiLoader: Promise<typeof import('../../api/notifications')> | null = null
+const notificationsStreamPath = '/notifications/stream/'
+const notificationItems = ref<Notification[]>([])
+const notificationLoading = ref(false)
+
+const loadNotificationsApi = async () => {
+  if (!notificationsApiLoader) {
+    notificationsApiLoader = import('../../api/notifications')
+  }
+  return notificationsApiLoader
+}
+
+const loadSearchApi = async () => {
+  if (!searchApiLoader) {
+    searchApiLoader = import('../../api/search')
+  }
+  return searchApiLoader
+}
+
+const bootstrapNotifications = async () => {
+  if (notificationsBootstrapped || !authStore.isLoggedIn) return
+  notificationsBootstrapped = true
+  try {
+    // 首次打开通知时再拉数据，避免主布局首屏阻塞。
+    notificationLoading.value = true
+    const notificationsApi = await loadNotificationsApi()
+    const res = await notificationsApi.getNotifications({ page: 1, pageSize: 20 })
+    notificationItems.value = res.items
+  } catch {
+    // ignore
+  } finally {
+    notificationLoading.value = false
+  }
+
+  try {
+    // @ts-ignore
+    const base = (window.__VITE_API_BASE_URL__ as string | undefined) || '/api'
+    const url =
+      (base.startsWith('http') ? base : `${window.location.origin}${base}`) +
+      notificationsStreamPath +
+      `?token=${encodeURIComponent(localStorage.getItem('investhub_token') || '')}`
+
+    notificationEventSource = new EventSource(url)
+    notificationEventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (data && Array.isArray(data.items)) {
+          notificationItems.value = data.items
+        }
+      } catch {
+        // ignore
+      }
+    }
+    notificationEventSource.addEventListener('close', () => {
+      notificationEventSource?.close()
+      notificationEventSource = null
+    })
+  } catch {
+    // SSE 建立失败静默降级
+  }
+}
 
 const menuItems = computed(() => [
   { name: 'Dashboard', path: '/', label: '市场总览', icon: House },
@@ -368,7 +430,7 @@ const handleLogout = async () => {
   }
 }
 
-const unreadCountComputed = computed(() => notificationsStore.unreadCount)
+const unreadCountComputed = computed(() => notificationItems.value.filter((item) => !item.is_read).length)
 
 const toggleNotifications = async () => {
   if (!authStore.isLoggedIn) {
@@ -377,23 +439,42 @@ const toggleNotifications = async () => {
   }
   notificationDrawerVisible.value = !notificationDrawerVisible.value
   if (notificationDrawerVisible.value) {
-    await notificationsStore.fetchNotifications({ page: 1, pageSize: 20 })
+    await bootstrapNotifications()
+    if (!notificationItems.value.length) {
+      const notificationsApi = await loadNotificationsApi()
+      notificationLoading.value = true
+      try {
+        const res = await notificationsApi.getNotifications({ page: 1, pageSize: 20 })
+        notificationItems.value = res.items
+      } finally {
+        notificationLoading.value = false
+      }
+    }
   }
 }
 
 const handleMarkAllRead = async () => {
   try {
-    await notificationsStore.markAllRead()
+    const notificationsApi = await loadNotificationsApi()
+    await notificationsApi.markAllNotificationsRead()
+    notificationItems.value = notificationItems.value.map((item) => ({
+      ...item,
+      is_read: true,
+      read_at: item.read_at || new Date().toISOString()
+    }))
     ElMessage.success('已全部标记为已读')
   } catch (error) {
     ElMessage.error('操作失败')
   }
 }
 
-const handleNotificationClick = async (item: any) => {
+const handleNotificationClick = async (item: Notification) => {
   try {
     if (!item.is_read) {
-      await notificationsStore.markRead(item.id)
+      const notificationsApi = await loadNotificationsApi()
+      await notificationsApi.markNotificationRead(item.id)
+      item.is_read = true
+      item.read_at = item.read_at || new Date().toISOString()
     }
 
     // 根据关联对象类型跳转到对应页面
@@ -448,6 +529,7 @@ const fetchSearchSuggestions = async () => {
   }
   searchLoading.value = true
   try {
+    const { globalSearch } = await loadSearchApi()
     const data = await globalSearch({ q, type: 'all' })
     searchResults.posts = {
       items: data.posts.items.slice(0, 3),
@@ -516,52 +598,13 @@ const goPost = (id: number) => {
 }
 
 const goAsset = (id: number) => {
+  preloadAssetDetailCharts()
   router.push({ name: 'AssetDetail', params: { assetId: id } })
 }
 
 const goPortfolio = (id: number) => {
   router.push({ name: 'PortfolioDetail', params: { id } })
 }
-
-onMounted(async () => {
-  if (authStore.isLoggedIn) {
-    try {
-      await notificationsStore.fetchNotifications({ page: 1, pageSize: 10 })
-    } catch {
-      // 忽略通知加载错误，不影响主功能
-    }
-
-    // 建立通知 SSE 长连接
-    try {
-      // 尽量使用 window.__VITE_API_BASE_URL__ 全局变量作为后端接口基地址（在 main.ts 里注入或在 index.html/fallback 全局声明）
-      // 若未定义，则回退到 /api
-      // @ts-ignore
-      const base = (window.__VITE_API_BASE_URL__ as string | undefined) || '/api'
-      const url =
-        (base.startsWith('http') ? base : `${window.location.origin}${base}`) +
-        getNotificationsStreamUrl() +
-        `?token=${encodeURIComponent(localStorage.getItem('investhub_token') || '')}`
-
-      notificationEventSource = new EventSource(url)
-      notificationEventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data)
-          if (data && Array.isArray(data.items)) {
-            notificationsStore.applyStreamSnapshot(data)
-          }
-        } catch {
-          // 忽略解析错误
-        }
-      }
-      notificationEventSource.addEventListener('close', () => {
-        notificationEventSource?.close()
-        notificationEventSource = null
-      })
-    } catch {
-      // SSE 建立失败时静默降级为轮询模式
-    }
-  }
-})
 
 onBeforeUnmount(() => {
   if (notificationEventSource) {
@@ -574,36 +617,10 @@ watch(
   () => authStore.isLoggedIn,
   async (loggedIn) => {
     if (loggedIn) {
-      await notificationsStore.fetchNotifications({ page: 1, pageSize: 10 })
-      // 登录后再尝试建立 SSE 连接
-      if (!notificationEventSource) {
-        // 尽量使用 window.__VITE_API_BASE_URL__ 全局变量作为后端接口基地址（在 main.ts 里注入或在 index.html/fallback 全局声明）
-        // 若未定义，则回退到 /api
-        // @ts-ignore
-        const base = (window.__VITE_API_BASE_URL__ as string | undefined) || '/api'
-        const url =
-          (base.startsWith('http') ? base : `${window.location.origin}${base}`) +
-          getNotificationsStreamUrl() +
-          `?token=${encodeURIComponent(localStorage.getItem('investhub_token') || '')}`
-
-          notificationEventSource = new EventSource(url)
-          notificationEventSource.onmessage = (event) => {
-            try {
-              const data = JSON.parse(event.data)
-              if (data && Array.isArray(data.items)) {
-                notificationsStore.applyStreamSnapshot(data)
-              }
-            } catch {
-              // 忽略解析错误
-            }
-          }
-          notificationEventSource.addEventListener('close', () => {
-            notificationEventSource?.close()
-            notificationEventSource = null
-          })
-      }
+      notificationsBootstrapped = false
     } else {
-      notificationsStore.items = []
+      notificationItems.value = []
+      notificationsBootstrapped = false
       if (notificationEventSource) {
         notificationEventSource.close()
         notificationEventSource = null

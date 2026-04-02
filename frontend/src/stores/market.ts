@@ -4,15 +4,22 @@ import type { AssetQuote, MarketRankingItem, QuoteCacheEntry, BulkQuoteItem } fr
 import { getAssetQuote, getBulkQuotes, getMarketRankings } from '@/api/market'
 
 const CACHE_TTL = 60 * 1000 // 60秒缓存
+type RankingsCacheEntry = {
+  items: MarketRankingItem[]
+  fetchedAt: number
+}
 
 export const useMarketStore = defineStore('market', () => {
   // 行情缓存 Map<assetId, { data, fetchedAt }>
   const quoteCache = ref(new Map<number, QuoteCacheEntry>())
+  const quoteRequests = new Map<number, Promise<AssetQuote | null>>()
   
   // 榜单缓存
   const rankingList = ref<MarketRankingItem[]>([])
   const rankingFetchedAt = ref<number>(0)
   const rankingType = ref<string>('gainers')
+  const rankingsCache = ref(new Map<string, RankingsCacheEntry>())
+  const rankingRequests = new Map<string, Promise<MarketRankingItem[]>>()
 
   // =============================================
   // 辅助方法
@@ -47,15 +54,27 @@ export const useMarketStore = defineStore('market', () => {
       const cached = getCachedQuote(assetId)
       if (cached) return cached
     }
-    
-    try {
-      const data = await getAssetQuote(assetId)
-      setQuoteCache(assetId, data)
-      return data
-    } catch (error) {
-      console.error(`获取资产 ${assetId} 行情失败:`, error)
-      return null
+
+    const inflight = quoteRequests.get(assetId)
+    if (inflight) {
+      return inflight
     }
+    
+    const request = getAssetQuote(assetId)
+      .then((data) => {
+        setQuoteCache(assetId, data)
+        return data
+      })
+      .catch((error) => {
+        console.error(`获取资产 ${assetId} 行情失败:`, error)
+        return null
+      })
+      .finally(() => {
+        quoteRequests.delete(assetId)
+      })
+
+    quoteRequests.set(assetId, request)
+    return request
   }
 
   // 批量获取行情（带缓存）
@@ -122,12 +141,43 @@ export const useMarketStore = defineStore('market', () => {
 
   // 获取榜单（带缓存）
   const fetchRankings = async (type: string = 'gainers', market?: string): Promise<MarketRankingItem[]> => {
-    try {
-      const res = await getMarketRankings({ type: type as any, market: market as any, limit: 50 })
-      rankingList.value = res.items
-      rankingFetchedAt.value = Date.now()
+    const cacheKey = `${type}:${market || 'ALL'}`
+    const cached = rankingsCache.value.get(cacheKey)
+    if (cached && isCacheValid(cached.fetchedAt)) {
+      rankingList.value = cached.items
+      rankingFetchedAt.value = cached.fetchedAt
       rankingType.value = type
-      return res.items
+      return cached.items
+    }
+
+    const inflight = rankingRequests.get(cacheKey)
+    if (inflight) {
+      return inflight
+    }
+
+    const request = getMarketRankings({ type: type as any, market: market as any, limit: 50 })
+      .then((res) => {
+        rankingsCache.value.set(cacheKey, {
+          items: res.items,
+          fetchedAt: Date.now()
+        })
+        rankingList.value = res.items
+        rankingFetchedAt.value = Date.now()
+        rankingType.value = type
+        return res.items
+      })
+      .catch((error) => {
+        console.error('获取榜单失败:', error)
+        return []
+      })
+      .finally(() => {
+        rankingRequests.delete(cacheKey)
+      })
+
+    rankingRequests.set(cacheKey, request)
+
+    try {
+      return await request
     } catch (error) {
       console.error('获取榜单失败:', error)
       return []
