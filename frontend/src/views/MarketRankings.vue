@@ -164,7 +164,7 @@
     <!-- 免责声明 -->
     <div class="disclaimer">
       <el-icon><InfoFilled /></el-icon>
-      榜单数据来源：Finnhub Finance，每日收市后更新，仅供学习参考，不构成投资建议。
+      榜单数据来源：Tushare，每日收市后更新，仅供学习参考，不构成投资建议。
     </div>
   </div>
 </template>

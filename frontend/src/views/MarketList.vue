@@ -85,7 +85,7 @@
       <span class="summary-divider">·</span>
       <span class="summary-item">
         <span class="summary-label">数据来源：</span>
-        <span class="summary-value">Finnhub</span>
+        <span class="summary-value">Tushare</span>
       </span>
     </div>
 
@@ -167,7 +167,7 @@
     <!-- 免责声明 -->
     <div class="disclaimer">
       <el-icon><InfoFilled /></el-icon>
-      行情数据来源：Finnhub Finance，仅供学习研究，不构成投资建议。数据可能有延迟。
+      行情数据来源：Tushare，仅供学习研究，不构成投资建议。数据可能有延迟。
     </div>
   </div>
 </template>

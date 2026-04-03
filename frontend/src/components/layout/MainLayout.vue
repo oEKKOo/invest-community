@@ -39,7 +39,7 @@
 
       <!-- 免责声明 -->
       <div class="sidebar-disclaimer">
-        <p>数据来源：Finnhub Finance，仅供参考，不构成投资建议</p>
+        <p>数据来源：Tushare，仅供参考，不构成投资建议</p>
       </div>
 
       <div class="sidebar-footer">

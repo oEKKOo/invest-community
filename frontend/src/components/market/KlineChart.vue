@@ -13,7 +13,7 @@
           {{ tab.label }}
         </button>
       </div>
-      <span class="data-source-hint">数据来源：Finnhub</span>
+      <span class="data-source-hint">数据来源：Tushare</span>
     </div>
 
     <!-- 加载状态-->
@@ -47,7 +47,7 @@
         <template #description>
           <span class="empty-title">暂无历史K线数据</span>
           <span class="empty-sub">
-            历史K线需 Finnhub 高级套餐，实时行情请查看上方价格卡片
+            历史K线需 Tushare 高级套餐，实时行情请查看上方价格卡片
           </span>
         </template>
       </el-empty>

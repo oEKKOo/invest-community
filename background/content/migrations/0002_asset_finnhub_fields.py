@@ -17,7 +17,55 @@ class Migration(migrations.Migration):
     operations = [
         # ── 1. 已存在于数据库的字段：只更新 Django state，不执行 DDL ──────────
         migrations.SeparateDatabaseAndState(
-            database_operations=[],  # 数据库中已有，无需 DDL
+            database_operations=[
+                # 对全新库执行真实 DDL；已存在该字段的历史库通常已完成此迁移，不会重复执行
+                migrations.AddField(
+                    model_name='asset',
+                    name='status',
+                    field=models.CharField(
+                        choices=[('ACTIVE', '正常交易'), ('SUSPENDED', '停牌'), ('DELISTED', '退市')],
+                        default='ACTIVE', max_length=16, verbose_name='交易状态'
+                    ),
+                ),
+                migrations.AddField(
+                    model_name='asset',
+                    name='finnhub_symbol',
+                    field=models.CharField(
+                        max_length=32, null=True, blank=True, unique=True,
+                        verbose_name='Finnhub Symbol',
+                        help_text='调用 Finnhub API 使用的唯一标识，如 AAPL / 0700.HK'
+                    ),
+                ),
+                migrations.AddField(
+                    model_name='asset',
+                    name='exchange',
+                    field=models.CharField(
+                        blank=True, max_length=32, verbose_name='交易所（供应商侧）',
+                        help_text='Finnhub 返回的 exchange 字段'
+                    ),
+                ),
+                migrations.AddField(
+                    model_name='asset',
+                    name='currency',
+                    field=models.CharField(blank=True, max_length=8, verbose_name='币种',
+                                          help_text='如 CNY/USD/HKD'),
+                ),
+                migrations.AddField(
+                    model_name='asset',
+                    name='isin',
+                    field=models.CharField(blank=True, max_length=20, verbose_name='ISIN编码'),
+                ),
+                migrations.AddField(
+                    model_name='asset',
+                    name='meta_json',
+                    field=models.JSONField(blank=True, default=dict, verbose_name='扩展信息'),
+                ),
+                migrations.AddField(
+                    model_name='asset',
+                    name='last_sync_at',
+                    field=models.DateTimeField(blank=True, null=True, verbose_name='基础信息同步时间'),
+                ),
+            ],
             state_operations=[
                 # 更新 code 字段 state（去掉 unique=True）
                 migrations.AlterField(
@@ -103,10 +151,15 @@ class Migration(migrations.Migration):
             name='description',
             field=models.TextField(blank=True, verbose_name='公司简介'),
         ),
-        migrations.AddField(
-            model_name='asset',
-            name='updated_at',
-            field=models.DateTimeField(auto_now=True, verbose_name='更新时间'),
+        migrations.SeparateDatabaseAndState(
+            database_operations=[],
+            state_operations=[
+                migrations.AddField(
+                    model_name='asset',
+                    name='updated_at',
+                    field=models.DateTimeField(auto_now=True, verbose_name='更新时间'),
+                ),
+            ],
         ),
 
         # ── 3. unique_together 约束（更新 Django state，旧约束 uk_asset_type_code 已存在）

@@ -77,7 +77,7 @@
 
           <!-- 数据来源和时间-->
           <div class="quote-footer">
-            <span class="data-source">数据来源：Finnhub | 更新时间：{{ formatQuoteTime(quote.quoteTime) }}</span>
+            <span class="data-source">数据来源：Tushare | 更新时间：{{ formatQuoteTime(quote.quoteTime) }}</span>
           </div>
         </div>
 
@@ -257,7 +257,7 @@
       <!-- 免责声明 -->
       <div class="disclaimer">
         <el-icon><InfoFilled /></el-icon>
-        行情数据来源：Finnhub Finance，仅供学习参考，不构成投资建议。请自行承担投资决策风险。
+        行情数据来源：Tushare，仅供学习参考，不构成投资建议。请自行承担投资决策风险。
       </div>
     </template>
     <div v-else-if="assetLoading" class="hero-loading card">

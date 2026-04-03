@@ -117,7 +117,8 @@ WSGI_APPLICATION = 'invest_backend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'community_db',  # 修改为您创建的数据库名
+        # 可用环境变量 DJANGO_DB_NAME 指向临时库（例如种子校验 community_db_seed_check）
+        'NAME': os.environ.get('DJANGO_DB_NAME', 'community_db'),
         'USER': 'root',
         'PASSWORD': '123456',  # 请修改为您的MySQL密码
         'HOST': 'localhost',

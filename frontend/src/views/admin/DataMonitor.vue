@@ -13,7 +13,7 @@
       <div class="status-card card">
         <div class="status-icon">🔑</div>
         <div class="status-info">
-          <div class="status-label">Finnhub Key</div>
+          <div class="status-label">Tushare Token</div>
           <div class="status-value">
             <el-tag :type="status.finnhubKeyConfigured ? 'success' : 'danger'" size="small">
               {{ status.finnhubKeyConfigured ? '已配' : '未配' }}

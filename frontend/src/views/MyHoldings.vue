@@ -131,7 +131,10 @@
             <span class="meta-value mono">{{ returnsHistory.items[0].date }} - {{ returnsHistory.items[returnsHistory.items.length - 1].date }}</span>
           </span>
           <span class="meta-item">
-            <span class="meta-label">{{ returnsHistory.items.length }} 个交易日</span>
+            <span class="meta-label">
+              <span class="meta-value mono">{{ returnsHistory.items.length }}</span>
+              个交易日
+            </span>
           </span>
           <span
             class="meta-item meta-return"
@@ -967,7 +970,6 @@ onMounted(() => {
     font-size: 1.75rem; // 主焦点：总市值
     font-weight: 700;
     color: $apple-text-primary;
-    font-family: 'IBM Plex Mono', monospace;
     line-height: 1.2;
     white-space: nowrap; // 防止数字换行
     word-break: keep-all; // 保持数字完整
@@ -983,14 +985,12 @@ onMounted(() => {
   &__pnl {
     font-size: 1.5rem; // 主焦点：持有收益
     font-weight: 700;
-    font-family: 'IBM Plex Mono', monospace;
     line-height: 1.2;
     white-space: nowrap; // 防止收益数字换行
   }
 
   &__rate {
     font-size: 0.875rem; // 第二层：今日收益
-    font-family: 'IBM Plex Mono', monospace;
     font-weight: 500;
     white-space: nowrap;
   }
@@ -1078,12 +1078,10 @@ onMounted(() => {
 }
 
 .pnl-amount {
-  font-family: 'IBM Plex Mono', monospace;
   line-height: 1.3;
 }
 
 .pnl-rate {
-  font-family: 'IBM Plex Mono', monospace;
   line-height: 1.3;
 }
 
@@ -1128,7 +1126,6 @@ onMounted(() => {
   font-size: 1.5rem;
   font-weight: 700;
   color: $apple-text-primary;
-  font-family: 'IBM Plex Mono', monospace;
   line-height: 1.2;
 }
 
@@ -1218,7 +1215,6 @@ onMounted(() => {
 
 .asset-code {
   font-weight: 700;
-  font-family: 'IBM Plex Mono', monospace;
   color: $apple-accent;
   cursor: pointer;
   font-size: 13px; // 减小字体
@@ -1256,7 +1252,6 @@ onMounted(() => {
 }
 
 .mono-value {
-  font-family: 'IBM Plex Mono', monospace;
   font-size: 14px; // 减小字体，从16px改为14px
   white-space: nowrap; // 防止数字换行
   display: inline-block;
@@ -1296,7 +1291,6 @@ onMounted(() => {
 .time-text {
   font-size: $apple-font-mini;
   color: $apple-text-tertiary;
-  font-family: 'IBM Plex Mono', monospace;
 }
 
 // ---- 对话框----
@@ -1397,7 +1391,6 @@ onMounted(() => {
     font-size: $apple-font-body;
     font-weight: 600;
     color: $apple-accent;
-    font-family: 'IBM Plex Mono', monospace;
   }
 }
 
@@ -1417,7 +1410,6 @@ onMounted(() => {
 
   .opt-code {
     font-weight: 700;
-    font-family: 'IBM Plex Mono', monospace;
     min-width: 70px;
   }
 
@@ -1514,8 +1506,7 @@ onMounted(() => {
 
 .meta-value {
   color: $apple-text-secondary;
-  &.mono { 
-    font-family: 'IBM Plex Mono', monospace; 
+  &.mono {
   }
 }
 
@@ -1525,7 +1516,6 @@ onMounted(() => {
   font-family: $apple-font-family;
 
   strong {
-    font-family: 'IBM Plex Mono', monospace;
     font-size: 1.25rem; // 突出显示最新收益率
     font-weight: 700;
   }
@@ -1550,7 +1540,7 @@ onMounted(() => {
   font-family: $apple-font-family;
 }
 
-// 确保所有数字使用等宽字体
+// 确保本页中所有数字相关展示统一使用等宽字体
 .mono-value,
 .perf-metric__val,
 .perf-metric__pnl,
@@ -1559,7 +1549,12 @@ onMounted(() => {
 .asset-code,
 .pnl-amount,
 .pnl-rate,
-.cost-summary-value {
+.cost-summary-value,
+.meta-value,
+.time-text,
+.no-data-dash,
+.meta-return strong,
+.asset-option .opt-code {
   font-family: 'IBM Plex Mono', monospace;
 }
 </style>

@@ -71379,3 +71379,29 @@ INFO 2026-04-02 18:26:04,420 autoreload 33644 23800 Watching for file changes wi
 WARNING 2026-04-02 18:26:43,951 log 33644 35040 Unauthorized: /api/assets/
 INFO 2026-04-02 18:26:57,988 tushare_service 33644 25916 [Tushare] Pro API 初始化成功（Token 已配置）
 INFO 2026-04-02 18:26:57,989 tushare_service 33644 31172 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-04-03 13:05:46,588 tushare_service 28700 21240 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-04-03 13:05:48,748 tushare_service 28700 21240 [Tushare] get_stock_basic: 获取 5497 只 A 股
+INFO 2026-04-03 13:06:14,287 tushare_service 28700 21240 [Tushare] get_daily_klines_by_date: 20260331 获取 5482 条（全市场）
+INFO 2026-04-03 13:06:21,318 tushare_service 28700 21240 [Tushare] get_daily_klines_by_date: 20260401 获取 5485 条（全市场）
+INFO 2026-04-03 13:06:38,765 tushare_service 28700 21240 [Tushare] get_daily_klines_by_date: 20260402 获取 5485 条（全市场）
+INFO 2026-04-03 13:06:50,605 tushare_service 28700 21240 [Tushare] get_daily_klines_by_date: 20260402 获取 5485 条（全市场）
+INFO 2026-04-03 13:06:50,606 tushare_service 28700 21240 [Tushare] get_latest_daily_quotes_all: 取到 20260402 共 5485 条
+INFO 2026-04-03 13:07:38,990 autoreload 15812 23312 Watching for file changes with StatReloader
+WARNING 2026-04-03 13:08:48,285 log 15812 25036 Unauthorized: /api/dashboard/overview/
+WARNING 2026-04-03 13:08:48,286 log 15812 12316 Unauthorized: /api/market/rankings/
+INFO 2026-04-03 13:09:42,252 tushare_service 15812 4128 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-04-03 13:09:42,252 tushare_service 15812 29024 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-04-03 14:14:57,199 autoreload 15812 23312 D:\invest\background\invest_backend\settings.py changed, reloading.
+INFO 2026-04-03 14:14:58,624 autoreload 21372 30664 Watching for file changes with StatReloader
+WARNING 2026-04-03 14:17:18,402 log 21372 1372 Unauthorized: /api/portfolios/
+WARNING 2026-04-03 14:30:53,894 log 21372 30696 Not Found: /favicon.ico
+INFO 2026-04-03 15:04:33,562 autoreload 21372 30664 D:\invest\background\content\migrations\0002_asset_finnhub_fields.py changed, reloading.
+INFO 2026-04-03 15:04:34,619 autoreload 30112 8392 Watching for file changes with StatReloader
+INFO 2026-04-03 15:05:11,076 autoreload 30112 8392 D:\invest\background\content\migrations\0002_asset_finnhub_fields.py changed, reloading.
+INFO 2026-04-03 15:05:12,027 autoreload 32632 32688 Watching for file changes with StatReloader
+WARNING 2026-04-03 15:20:00,143 log 32632 21304 Unauthorized: /api/portfolios/
+INFO 2026-04-03 15:37:55,390 tushare_service 32632 30816 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-04-03 15:37:55,390 tushare_service 32632 25756 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-04-03 15:44:58,237 autoreload 28192 1372 Watching for file changes with StatReloader
+INFO 2026-04-03 16:09:40,721 tushare_service 28192 26740 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-04-03 16:09:40,722 tushare_service 28192 20432 [Tushare] Pro API 初始化成功（Token 已配置）

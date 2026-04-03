@@ -22,7 +22,7 @@
         <template #description>
           <span class="empty-title">暂无分时走势数据</span>
           <span class="empty-sub">
-            分时图需 Finnhub 高级套餐，实时行情请查看上方价格卡片
+            分时图需 Tushare 高级套餐，实时行情请查看上方价格卡片
           </span>
         </template>
       </el-empty>

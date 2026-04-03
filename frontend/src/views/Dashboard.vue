@@ -4,7 +4,7 @@
     <!-- ===== 免责声明===== -->
     <div class="disclaimer-bar">
       <el-icon><InfoFilled /></el-icon>
-      <span>行情数据来自 Finnhub Finance，仅供学习参考，不构成投资建议。</span>
+      <span>行情数据来自 Tushare，仅供学习参考，不构成投资建议。</span>
     </div>
 
     <!-- ============================================================ -->
@@ -98,7 +98,7 @@
             </div>
           </div>
           <div class="chart-data-source">
-            数据来源：Finnhub · S&P 500 指数概览
+            数据来源：Tushare · S&P 500 指数概览
           </div>
         </div>
       </div>
