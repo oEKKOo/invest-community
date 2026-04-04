@@ -71405,3 +71405,246 @@ INFO 2026-04-03 15:37:55,390 tushare_service 32632 25756 [Tushare] Pro API 初�
 INFO 2026-04-03 15:44:58,237 autoreload 28192 1372 Watching for file changes with StatReloader
 INFO 2026-04-03 16:09:40,721 tushare_service 28192 26740 [Tushare] Pro API 初始化成功（Token 已配置）
 INFO 2026-04-03 16:09:40,722 tushare_service 28192 20432 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-04-04 12:47:20,931 tushare_service 19260 19656 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-04-04 12:47:23,439 tushare_service 19260 19656 [Tushare] get_stock_basic: 获取 5497 只 A 股
+INFO 2026-04-04 12:47:45,811 tushare_service 19260 19656 [Tushare] get_daily_klines_by_date: 20260401 获取 5485 条（全市场）
+INFO 2026-04-04 12:47:52,885 tushare_service 19260 19656 [Tushare] get_daily_klines_by_date: 20260402 获取 5485 条（全市场）
+INFO 2026-04-04 12:47:59,143 tushare_service 19260 19656 [Tushare] get_daily_klines_by_date: 20260403 获取 5486 条（全市场）
+INFO 2026-04-04 12:48:06,784 tushare_service 19260 19656 [Tushare] get_daily_klines_by_date: 20260403 获取 5486 条（全市场）
+INFO 2026-04-04 12:48:06,784 tushare_service 19260 19656 [Tushare] get_latest_daily_quotes_all: 取到 20260403 共 5486 条
+INFO 2026-04-04 12:48:32,620 autoreload 13888 25148 Watching for file changes with StatReloader
+WARNING 2026-04-04 12:49:09,229 log 13888 2900 Unauthorized: /api/dashboard/overview/
+WARNING 2026-04-04 12:49:09,230 log 13888 27564 Unauthorized: /api/market/rankings/
+INFO 2026-04-04 12:49:29,253 tushare_service 13888 524 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-04-04 12:49:29,253 tushare_service 13888 27328 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-04-04 13:05:12,557 views 13888 28836 [intraday] A股 000014 暂不支持分钟线（Tushare 积分限制）
+INFO 2026-04-04 13:11:09,637 autoreload 13888 25148 D:\invest\background\invest_backend\settings.py changed, reloading.
+INFO 2026-04-04 13:11:10,675 autoreload 15132 1124 Watching for file changes with StatReloader
+INFO 2026-04-04 13:11:14,224 autoreload 15132 1124 D:\invest\background\invest_backend\urls.py changed, reloading.
+INFO 2026-04-04 13:11:15,131 autoreload 28496 23364 Watching for file changes with StatReloader
+INFO 2026-04-04 13:11:18,487 autoreload 28496 23364 D:\invest\background\market_data\views.py changed, reloading.
+INFO 2026-04-04 13:11:19,426 autoreload 21628 10724 Watching for file changes with StatReloader
+INFO 2026-04-04 13:11:27,394 autoreload 21628 10724 D:\invest\background\market_data\tasks.py changed, reloading.
+INFO 2026-04-04 13:11:28,398 autoreload 5008 19416 Watching for file changes with StatReloader
+INFO 2026-04-04 13:11:35,279 autoreload 5008 19416 D:\invest\background\market_data\tasks.py changed, reloading.
+INFO 2026-04-04 13:11:36,197 autoreload 28388 26468 Watching for file changes with StatReloader
+INFO 2026-04-04 13:11:38,393 autoreload 28388 26468 D:\invest\background\invest_backend\settings.py changed, reloading.
+INFO 2026-04-04 13:11:39,299 autoreload 17348 11200 Watching for file changes with StatReloader
+INFO 2026-04-04 13:13:32,133 autoreload 17348 11200 D:\invest\background\invest_backend\settings.py changed, reloading.
+INFO 2026-04-04 13:13:33,072 autoreload 3596 16032 Watching for file changes with StatReloader
+INFO 2026-04-04 13:14:47,814 autoreload 15592 29240 Watching for file changes with StatReloader
+INFO 2026-04-04 13:15:11,687 tushare_service 15592 14468 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-04-04 13:15:12,856 perf_timing 15592 14468 api_timing endpoint=get_or_refresh_quote duration_ms=3165.31 asset_id=551 code=000004 layer=L3
+INFO 2026-04-04 13:15:12,857 perf_timing 15592 14468 api_timing endpoint=asset_detail duration_ms=3179.44 path=/api/assets/551/
+INFO 2026-04-04 13:15:13,071 perf_timing 15592 13848 api_timing endpoint=asset_contents duration_ms=19.32 path=/api/assets/551/contents/
+INFO 2026-04-04 13:15:13,090 perf_timing 15592 8008 api_timing endpoint=asset_kline duration_ms=33.22 path=/api/assets/551/kline/
+INFO 2026-04-04 13:15:13,237 perf_timing 15592 6760 api_timing endpoint=get_or_refresh_quote duration_ms=0.27 asset_id=551 code=000004 layer=L1
+INFO 2026-04-04 13:15:18,241 perf_timing 15592 6760 api_timing endpoint=get_or_refresh_quote duration_ms=0.48 asset_id=551 code=000004 layer=L1
+INFO 2026-04-04 13:15:23,246 perf_timing 15592 6760 api_timing endpoint=get_or_refresh_quote duration_ms=0.13 asset_id=551 code=000004 layer=L1
+INFO 2026-04-04 13:15:28,247 perf_timing 15592 6760 api_timing endpoint=get_or_refresh_quote duration_ms=0.12 asset_id=551 code=000004 layer=L1
+INFO 2026-04-04 13:15:28,835 perf_timing 15592 7896 api_timing endpoint=get_or_refresh_quote duration_ms=1219.19 asset_id=566 code=000026 layer=L3
+INFO 2026-04-04 13:15:28,837 perf_timing 15592 7896 api_timing endpoint=asset_detail duration_ms=1226.21 path=/api/assets/566/
+INFO 2026-04-04 13:15:29,016 perf_timing 15592 2212 api_timing endpoint=asset_contents duration_ms=16.82 path=/api/assets/566/contents/
+INFO 2026-04-04 13:15:29,041 perf_timing 15592 9104 api_timing endpoint=asset_kline duration_ms=33.36 path=/api/assets/566/kline/
+INFO 2026-04-04 13:15:29,223 perf_timing 15592 10036 api_timing endpoint=get_or_refresh_quote duration_ms=0.21 asset_id=566 code=000026 layer=L1
+INFO 2026-04-04 13:15:33,250 perf_timing 15592 6760 api_timing endpoint=get_or_refresh_quote duration_ms=0.14 asset_id=551 code=000004 layer=L1
+INFO 2026-04-04 13:15:34,225 perf_timing 15592 10036 api_timing endpoint=get_or_refresh_quote duration_ms=0.09 asset_id=566 code=000026 layer=L1
+INFO 2026-04-04 13:15:39,226 perf_timing 15592 10036 api_timing endpoint=get_or_refresh_quote duration_ms=0.16 asset_id=566 code=000026 layer=L1
+INFO 2026-04-04 13:15:44,229 perf_timing 15592 10036 api_timing endpoint=get_or_refresh_quote duration_ms=0.16 asset_id=566 code=000026 layer=L1
+INFO 2026-04-04 13:15:44,427 perf_timing 15592 29288 api_timing endpoint=get_or_refresh_quote duration_ms=1160.52 asset_id=611 code=000301 layer=L3
+INFO 2026-04-04 13:15:44,428 perf_timing 15592 29288 api_timing endpoint=asset_detail duration_ms=1167.27 path=/api/assets/611/
+INFO 2026-04-04 13:15:44,639 perf_timing 15592 8744 api_timing endpoint=asset_kline duration_ms=29.87 path=/api/assets/611/kline/
+INFO 2026-04-04 13:15:44,640 perf_timing 15592 29224 api_timing endpoint=asset_contents duration_ms=33.84 path=/api/assets/611/contents/
+INFO 2026-04-04 13:15:44,809 perf_timing 15592 6600 api_timing endpoint=get_or_refresh_quote duration_ms=0.23 asset_id=611 code=000301 layer=L1
+INFO 2026-04-04 13:15:49,824 perf_timing 15592 6600 api_timing endpoint=get_or_refresh_quote duration_ms=0.19 asset_id=611 code=000301 layer=L1
+INFO 2026-04-04 13:15:54,826 perf_timing 15592 6600 api_timing endpoint=get_or_refresh_quote duration_ms=0.16 asset_id=611 code=000301 layer=L1
+INFO 2026-04-04 13:15:59,829 perf_timing 15592 6600 api_timing endpoint=get_or_refresh_quote duration_ms=0.14 asset_id=611 code=000301 layer=L1
+INFO 2026-04-04 13:16:04,831 perf_timing 15592 6600 api_timing endpoint=get_or_refresh_quote duration_ms=0.18 asset_id=611 code=000301 layer=L1
+INFO 2026-04-04 13:16:19,507 perf_timing 15592 28380 api_timing endpoint=get_or_refresh_quote duration_ms=1133.47 asset_id=567 code=000027 layer=L3
+INFO 2026-04-04 13:16:19,508 perf_timing 15592 28380 api_timing endpoint=asset_detail duration_ms=1142.09 path=/api/assets/567/
+INFO 2026-04-04 13:16:19,716 perf_timing 15592 27564 api_timing endpoint=asset_contents duration_ms=19.31 path=/api/assets/567/contents/
+INFO 2026-04-04 13:16:19,743 perf_timing 15592 28988 api_timing endpoint=asset_kline duration_ms=37.70 path=/api/assets/567/kline/
+INFO 2026-04-04 13:16:19,896 perf_timing 15592 3996 api_timing endpoint=get_or_refresh_quote duration_ms=0.21 asset_id=567 code=000027 layer=L1
+INFO 2026-04-04 13:16:24,900 perf_timing 15592 3996 api_timing endpoint=get_or_refresh_quote duration_ms=0.15 asset_id=567 code=000027 layer=L1
+INFO 2026-04-04 13:16:29,905 perf_timing 15592 3996 api_timing endpoint=get_or_refresh_quote duration_ms=0.21 asset_id=567 code=000027 layer=L1
+INFO 2026-04-04 13:16:34,907 perf_timing 15592 3996 api_timing endpoint=get_or_refresh_quote duration_ms=0.16 asset_id=567 code=000027 layer=L1
+INFO 2026-04-04 13:22:33,293 autoreload 15592 29240 D:\invest\background\market_data\views.py changed, reloading.
+INFO 2026-04-04 13:22:34,358 autoreload 29284 28832 Watching for file changes with StatReloader
+INFO 2026-04-04 13:22:48,680 perf_timing 29284 11620 api_timing endpoint=market_rankings duration_ms=3107.83 path=/api/market/rankings/
+INFO 2026-04-04 13:25:01,241 perf_timing 29284 24196 api_timing endpoint=market_rankings duration_ms=3168.12 path=/api/market/rankings/
+INFO 2026-04-04 13:25:01,350 perf_timing 29284 26408 api_timing endpoint=market_rankings duration_ms=3184.92 path=/api/market/rankings/
+INFO 2026-04-04 13:25:29,805 perf_timing 29284 19944 api_timing endpoint=market_rankings duration_ms=3406.27 path=/api/market/rankings/
+INFO 2026-04-04 13:25:38,676 perf_timing 29284 2212 api_timing endpoint=market_rankings duration_ms=3295.85 path=/api/market/rankings/
+INFO 2026-04-04 13:26:24,479 autoreload 29284 28832 D:\invest\background\market_data\models.py changed, reloading.
+INFO 2026-04-04 13:26:25,456 autoreload 28192 29588 Watching for file changes with StatReloader
+INFO 2026-04-04 13:28:27,115 autoreload 19944 27708 Watching for file changes with StatReloader
+INFO 2026-04-04 13:28:45,573 perf_timing 19944 29032 api_timing endpoint=market_rankings duration_ms=46.42 path=/api/market/rankings/
+INFO 2026-04-04 13:28:45,576 perf_timing 19944 28696 api_timing endpoint=market_rankings duration_ms=47.27 path=/api/market/rankings/
+INFO 2026-04-04 13:28:58,552 perf_timing 19944 28104 api_timing endpoint=market_rankings duration_ms=15.58 path=/api/market/rankings/
+INFO 2026-04-04 13:29:00,055 perf_timing 19944 29584 api_timing endpoint=market_rankings duration_ms=17.01 path=/api/market/rankings/
+INFO 2026-04-04 13:29:02,931 perf_timing 19944 4372 api_timing endpoint=market_rankings duration_ms=3.41 path=/api/market/rankings/
+INFO 2026-04-04 13:29:03,019 perf_timing 19944 2544 api_timing endpoint=market_rankings duration_ms=14.27 path=/api/market/rankings/
+INFO 2026-04-04 13:29:05,825 perf_timing 19944 28600 api_timing endpoint=market_rankings duration_ms=2.42 path=/api/market/rankings/
+INFO 2026-04-04 13:29:06,436 perf_timing 19944 27892 api_timing endpoint=market_rankings duration_ms=2.54 path=/api/market/rankings/
+INFO 2026-04-04 13:29:15,817 tushare_service 19944 28380 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-04-04 13:29:17,401 perf_timing 19944 28380 api_timing endpoint=get_or_refresh_quote duration_ms=3455.06 asset_id=30 code=000001 layer=L3
+INFO 2026-04-04 13:29:17,404 perf_timing 19944 28380 api_timing endpoint=asset_detail duration_ms=3463.71 path=/api/assets/30/
+INFO 2026-04-04 13:29:17,643 perf_timing 19944 20064 api_timing endpoint=asset_kline duration_ms=27.81 path=/api/assets/30/kline/
+INFO 2026-04-04 13:29:17,654 perf_timing 19944 28876 api_timing endpoint=asset_contents duration_ms=36.14 path=/api/assets/30/contents/
+INFO 2026-04-04 13:29:17,768 perf_timing 19944 9392 api_timing endpoint=get_or_refresh_quote duration_ms=0.29 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 13:29:22,774 perf_timing 19944 9392 api_timing endpoint=get_or_refresh_quote duration_ms=0.17 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 13:29:23,695 perf_timing 19944 4312 api_timing endpoint=get_or_refresh_quote duration_ms=1.78 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 13:29:23,696 perf_timing 19944 4312 api_timing endpoint=asset_detail duration_ms=8.75 path=/api/assets/30/
+INFO 2026-04-04 13:29:23,824 perf_timing 19944 22728 api_timing endpoint=asset_contents duration_ms=12.65 path=/api/assets/30/contents/
+INFO 2026-04-04 13:29:23,949 perf_timing 19944 20200 api_timing endpoint=get_or_refresh_quote duration_ms=0.18 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 13:29:23,960 perf_timing 19944 14452 api_timing endpoint=asset_kline duration_ms=5.48 path=/api/assets/30/kline/
+INFO 2026-04-04 13:29:27,776 perf_timing 19944 9392 api_timing endpoint=get_or_refresh_quote duration_ms=0.16 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 13:29:28,951 perf_timing 19944 20200 api_timing endpoint=get_or_refresh_quote duration_ms=0.15 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 13:29:33,953 perf_timing 19944 20200 api_timing endpoint=get_or_refresh_quote duration_ms=0.17 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 13:30:12,919 perf_timing 19944 12940 api_timing endpoint=get_or_refresh_quote duration_ms=1036.20 asset_id=42 code=GLD layer=L3
+INFO 2026-04-04 13:30:12,919 perf_timing 19944 12940 api_timing endpoint=asset_detail duration_ms=1042.77 path=/api/assets/42/
+INFO 2026-04-04 13:30:13,058 views 19944 4944 [kline] 数据库无 GLD [D] 数据，从 Finnhub 拉取
+INFO 2026-04-04 13:30:13,066 perf_timing 19944 23116 api_timing endpoint=asset_contents duration_ms=23.01 path=/api/assets/42/contents/
+INFO 2026-04-04 13:30:13,226 perf_timing 19944 29484 api_timing endpoint=get_or_refresh_quote duration_ms=0.18 asset_id=42 code=GLD layer=L1
+WARNING 2026-04-04 13:30:14,010 finnhub_service 19944 4944 [Finnhub] 无访问权限(403), endpoint=/stock/candle —— 免费版套餐限制，已标记端点后续跳过
+WARNING 2026-04-04 13:30:14,011 finnhub_service 19944 4944 [Finnhub] 端点已被标记为无权限（403），后续请求将跳过: /stock/candle
+INFO 2026-04-04 13:30:14,014 perf_timing 19944 4944 api_timing endpoint=asset_kline duration_ms=966.23 path=/api/assets/42/kline/
+INFO 2026-04-04 13:30:18,238 perf_timing 19944 29484 api_timing endpoint=get_or_refresh_quote duration_ms=0.17 asset_id=42 code=GLD layer=L1
+INFO 2026-04-04 13:30:23,241 perf_timing 19944 29484 api_timing endpoint=get_or_refresh_quote duration_ms=0.17 asset_id=42 code=GLD layer=L1
+INFO 2026-04-04 13:32:34,049 perf_timing 19944 14388 api_timing endpoint=market_rankings duration_ms=24.89 path=/api/market/rankings/
+INFO 2026-04-04 13:32:34,425 perf_timing 19944 6728 api_timing endpoint=market_rankings duration_ms=48.78 path=/api/market/rankings/
+INFO 2026-04-04 13:32:35,915 perf_timing 19944 16000 api_timing endpoint=market_rankings duration_ms=13.69 path=/api/market/rankings/
+INFO 2026-04-04 13:32:36,644 perf_timing 19944 15464 api_timing endpoint=market_rankings duration_ms=14.63 path=/api/market/rankings/
+INFO 2026-04-04 13:39:17,002 perf_timing 19944 28928 api_timing endpoint=market_rankings duration_ms=27.15 path=/api/market/rankings/
+INFO 2026-04-04 13:39:17,129 perf_timing 19944 7964 api_timing endpoint=market_rankings duration_ms=36.51 path=/api/market/rankings/
+INFO 2026-04-04 13:42:28,397 perf_timing 19944 14188 api_timing endpoint=market_rankings duration_ms=33.40 path=/api/market/rankings/
+INFO 2026-04-04 13:42:28,541 perf_timing 19944 21636 api_timing endpoint=market_rankings duration_ms=58.75 path=/api/market/rankings/
+INFO 2026-04-04 13:42:55,442 perf_timing 19944 31180 api_timing endpoint=market_rankings duration_ms=9.93 path=/api/market/rankings/
+INFO 2026-04-04 13:42:55,991 perf_timing 19944 28120 api_timing endpoint=market_rankings duration_ms=11.80 path=/api/market/rankings/
+INFO 2026-04-04 13:44:15,001 perf_timing 19944 20244 api_timing endpoint=market_rankings duration_ms=39.85 path=/api/market/rankings/
+INFO 2026-04-04 13:44:15,171 perf_timing 19944 28748 api_timing endpoint=market_rankings duration_ms=44.79 path=/api/market/rankings/
+INFO 2026-04-04 13:45:55,372 perf_timing 19944 28500 api_timing endpoint=market_rankings duration_ms=21.39 path=/api/market/rankings/
+INFO 2026-04-04 13:45:57,409 perf_timing 19944 4944 api_timing endpoint=market_rankings duration_ms=31.41 path=/api/market/rankings/
+INFO 2026-04-04 13:48:43,982 perf_timing 19944 22992 api_timing endpoint=market_rankings duration_ms=7.69 path=/api/market/rankings/
+INFO 2026-04-04 13:48:44,075 perf_timing 19944 28916 api_timing endpoint=market_rankings duration_ms=37.15 path=/api/market/rankings/
+WARNING 2026-04-04 13:49:58,418 log 19944 24116 Unauthorized: /api/dashboard/overview/
+WARNING 2026-04-04 13:49:58,436 log 19944 29808 Unauthorized: /api/posts/
+WARNING 2026-04-04 13:49:58,444 log 19944 18280 Unauthorized: /api/portfolios/top/
+WARNING 2026-04-04 13:49:58,457 log 19944 23900 Unauthorized: /api/market/rankings/
+WARNING 2026-04-04 13:49:58,468 log 19944 14016 Unauthorized: /api/market/rankings/
+INFO 2026-04-04 13:49:58,614 perf_timing 19944 14068 api_timing endpoint=market_rankings duration_ms=41.18 path=/api/market/rankings/
+INFO 2026-04-04 13:49:58,617 perf_timing 19944 13408 api_timing endpoint=market_rankings duration_ms=37.76 path=/api/market/rankings/
+INFO 2026-04-04 13:50:03,536 perf_timing 19944 31136 api_timing endpoint=market_rankings duration_ms=3.76 path=/api/market/rankings/
+INFO 2026-04-04 13:50:03,802 perf_timing 19944 30784 api_timing endpoint=market_rankings duration_ms=22.17 path=/api/market/rankings/
+INFO 2026-04-04 13:50:08,456 perf_timing 19944 2900 api_timing endpoint=market_rankings duration_ms=15.35 path=/api/market/rankings/
+INFO 2026-04-04 13:50:08,460 perf_timing 19944 18872 api_timing endpoint=market_rankings duration_ms=17.94 path=/api/market/rankings/
+INFO 2026-04-04 13:52:27,590 autoreload 23600 26684 Watching for file changes with StatReloader
+INFO 2026-04-04 13:52:43,110 perf_timing 23600 27480 api_timing endpoint=market_rankings duration_ms=64.88 path=/api/market/rankings/
+INFO 2026-04-04 13:52:43,180 perf_timing 23600 26464 api_timing endpoint=market_rankings duration_ms=117.00 path=/api/market/rankings/
+INFO 2026-04-04 13:52:43,220 perf_timing 23600 8484 api_timing endpoint=market_rankings duration_ms=182.84 path=/api/market/rankings/
+INFO 2026-04-04 13:52:43,263 perf_timing 23600 23884 api_timing endpoint=market_rankings duration_ms=80.31 path=/api/market/rankings/
+INFO 2026-04-04 13:53:04,632 perf_timing 23600 31344 api_timing endpoint=market_rankings duration_ms=12.51 path=/api/market/rankings/
+INFO 2026-04-04 13:53:04,961 perf_timing 23600 30820 api_timing endpoint=market_rankings duration_ms=30.15 path=/api/market/rankings/
+INFO 2026-04-04 13:53:25,715 perf_timing 23600 26548 api_timing endpoint=market_rankings duration_ms=27.62 path=/api/market/rankings/
+INFO 2026-04-04 13:53:25,828 perf_timing 23600 30992 api_timing endpoint=market_rankings duration_ms=82.40 path=/api/market/rankings/
+INFO 2026-04-04 13:55:11,587 perf_timing 23600 13964 api_timing endpoint=market_rankings duration_ms=34.98 path=/api/market/rankings/
+INFO 2026-04-04 13:55:11,691 perf_timing 23600 26580 api_timing endpoint=market_rankings duration_ms=31.91 path=/api/market/rankings/
+INFO 2026-04-04 14:01:32,598 autoreload 23600 26684 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-04 14:01:33,744 autoreload 17716 13848 Watching for file changes with StatReloader
+INFO 2026-04-04 14:01:39,434 autoreload 17716 13848 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-04 14:01:40,456 autoreload 12228 16844 Watching for file changes with StatReloader
+INFO 2026-04-04 14:01:44,006 autoreload 12228 16844 D:\invest\background\reports\views.py changed, reloading.
+INFO 2026-04-04 14:01:45,060 autoreload 14892 20436 Watching for file changes with StatReloader
+INFO 2026-04-04 14:01:51,285 autoreload 14892 20436 D:\invest\background\reports\views.py changed, reloading.
+INFO 2026-04-04 14:01:52,379 autoreload 26580 524 Watching for file changes with StatReloader
+INFO 2026-04-04 14:03:30,394 autoreload 27248 5320 Watching for file changes with StatReloader
+INFO 2026-04-04 14:03:44,256 perf_timing 27248 27076 api_timing endpoint=market_rankings duration_ms=69.18 path=/api/market/rankings/
+INFO 2026-04-04 14:03:45,140 perf_timing 27248 31312 api_timing endpoint=market_rankings duration_ms=148.77 path=/api/market/rankings/
+INFO 2026-04-04 14:03:51,218 tushare_service 27248 29204 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-04-04 14:03:54,251 perf_timing 27248 29204 api_timing endpoint=get_or_refresh_quote duration_ms=5416.50 asset_id=30 code=000001 layer=L3
+INFO 2026-04-04 14:03:54,252 perf_timing 27248 29204 api_timing endpoint=asset_detail duration_ms=5425.59 path=/api/assets/30/
+INFO 2026-04-04 14:03:54,469 perf_timing 27248 27728 api_timing endpoint=asset_kline duration_ms=34.88 path=/api/assets/30/kline/
+INFO 2026-04-04 14:03:54,480 perf_timing 27248 31460 api_timing endpoint=asset_contents duration_ms=40.26 path=/api/assets/30/contents/
+INFO 2026-04-04 14:03:54,668 perf_timing 27248 26796 api_timing endpoint=get_or_refresh_quote duration_ms=0.16 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:03:59,057 perf_timing 27248 31396 api_timing endpoint=get_or_refresh_quote duration_ms=1149.22 asset_id=551 code=000004 layer=L3
+INFO 2026-04-04 14:03:59,058 perf_timing 27248 31396 api_timing endpoint=asset_detail duration_ms=1155.80 path=/api/assets/551/
+INFO 2026-04-04 14:03:59,222 perf_timing 27248 14080 api_timing endpoint=asset_kline duration_ms=29.00 path=/api/assets/551/kline/
+INFO 2026-04-04 14:03:59,240 perf_timing 27248 22516 api_timing endpoint=asset_contents duration_ms=30.91 path=/api/assets/551/contents/
+INFO 2026-04-04 14:03:59,303 perf_timing 27248 11940 api_timing endpoint=get_or_refresh_quote duration_ms=0.17 asset_id=551 code=000004 layer=L1
+INFO 2026-04-04 14:03:59,671 perf_timing 27248 26796 api_timing endpoint=get_or_refresh_quote duration_ms=0.20 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:04:04,346 perf_timing 27248 11940 api_timing endpoint=get_or_refresh_quote duration_ms=0.19 asset_id=551 code=000004 layer=L1
+INFO 2026-04-04 14:04:04,673 perf_timing 27248 26796 api_timing endpoint=get_or_refresh_quote duration_ms=0.14 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:04:05,647 perf_timing 27248 28692 api_timing endpoint=get_or_refresh_quote duration_ms=1151.49 asset_id=558 code=000012 layer=L3
+INFO 2026-04-04 14:04:05,647 perf_timing 27248 28692 api_timing endpoint=asset_detail duration_ms=1158.88 path=/api/assets/558/
+INFO 2026-04-04 14:04:05,819 perf_timing 27248 13632 api_timing endpoint=asset_contents duration_ms=22.00 path=/api/assets/558/contents/
+INFO 2026-04-04 14:04:05,843 perf_timing 27248 29316 api_timing endpoint=asset_kline duration_ms=39.36 path=/api/assets/558/kline/
+INFO 2026-04-04 14:04:05,955 perf_timing 27248 10300 api_timing endpoint=get_or_refresh_quote duration_ms=0.17 asset_id=558 code=000012 layer=L1
+INFO 2026-04-04 14:04:09,350 perf_timing 27248 11940 api_timing endpoint=get_or_refresh_quote duration_ms=0.16 asset_id=551 code=000004 layer=L1
+INFO 2026-04-04 14:04:10,958 perf_timing 27248 10300 api_timing endpoint=get_or_refresh_quote duration_ms=0.08 asset_id=558 code=000012 layer=L1
+INFO 2026-04-04 14:04:15,959 perf_timing 27248 10300 api_timing endpoint=get_or_refresh_quote duration_ms=0.35 asset_id=558 code=000012 layer=L1
+INFO 2026-04-04 14:13:55,349 perf_timing 27248 27788 api_timing endpoint=market_rankings duration_ms=19.01 path=/api/market/rankings/
+INFO 2026-04-04 14:13:55,778 perf_timing 27248 13620 api_timing endpoint=market_rankings duration_ms=51.13 path=/api/market/rankings/
+INFO 2026-04-04 14:13:58,192 perf_timing 27248 12248 api_timing endpoint=market_rankings duration_ms=11.66 path=/api/market/rankings/
+INFO 2026-04-04 14:13:58,606 perf_timing 27248 12320 api_timing endpoint=market_rankings duration_ms=13.79 path=/api/market/rankings/
+INFO 2026-04-04 14:28:27,859 perf_timing 27248 26208 api_timing endpoint=market_rankings duration_ms=22.68 path=/api/market/rankings/
+INFO 2026-04-04 14:28:28,025 perf_timing 27248 31460 api_timing endpoint=market_rankings duration_ms=47.62 path=/api/market/rankings/
+INFO 2026-04-04 14:29:54,299 perf_timing 27248 31544 api_timing endpoint=get_or_refresh_quote duration_ms=1515.65 asset_id=30 code=000001 layer=L3
+INFO 2026-04-04 14:29:54,300 perf_timing 27248 31544 api_timing endpoint=asset_detail duration_ms=1522.94 path=/api/assets/30/
+INFO 2026-04-04 14:29:54,590 perf_timing 27248 23408 api_timing endpoint=asset_contents duration_ms=18.16 path=/api/assets/30/contents/
+INFO 2026-04-04 14:29:54,607 perf_timing 27248 21696 api_timing endpoint=asset_kline duration_ms=27.05 path=/api/assets/30/kline/
+INFO 2026-04-04 14:29:54,731 perf_timing 27248 26804 api_timing endpoint=get_or_refresh_quote duration_ms=0.28 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:29:59,740 perf_timing 27248 26804 api_timing endpoint=get_or_refresh_quote duration_ms=0.14 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:30:04,741 perf_timing 27248 26804 api_timing endpoint=get_or_refresh_quote duration_ms=0.12 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:30:05,784 perf_timing 27248 12492 api_timing endpoint=asset_contents duration_ms=11.55 path=/api/assets/30/contents/
+INFO 2026-04-04 14:30:06,517 perf_timing 27248 31592 api_timing endpoint=asset_contents duration_ms=13.31 path=/api/assets/30/contents/
+INFO 2026-04-04 14:30:09,745 perf_timing 27248 26804 api_timing endpoint=get_or_refresh_quote duration_ms=0.09 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:30:14,746 perf_timing 27248 26804 api_timing endpoint=get_or_refresh_quote duration_ms=0.19 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:30:19,748 perf_timing 27248 26804 api_timing endpoint=get_or_refresh_quote duration_ms=0.20 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:30:24,749 perf_timing 27248 26804 api_timing endpoint=get_or_refresh_quote duration_ms=0.13 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:30:29,751 perf_timing 27248 26804 api_timing endpoint=get_or_refresh_quote duration_ms=0.16 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:35:21,428 perf_timing 27248 31464 api_timing endpoint=market_rankings duration_ms=20.86 path=/api/market/rankings/
+INFO 2026-04-04 14:35:21,541 perf_timing 27248 12964 api_timing endpoint=market_rankings duration_ms=33.09 path=/api/market/rankings/
+INFO 2026-04-04 14:35:30,036 perf_timing 27248 19944 api_timing endpoint=get_or_refresh_quote duration_ms=1144.61 asset_id=30 code=000001 layer=L3
+INFO 2026-04-04 14:35:30,038 perf_timing 27248 19944 api_timing endpoint=asset_detail duration_ms=1152.26 path=/api/assets/30/
+INFO 2026-04-04 14:35:30,251 perf_timing 27248 20340 api_timing endpoint=asset_contents duration_ms=25.36 path=/api/assets/30/contents/
+INFO 2026-04-04 14:35:30,269 perf_timing 27248 19856 api_timing endpoint=asset_kline duration_ms=37.52 path=/api/assets/30/kline/
+INFO 2026-04-04 14:35:30,420 perf_timing 27248 30796 api_timing endpoint=get_or_refresh_quote duration_ms=0.26 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:35:35,439 perf_timing 27248 30796 api_timing endpoint=get_or_refresh_quote duration_ms=0.15 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:35:40,442 perf_timing 27248 30796 api_timing endpoint=get_or_refresh_quote duration_ms=0.08 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:35:45,444 perf_timing 27248 30796 api_timing endpoint=get_or_refresh_quote duration_ms=0.09 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:35:50,445 perf_timing 27248 30796 api_timing endpoint=get_or_refresh_quote duration_ms=0.15 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:35:55,446 perf_timing 27248 30796 api_timing endpoint=get_or_refresh_quote duration_ms=0.09 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:36:00,447 perf_timing 27248 30796 api_timing endpoint=get_or_refresh_quote duration_ms=0.09 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:36:05,448 perf_timing 27248 30796 api_timing endpoint=get_or_refresh_quote duration_ms=0.17 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:36:10,451 perf_timing 27248 30796 api_timing endpoint=get_or_refresh_quote duration_ms=0.20 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:37:57,456 autoreload 31356 16256 Watching for file changes with StatReloader
+WARNING 2026-04-04 14:41:41,159 log 31356 11080 Conflict: /api/posts/23/repost/
+INFO 2026-04-04 14:42:38,068 perf_timing 31356 27016 api_timing endpoint=market_rankings duration_ms=54.89 path=/api/market/rankings/
+INFO 2026-04-04 14:42:38,148 perf_timing 31356 3784 api_timing endpoint=market_rankings duration_ms=39.34 path=/api/market/rankings/
+INFO 2026-04-04 14:50:28,423 perf_timing 31356 6292 api_timing endpoint=market_rankings duration_ms=29.48 path=/api/market/rankings/
+INFO 2026-04-04 14:50:28,534 perf_timing 31356 23300 api_timing endpoint=market_rankings duration_ms=33.14 path=/api/market/rankings/
+INFO 2026-04-04 14:50:31,181 perf_timing 31356 20340 api_timing endpoint=market_rankings duration_ms=10.95 path=/api/market/rankings/
+INFO 2026-04-04 14:51:39,526 tushare_service 31356 22472 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-04-04 14:51:40,898 perf_timing 31356 22472 api_timing endpoint=get_or_refresh_quote duration_ms=3408.93 asset_id=30 code=000001 layer=L3
+INFO 2026-04-04 14:51:40,899 perf_timing 31356 22472 api_timing endpoint=asset_detail duration_ms=3415.89 path=/api/assets/30/
+INFO 2026-04-04 14:51:41,070 perf_timing 31356 30616 api_timing endpoint=asset_contents duration_ms=16.23 path=/api/assets/30/contents/
+INFO 2026-04-04 14:51:41,093 perf_timing 31356 8036 api_timing endpoint=asset_kline duration_ms=29.28 path=/api/assets/30/kline/
+INFO 2026-04-04 14:51:41,226 perf_timing 31356 15516 api_timing endpoint=get_or_refresh_quote duration_ms=0.23 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:51:46,233 perf_timing 31356 15516 api_timing endpoint=get_or_refresh_quote duration_ms=0.16 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:51:47,583 views 31356 30984 [intraday] A股 000001 暂不支持分钟线（Tushare 积分限制）
+INFO 2026-04-04 14:51:48,853 views 31356 30808 [kline] 数据库无 000001 [60] 数据，从 Finnhub 拉取
+WARNING 2026-04-04 14:51:50,141 finnhub_service 31356 30808 [Finnhub] 无访问权限(403), endpoint=/stock/candle —— 免费版套餐限制，已标记端点后续跳过
+WARNING 2026-04-04 14:51:50,148 finnhub_service 31356 30808 [Finnhub] 端点已被标记为无权限（403），后续请求将跳过: /stock/candle
+INFO 2026-04-04 14:51:50,151 perf_timing 31356 30808 api_timing endpoint=asset_kline duration_ms=1305.80 path=/api/assets/30/kline/
+INFO 2026-04-04 14:51:51,235 perf_timing 31356 15516 api_timing endpoint=get_or_refresh_quote duration_ms=0.10 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:51:56,237 perf_timing 31356 15516 api_timing endpoint=get_or_refresh_quote duration_ms=0.53 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:51:57,950 perf_timing 31356 26640 api_timing endpoint=get_or_refresh_quote duration_ms=1.90 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:51:57,950 perf_timing 31356 26640 api_timing endpoint=asset_detail duration_ms=9.23 path=/api/assets/30/
+INFO 2026-04-04 14:51:58,121 perf_timing 31356 18444 api_timing endpoint=asset_contents duration_ms=14.25 path=/api/assets/30/contents/
+INFO 2026-04-04 14:51:58,135 perf_timing 31356 28216 api_timing endpoint=asset_kline duration_ms=8.41 path=/api/assets/30/kline/
+INFO 2026-04-04 14:51:58,244 perf_timing 31356 14508 api_timing endpoint=get_or_refresh_quote duration_ms=0.18 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:52:01,238 perf_timing 31356 15516 api_timing endpoint=get_or_refresh_quote duration_ms=0.16 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:52:03,254 perf_timing 31356 14508 api_timing endpoint=get_or_refresh_quote duration_ms=0.13 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:52:06,240 perf_timing 31356 15516 api_timing endpoint=get_or_refresh_quote duration_ms=0.14 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:52:08,256 perf_timing 31356 14508 api_timing endpoint=get_or_refresh_quote duration_ms=0.14 asset_id=30 code=000001 layer=L1
+INFO 2026-04-04 14:52:13,258 perf_timing 31356 14508 api_timing endpoint=get_or_refresh_quote duration_ms=0.09 asset_id=30 code=000001 layer=L1

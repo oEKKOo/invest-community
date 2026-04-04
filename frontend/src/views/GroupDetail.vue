@@ -234,8 +234,10 @@ const loadAll = async () => {
   try {
     canShowContent.value = false
     pendingJoin.value = false
-    await groupsStore.fetchGroupDetail(groupId.value)
-    await groupsStore.fetchGroupMembers(groupId.value)
+    await Promise.all([
+      groupsStore.fetchGroupDetail(groupId.value),
+      groupsStore.fetchGroupMembers(groupId.value)
+    ])
 
     if (!group.value) return
     if (group.value.visibility === 'PUBLIC' || isMember.value) {

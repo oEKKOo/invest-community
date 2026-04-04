@@ -570,6 +570,8 @@
 <script setup lang="ts">
 // @ts-nocheck
 import { ref, onMounted, computed } from 'vue'
+import { scheduleIdle } from '@/utils/scheduleIdle'
+import { getAvatarPlaceholderDataUrl } from '@/utils/avatarPlaceholder'
 import { ElMessage } from 'element-plus'
 import * as adminApi from '../api/admin'
 import type { Post, AdminStats, Report, Alert, ModeratedUser, Board } from '../types'
@@ -794,18 +796,18 @@ const formatDate = (dateStr: string) => {
   return dayjs(dateStr).format('YYYY-MM-DD HH:mm')
 }
 
-const getAvatarUrl = (id: number) => {
-  return `https://picsum.photos/seed/${id}/40/40`
-}
+const getAvatarUrl = (id: number) => getAvatarPlaceholderDataUrl(id, 40)
 
 onMounted(() => {
   fetchPendingPosts()
   fetchAdminStats()
-  fetchPendingReports()
-  fetchModeratedUsers()
-  fetchBoards()
-  fetchAttachments()
-  fetchAlerts()
+  scheduleIdle(() => {
+    fetchPendingReports()
+    fetchModeratedUsers()
+    fetchBoards()
+    fetchAttachments()
+    fetchAlerts()
+  })
 })
 
 const openAttachment = (row: any) => {

@@ -22,6 +22,7 @@
 每次运行都会写 DataJobLog 记录。
 """
 import logging
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 
@@ -37,6 +38,23 @@ from . import tushare_service as ts_svc
 from .tushare_service import CN_MARKETS
 
 logger = logging.getLogger(__name__)
+
+
+def _log_gorq_timing(asset, layer: str, t0: float) -> None:
+    try:
+        from invest_backend.perf_timing import api_timing_enabled, log_api_duration
+
+        if api_timing_enabled():
+            ms = (time.perf_counter() - t0) * 1000
+            log_api_duration(
+                'get_or_refresh_quote',
+                ms,
+                asset_id=asset.id,
+                code=getattr(asset, 'code', ''),
+                layer=layer,
+            )
+    except Exception:
+        pass
 
 
 # ---------- 缓存工具 ----------
@@ -909,6 +927,7 @@ def get_or_refresh_quote(asset) -> Optional[dict]:
     TTL 由 settings.FINNHUB_QUOTE_CACHE_TTL 控制（默认 60 秒）。
     返回格式化的行情字典，或 None（资产无 finnhub_symbol / 无任何数据）。
     """
+    t0 = time.perf_counter()
     ttl = _get_quote_ttl()
     cache_key = _quote_cache_key(asset.id)
 
@@ -916,6 +935,7 @@ def get_or_refresh_quote(asset) -> Optional[dict]:
     cached = cache.get(cache_key)
     if cached is not None:
         logger.debug('[get_or_refresh_quote] L1 命中: asset=%s', asset.code)
+        _log_gorq_timing(asset, 'L1', t0)
         return cached
 
     try:
@@ -929,6 +949,7 @@ def get_or_refresh_quote(asset) -> Optional[dict]:
             logger.debug('[get_or_refresh_quote] L2 命中: asset=%s', asset.code)
             result = _snapshot_to_dict(asset, snapshot)
             cache.set(cache_key, result, timeout=ttl)
+            _log_gorq_timing(asset, 'L2', t0)
             return result
 
         # ── L3: 按市场选择数据源实时/日线拉取 ───────────────────────────────
@@ -939,7 +960,9 @@ def get_or_refresh_quote(asset) -> Optional[dict]:
                 result = _snapshot_to_dict(asset, snapshot)
                 result['is_stale'] = True
                 cache.set(cache_key, result, timeout=min(ttl, 30))
+                _log_gorq_timing(asset, 'L2_stale', t0)
                 return result
+            _log_gorq_timing(asset, 'miss', t0)
             return None
 
         # 写入 DB 快照
@@ -962,10 +985,12 @@ def get_or_refresh_quote(asset) -> Optional[dict]:
         # 回填 L1 缓存
         cache.set(cache_key, result, timeout=ttl)
         logger.debug('[get_or_refresh_quote] L3 写入: asset=%s ttl=%ds', asset.code, ttl)
+        _log_gorq_timing(asset, 'L3', t0)
         return result
 
     except Exception as exc:
         logger.error('[get_or_refresh_quote] 异常: asset=%s err=%s', asset.code, str(exc))
+        _log_gorq_timing(asset, 'error', t0)
         return None
 
 

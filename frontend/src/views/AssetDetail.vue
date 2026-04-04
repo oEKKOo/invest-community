@@ -145,8 +145,8 @@
         </el-collapse>
       </div>
 
-      <!-- 区块 5: 相关内容聚合 -->
-      <div class="contents-card card">
+      <!-- 区块 5: 相关内容聚合（进入视口后再请求，见 initContentsObserver） -->
+      <div ref="contentsSectionRef" class="contents-card card">
         <div class="card-header">
           <h3 class="card-title">相关讨论</h3>
           <div class="sort-tabs">
@@ -163,7 +163,7 @@
           </div>
         </div>
 
-        <div v-if="contentsLoading" class="content-loading">
+        <div v-if="!contentsLoadStarted || contentsLoading" class="content-loading">
           <el-skeleton :rows="3" animated v-for="i in 3" :key="i" style="margin-bottom:16px" />
         </div>
 
@@ -281,7 +281,6 @@ import { ElMessage } from 'element-plus'
 import { InfoFilled } from '@element-plus/icons-vue'
 import { get } from '@/api/index'
 import { getAssetContents } from '@/api/market'
-import { createPost } from '@/api/posts'
 import { useAuthStore } from '@/stores/auth'
 import { useMarketStore } from '@/stores/market'
 import { useQuoteStream } from '@/composables/useQuoteStream'
@@ -329,6 +328,10 @@ const chartSectionRef = ref<HTMLElement | null>(null)
 const shouldRenderCharts = ref(false)
 let chartObserver: IntersectionObserver | null = null
 
+const contentsSectionRef = ref<HTMLElement | null>(null)
+const contentsLoadStarted = ref(false)
+let contentsObserver: IntersectionObserver | null = null
+
 // 相关内容
 const relatedContents = ref<any[]>([])
 const contentsLoading = ref(false)
@@ -343,7 +346,7 @@ const quickPostContent = ref('')
 const quickPosting = ref(false)
 
 // SSE（lazy connect, 在行情加载完后手动connect）
-const quoteStream = useQuoteStream(Number(assetId.value))
+const quoteStream = useQuoteStream(() => Number(assetId.value))
 const connectSSE = quoteStream.connect
 const disconnectSSE = quoteStream.disconnect
 let quoteStreamConnectTimer: ReturnType<typeof setTimeout> | null = null
@@ -451,9 +454,10 @@ const applyAssetData = (data: AssetDetail) => {
   asset.value = data
   document.title = `${data.code} - ${data.name} - 投研社区`
 
-  if (data.quote && !quote.value) {
+  // 详情接口已内嵌 quote，与独立 /quote/ 结构一致，始终用服务端结果刷新展示与 store
+  if (data.quote) {
     quote.value = data.quote
-    marketStore.updateQuoteFromStream({ assetId: Number(assetId.value), ...data.quote })
+    marketStore.updateQuoteFromStream({ assetId: data.id, ...data.quote })
   }
 }
 
@@ -475,7 +479,7 @@ const scheduleQuoteStreamConnect = () => {
   quoteStreamConnectTimer = window.setTimeout(connect, 150)
 }
 
-// 首屏并发加载：资产详情 + 行情
+// 首屏：仅请求资产详情（后端已内嵌 quote），避免与 /quote/ 重复 RTT
 const loadInitialData = async () => {
   const currentAssetId = String(assetId.value)
   const numericAssetId = Number(currentAssetId)
@@ -483,7 +487,7 @@ const loadInitialData = async () => {
   const cachedQuote = marketStore.getCachedQuote(numericAssetId)
 
   assetLoading.value = true
-  quoteLoading.value = !cachedQuote
+  quoteLoading.value = !(cachedQuote || cachedAsset?.quote)
   quoteError.value = false
 
   if (cachedAsset) {
@@ -496,24 +500,21 @@ const loadInitialData = async () => {
   }
 
   try {
-    const [assetRes, quoteRes] = await Promise.allSettled([
-      fetchAssetDetail(currentAssetId),
-      marketStore.fetchQuote(numericAssetId)
-    ])
+    const assetRes = await fetchAssetDetail(currentAssetId)
 
-    if (assetRes.status === 'fulfilled') {
-      applyAssetData(assetRes.value)
-    } else if (!cachedAsset) {
-      asset.value = null
-    }
+    applyAssetData(assetRes)
 
-    // 行情接口结果优先（通常更实时）
-    if (quoteRes.status === 'fulfilled' && quoteRes.value) {
-      quote.value = quoteRes.value
+    if (!assetRes.quote) {
+      const q = await marketStore.fetchQuote(numericAssetId)
+      if (q) {
+        quote.value = q
+        quoteError.value = false
+        marketStore.updateQuoteFromStream(q)
+      } else if (!quote.value) {
+        quoteError.value = true
+      }
+    } else {
       quoteError.value = false
-      marketStore.updateQuoteFromStream(quoteRes.value)
-    } else if (!quote.value) {
-      quoteError.value = true
     }
 
     if (quote.value) {
@@ -529,6 +530,7 @@ const loadInitialData = async () => {
   } finally {
     assetLoading.value = false
     quoteLoading.value = false
+    void nextTick(() => initContentsObserver())
   }
 }
 
@@ -555,6 +557,7 @@ const loadQuote = async () => {
 
 // 加载相关内容
 const loadContents = async () => {
+  contentsLoadStarted.value = true
   contentsLoading.value = true
   try {
     const res = await getAssetContents(Number(assetId.value), {
@@ -578,12 +581,44 @@ const changeContentSort = (sort: 'new' | 'hot') => {
 }
 
 const scheduleLoadContents = () => {
+  if (contentsLoadStarted.value) return
   const loader = () => loadContents()
   if ('requestIdleCallback' in window) {
     ;(window as any).requestIdleCallback(loader, { timeout: 1500 })
   } else {
     window.setTimeout(loader, 250)
   }
+}
+
+const initContentsObserver = () => {
+  if (contentsLoadStarted.value) return
+  if (!contentsSectionRef.value) return
+  if (typeof IntersectionObserver === 'undefined') {
+    scheduleLoadContents()
+    return
+  }
+
+  const el = contentsSectionRef.value
+  const rect = el.getBoundingClientRect()
+  if (rect.top <= window.innerHeight + 200) {
+    void loadContents()
+    return
+  }
+
+  contentsObserver?.disconnect()
+  contentsObserver = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        contentsObserver?.disconnect()
+        contentsObserver = null
+        if (!contentsLoadStarted.value) {
+          void loadContents()
+        }
+      }
+    },
+    { rootMargin: '200px 0px' }
+  )
+  contentsObserver.observe(el)
 }
 
 const initChartObserver = () => {
@@ -620,6 +655,7 @@ const submitQuickPost = async () => {
   if (!quickPostTitle.value || !quickPostContent.value || !asset.value) return
   quickPosting.value = true
   try {
+    const { createPost } = await import('@/api/posts')
     await createPost({
       title: quickPostTitle.value,
       content: quickPostContent.value,
@@ -656,9 +692,28 @@ watch(
   }
 )
 
+watch(
+  () => assetId.value,
+  (id, prev) => {
+    if (id === prev) return
+    quoteStreamConnectScheduled = false
+    if (quoteStreamConnectTimer) {
+      clearTimeout(quoteStreamConnectTimer)
+      quoteStreamConnectTimer = null
+    }
+    disconnectSSE()
+    relatedContents.value = []
+    contentTotal.value = 0
+    contentPage.value = 1
+    contentsLoadStarted.value = false
+    contentsObserver?.disconnect()
+    contentsObserver = null
+    void loadInitialData()
+  }
+)
+
 onMounted(() => {
-  loadInitialData()
-  scheduleLoadContents()
+  void loadInitialData()
   nextTick(() => {
     initChartObserver()
   })
@@ -667,6 +722,8 @@ onMounted(() => {
 onUnmounted(() => {
   chartObserver?.disconnect()
   chartObserver = null
+  contentsObserver?.disconnect()
+  contentsObserver = null
   if (quoteStreamConnectTimer) {
     clearTimeout(quoteStreamConnectTimer)
     quoteStreamConnectTimer = null

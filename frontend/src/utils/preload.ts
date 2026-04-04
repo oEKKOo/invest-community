@@ -1,23 +1,30 @@
 let assetDetailChartsPrefetched = false
+/** 合并为单次 idle 任务，避免多处连续调用重复排队 import() */
+let chartsPreloadIdleScheduled = false
 
 export const preloadAssetDetailCharts = () => {
   if (assetDetailChartsPrefetched) return
   assetDetailChartsPrefetched = true
 
-  void import('@/views/AssetDetail.vue')
+  if (chartsPreloadIdleScheduled) return
+  chartsPreloadIdleScheduled = true
 
-  const preloadCharts = async () => {
-    const { loadLightweightCharts } = await import('@/utils/chart-loader')
-    void Promise.all([
-      import('@/components/market/KlineChart.vue'),
-      import('@/components/market/IntradayChart.vue'),
-      loadLightweightCharts()
-    ])
+  const run = async () => {
+    try {
+      const { loadLightweightCharts } = await import('@/utils/lightweight-charts-loader')
+      await Promise.all([
+        import('@/components/market/KlineChart.vue'),
+        import('@/components/market/IntradayChart.vue'),
+        loadLightweightCharts()
+      ])
+    } catch {
+      // 预加载失败不影响导航
+    }
   }
 
   if ('requestIdleCallback' in window) {
-    ;(window as any).requestIdleCallback(preloadCharts, { timeout: 1500 })
+    ;(window as any).requestIdleCallback(run, { timeout: 1500 })
   } else {
-    globalThis.setTimeout(preloadCharts, 200)
+    globalThis.setTimeout(run, 200)
   }
 }

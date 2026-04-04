@@ -7,7 +7,7 @@
       </div>
       <div class="header-actions">
         <el-button @click="goMyInvites">我的群邀请</el-button>
-        <el-button type="primary" @click="showCreate = true">创建群组</el-button>
+        <el-button plain class="groups-create-btn" @click="showCreate = true">创建群组</el-button>
       </div>
     </div>
 
@@ -107,7 +107,7 @@ const createForm = ref({
 const fetchData = async () => {
   await groupsStore.fetchGroups({
     page: 1,
-    pageSize: 30,
+    pageSize: 18,
     q: keyword.value || undefined,
     visibility: visibility.value,
   })
@@ -158,6 +158,20 @@ onMounted(fetchData)
 .groups-page { max-width: 1100px; margin: 0 auto; }
 .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .header-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.groups-create-btn {
+  background: #fff !important;
+  color: #1d1d1f !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+  font-weight: 500;
+}
+.groups-create-btn:hover,
+.groups-create-btn:focus {
+  background: #fff !important;
+  border-color: rgba(37, 99, 235, 0.22) !important;
+  color: #1d1d1f !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
 .filters { display: flex; gap: 12px; margin-bottom: 16px; }
 .group-card { margin-bottom: 16px; cursor: pointer; }
 .desc { color: #666; min-height: 40px; }

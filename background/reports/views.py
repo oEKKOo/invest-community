@@ -4,6 +4,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.core.cache import cache
+from django.conf import settings
 from django.db.models import Count, Avg, Sum
 from datetime import timedelta, datetime
 from accounts.models import UserBehaviorDaily
@@ -185,30 +187,35 @@ def admin_stats(request):
             'code': 4030, 
             'message': '无权限'
         }, status=status.HTTP_403_FORBIDDEN)
-    
+
+    ttl = int(getattr(settings, 'ADMIN_STATS_CACHE_TTL', 45))
+    cache_key = 'admin:stats:v1'
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return Response(cached)
+
     from content.models import Content
     from django.contrib.auth import get_user_model
-    from django.utils import timezone
     from datetime import timedelta
-    
+
     User = get_user_model()
-    
-    # 统计数据
+
     pending_posts_count = Content.objects.filter(status='PENDING_REVIEW').count()
     open_reports_count = Report.objects.filter(status='PENDING').count()
-    
-    # 过去24小时新注册用户
+
     yesterday = timezone.now() - timedelta(days=1)
     new_users_24h = User.objects.filter(created_at__gte=yesterday).count()
-    
-    return Response({
+
+    payload = {
         'code': 0,
         'data': {
             'pendingPostsCount': pending_posts_count,
             'openReportsCount': open_reports_count,
-            'newUsers24h': new_users_24h
-        }
-    })
+            'newUsers24h': new_users_24h,
+        },
+    }
+    cache.set(cache_key, payload, ttl)
+    return Response(payload)
 
 
 class ModerationQueueView(generics.ListAPIView):

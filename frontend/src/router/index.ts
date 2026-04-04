@@ -66,19 +66,19 @@ const routes: RouteRecordRaw[] = [
         path: '/search',
         name: 'Search',
         component: SearchView,
-        meta: { title: '搜索' }
+        meta: { title: '搜索', preload: 'assetDetailCharts' }
       },
       {
         path: '/community',
         name: 'Community',
         component: Community,
-        meta: { title: 'Community' }
+        meta: { title: 'Community', preload: 'assetDetailCharts' }
       },
       {
         path: '/portfolios',
         name: 'Portfolios',
         component: Portfolios,
-        meta: { title: 'Portfolios' }
+        meta: { title: 'Portfolios', preload: 'assetDetailCharts' }
       },
       {
         path: '/admin',
@@ -192,13 +192,13 @@ const routes: RouteRecordRaw[] = [
         path: '/market',
         name: 'MarketList',
         component: MarketList,
-        meta: { title: '行情列表' }
+        meta: { title: '行情列表', preload: 'assetDetailCharts' }
       },
       {
         path: '/market/rankings',
         name: 'MarketRankings',
         component: MarketRankings,
-        meta: { title: '涨跌幅榜单' }
+        meta: { title: '涨跌幅榜单', preload: 'assetDetailCharts' }
       },
       {
         path: '/groups',

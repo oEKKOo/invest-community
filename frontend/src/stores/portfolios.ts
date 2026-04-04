@@ -102,48 +102,52 @@ export const usePortfoliosStore = defineStore('portfolios', () => {
     }
   }
 
+  /** 组合详情与列表/热门榜可能各持有一份对象，需同时更新 */
+  const collectPortfolioTargets = (portfolioId: number) => {
+    const set = new Set<Portfolio>()
+    const fromList = portfolios.value.find(p => p.id === portfolioId)
+    const fromTop = topPortfolios.value.find(p => p.id === portfolioId)
+    const detail = currentPortfolio.value?.id === portfolioId ? currentPortfolio.value : null
+    if (fromList) set.add(fromList)
+    if (fromTop) set.add(fromTop)
+    if (detail) set.add(detail)
+    return [...set]
+  }
+
   const toggleLike = async (portfolioId: number) => {
-    const portfolio = portfolios.value.find(p => p.id === portfolioId) || 
-                    topPortfolios.value.find(p => p.id === portfolioId) ||
-                    currentPortfolio.value
-    if (!portfolio) return
+    const targets = collectPortfolioTargets(portfolioId)
+    if (!targets.length) return
 
-    const wasLiked = portfolio.isLiked
+    const wasLiked = targets[0].isLiked
 
-    try {
-      if (wasLiked) {
-        await likesApi.unlike({ targetType: 'PORTFOLIO', targetId: portfolioId })
-        portfolio.likes--
-        portfolio.isLiked = false
-      } else {
-        await likesApi.like({ targetType: 'PORTFOLIO', targetId: portfolioId })
-        portfolio.likes++
-        portfolio.isLiked = true
+    if (wasLiked) {
+      await likesApi.unlike({ targetType: 'PORTFOLIO', targetId: portfolioId })
+      for (const p of targets) {
+        p.likes = Math.max(0, p.likes - 1)
+        p.isLiked = false
       }
-    } catch (error) {
-      // 回滚状态
-      portfolio.isLiked = wasLiked
-      portfolio.likes += wasLiked ? 1 : -1
-      throw error
+    } else {
+      await likesApi.like({ targetType: 'PORTFOLIO', targetId: portfolioId })
+      for (const p of targets) {
+        p.likes++
+        p.isLiked = true
+      }
     }
   }
 
   const toggleFavorite = async (portfolioId: number) => {
-    const portfolio = portfolios.value.find(p => p.id === portfolioId) ||
-                    topPortfolios.value.find(p => p.id === portfolioId) ||
-                    currentPortfolio.value
-    if (!portfolio) return
+    const targets = collectPortfolioTargets(portfolioId)
+    if (!targets.length) return
 
-    const wasFavorited = !!portfolio.isFavorited
+    const wasFavorited = !!targets[0].isFavorited
 
-    try {
-      await portfoliosApi.togglePortfolioFavorite(portfolioId)
-      portfolio.isFavorited = !wasFavorited
-      const currentFavorites = Number(portfolio.favorites || 0)
-      portfolio.favorites = currentFavorites + (wasFavorited ? -1 : 1)
-    } catch (error) {
-      portfolio.isFavorited = wasFavorited
-      throw error
+    await portfoliosApi.togglePortfolioFavorite(portfolioId)
+    const nextFavorited = !wasFavorited
+    const delta = wasFavorited ? -1 : 1
+    for (const p of targets) {
+      p.isFavorited = nextFavorited
+      const currentFavorites = Number(p.favorites || 0)
+      p.favorites = Math.max(0, currentFavorites + delta)
     }
   }
 

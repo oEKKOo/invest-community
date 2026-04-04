@@ -14,12 +14,15 @@ export const useMarketStore = defineStore('market', () => {
   const quoteCache = ref(new Map<number, QuoteCacheEntry>())
   const quoteRequests = new Map<number, Promise<AssetQuote | null>>()
   
-  // 榜单缓存
+  // 榜单缓存（key 含 limit，与接口参数一致）
   const rankingList = ref<MarketRankingItem[]>([])
   const rankingFetchedAt = ref<number>(0)
   const rankingType = ref<string>('gainers')
   const rankingsCache = ref(new Map<string, RankingsCacheEntry>())
   const rankingRequests = new Map<string, Promise<MarketRankingItem[]>>()
+
+  const rankingsCacheKey = (type: string, market: string | undefined, limit: number) =>
+    `${type}:${market || 'ALL'}:${limit}`
 
   // =============================================
   // 辅助方法
@@ -139,9 +142,25 @@ export const useMarketStore = defineStore('market', () => {
     return result
   }
 
+  /** 过期缓存也返回，供首页 stale-while-revalidate 先渲染卡片 */
+  const peekStaleRankings = (
+    type: string = 'gainers',
+    market?: string,
+    limit: number = 50
+  ): MarketRankingItem[] | null => {
+    const cacheKey = rankingsCacheKey(type, market, limit)
+    const cached = rankingsCache.value.get(cacheKey)
+    if (cached?.items?.length) return cached.items
+    return null
+  }
+
   // 获取榜单（带缓存）
-  const fetchRankings = async (type: string = 'gainers', market?: string): Promise<MarketRankingItem[]> => {
-    const cacheKey = `${type}:${market || 'ALL'}`
+  const fetchRankings = async (
+    type: string = 'gainers',
+    market?: string,
+    limit: number = 50
+  ): Promise<MarketRankingItem[]> => {
+    const cacheKey = rankingsCacheKey(type, market, limit)
     const cached = rankingsCache.value.get(cacheKey)
     if (cached && isCacheValid(cached.fetchedAt)) {
       rankingList.value = cached.items
@@ -155,7 +174,7 @@ export const useMarketStore = defineStore('market', () => {
       return inflight
     }
 
-    const request = getMarketRankings({ type: type as any, market: market as any, limit: 50 })
+    const request = getMarketRankings({ type: type as any, market: market as any, limit })
       .then((res) => {
         rankingsCache.value.set(cacheKey, {
           items: res.items,
@@ -217,6 +236,7 @@ export const useMarketStore = defineStore('market', () => {
     fetchQuote,
     fetchBulkQuotes,
     fetchRankings,
+    peekStaleRankings,
     updateQuoteFromStream,
     cleanExpiredCache
   }

@@ -100,107 +100,18 @@
               />
             </div>
 
-            <div
+            <MainLayoutSearchDropdown
               v-if="showSearchDropdown"
-              class="search-dropdown"
-            >
-              <div class="search-dropdown-section search-primary-action" @mousedown.prevent="handleSearchEnter">
-                <span class="primary-label">搜索</span>
-                <span class="primary-keyword">“{{ searchQuery }}”</span>
-              </div>
-
-              <div v-if="searchLoading" class="search-dropdown-loading">
-                正在为你查找相关内容...
-              </div>
-
-              <template v-else>
-                <div
-                  v-if="hotKeywords.length && !searchQuery.trim()"
-                  class="search-dropdown-section"
-                >
-                  <div class="section-title">热门搜索</div>
-                  <div class="hot-list">
-                    <button
-                      v-for="word in hotKeywords"
-                      :key="word"
-                      class="hot-item"
-                      @mousedown.prevent="useHotKeyword(word)"
-                    >
-                      {{ word }}
-                    </button>
-                  </div>
-                </div>
-
-                <div
-                  v-if="searchResults.posts.items.length"
-                  class="search-dropdown-section"
-                >
-                  <div class="section-title">
-                    帖子
-                    <span class="count">共 {{ searchResults.posts.total }} 条</span>
-                  </div>
-                  <ul class="suggest-list">
-                    <li
-                      v-for="post in searchResults.posts.items"
-                      :key="post.id"
-                      class="suggest-item"
-                      @mousedown.prevent="goPost(post.id)"
-                    >
-                      <div class="suggest-main">
-                        <span class="suggest-title">{{ post.title }}</span>
-                        <span class="suggest-meta">{{ post.authorName }}</span>
-                      </div>
-                    </li>
-                  </ul>
-                </div>
-
-                <div
-                  v-if="searchResults.assets.items.length"
-                  class="search-dropdown-section"
-                >
-                  <div class="section-title">
-                    资产
-                    <span class="count">共 {{ searchResults.assets.total }} 条</span>
-                  </div>
-                  <ul class="suggest-list">
-                    <li
-                      v-for="asset in searchResults.assets.items"
-                      :key="asset.id"
-                      class="suggest-item"
-                      @mousedown.prevent="goAsset(asset.id)"
-                    >
-                      <div class="suggest-main">
-                        <span class="suggest-title">{{ asset.code }}</span>
-                        <span class="suggest-meta">{{ asset.name }}</span>
-                      </div>
-                    </li>
-                  </ul>
-                </div>
-
-                <div
-                  v-if="searchResults.portfolios.items.length"
-                  class="search-dropdown-section"
-                >
-                  <div class="section-title">
-                    组合
-                    <span class="count">共 {{ searchResults.portfolios.total }} 条</span>
-                  </div>
-                  <ul class="suggest-list">
-                    <li
-                      v-for="p in searchResults.portfolios.items"
-                      :key="p.id"
-                      class="suggest-item"
-                      @mousedown.prevent="goPortfolio(p.id)"
-                    >
-                      <div class="suggest-main">
-                        <span class="suggest-title">{{ p.title }}</span>
-                        <span class="suggest-meta">{{ p.userName }}</span>
-                      </div>
-                    </li>
-                  </ul>
-                </div>
-              </template>
-            </div>
+              :search-query="searchQuery"
+              :search-loading="searchLoading"
+              :hot-keywords="hotKeywords"
+              :search-results="searchResults"
+              @primary-search="handleSearchEnter"
+              @hot-keyword="useHotKeyword"
+              @go-post="goPost"
+              @go-asset="goAsset"
+              @go-portfolio="goPortfolio"
+            />
           </div>
         </div>
         <div class="header-actions">
@@ -226,56 +137,15 @@
         </div>
       </header>
 
-      <!-- 通知抽屉 -->
-      <el-drawer
+      <!-- 通知抽屉（异步分包，首次打开时再挂载） -->
+      <MainLayoutNotificationDrawer
+        v-if="notificationDrawerVisible"
         v-model="notificationDrawerVisible"
-        title="通知中心"
-        size="360px"
-        direction="rtl"
-      >
-        <div class="notif-drawer-body">
-          <div class="notif-drawer-header">
-            <h3>最新通知</h3>
-            <el-button
-              v-if="notificationItems.length"
-              type="text"
-              size="small"
-              @click="handleMarkAllRead"
-            >
-              全部标记已读
-            </el-button>
-          </div>
-
-          <el-skeleton v-if="notificationLoading" :rows="4" animated />
-
-          <el-empty
-            v-else-if="!notificationItems.length"
-            description="暂时没有通知"
-          />
-
-          <div v-else class="notif-list">
-            <div
-              v-for="item in notificationItems"
-              :key="item.id"
-              class="notif-item"
-              :class="{ unread: !item.is_read }"
-              @click="handleNotificationClick(item)"
-            >
-              <div class="notif-main">
-                <div class="notif-title-row">
-                  <span class="notif-tag" :class="`type-${item.notification_type.toLowerCase()}`">
-                    {{ getNotificationTypeLabel(item.notification_type) }}
-                  </span>
-                  <span class="notif-time">{{ formatTime(item.created_at) }}</span>
-                </div>
-                <div class="notif-title">{{ item.title }}</div>
-                <div class="notif-content">{{ item.content }}</div>
-              </div>
-              <div class="notif-status-dot" v-if="!item.is_read"></div>
-            </div>
-          </div>
-        </div>
-      </el-drawer>
+        :items="notificationItems"
+        :loading="notificationLoading"
+        @mark-all-read="handleMarkAllRead"
+        @notification-click="handleNotificationClick"
+      />
 
       <!-- 页面内容 -->
       <div class="page-content">
@@ -286,7 +156,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onBeforeUnmount, watch, reactive } from 'vue'
+import { ref, computed, onBeforeUnmount, watch, reactive, defineAsyncComponent } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import { ElMessage } from 'element-plus'
@@ -303,6 +173,9 @@ import {
 import { preloadAssetDetailCharts } from '../../utils/preload'
 import type { GlobalSearchResult } from '../../api/search'
 import type { Notification } from '../../types'
+
+const MainLayoutSearchDropdown = defineAsyncComponent(() => import('./MainLayoutSearchDropdown.vue'))
+const MainLayoutNotificationDrawer = defineAsyncComponent(() => import('./MainLayoutNotificationDrawer.vue'))
 
 const router = useRouter()
 const route = useRoute()
@@ -490,31 +363,6 @@ const handleNotificationClick = async (item: Notification) => {
   }
 }
 
-const getNotificationTypeLabel = (type: string) => {
-  switch (type) {
-    case 'LIKE':
-      return '点赞'
-    case 'COMMENT':
-      return '评论'
-    case 'FOLLOW':
-      return '关注'
-    case 'REVIEW_RESULT':
-      return '审核'
-    case 'SYSTEM':
-      return '系统'
-    default:
-      return '通知'
-  }
-}
-
-const formatTime = (iso: string) => {
-  const d = new Date(iso)
-  return `${d.getMonth() + 1}-${d.getDate()} ${d.getHours().toString().padStart(2, '0')}:${d
-    .getMinutes()
-    .toString()
-    .padStart(2, '0')}`
-}
-
 const resetSearchResults = () => {
   searchResults.posts = { items: [], total: 0 }
   searchResults.assets = { items: [], total: 0 }
@@ -599,7 +447,7 @@ const goPost = (id: number) => {
 
 const goAsset = (id: number) => {
   preloadAssetDetailCharts()
-  router.push({ name: 'AssetDetail', params: { assetId: id } })
+  router.push({ name: 'AssetDetail', params: { assetId: String(id) } })
 }
 
 const goPortfolio = (id: number) => {
@@ -1004,129 +852,6 @@ watch(
   }
 }
 
-.search-dropdown {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  right: 0;
-  background: $apple-bg-soft;
-  backdrop-filter: $apple-glass-blur;
-  -webkit-backdrop-filter: $apple-glass-blur;
-  border-radius: $apple-radius-md;
-  border: 1px solid $apple-border-light;
-  box-shadow: $apple-shadow-lg;
-  padding: $apple-space-3;
-  z-index: 20;
-}
-
-.search-dropdown-section {
-  padding: 0.35rem 0.25rem;
-
-  & + & {
-    border-top: 1px solid #f3f4f6;
-  }
-}
-
-.search-primary-action {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.4rem 0.5rem;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: $transition-all;
-
-  &:hover {
-    background: #f3f4ff;
-  }
-}
-
-.primary-label {
-  font-size: 0.78rem;
-  color: #6b7280;
-}
-
-.primary-keyword {
-  font-size: 0.8rem;
-  color: #111827;
-  font-weight: 500;
-}
-
-.search-dropdown-loading {
-  padding: 0.4rem 0.6rem;
-  font-size: 0.78rem;
-  color: #9ca3af;
-}
-
-.section-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 0.78rem;
-  color: #6b7280;
-  margin-bottom: 0.25rem;
-
-  .count {
-    font-size: 0.72rem;
-    color: #9ca3af;
-  }
-}
-
-.hot-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
-}
-
-.hot-item {
-  border-radius: 999px;
-  border: none;
-  padding: 0.12rem 0.6rem;
-  font-size: 0.78rem;
-  background: #f3f4f6;
-  color: #4b5563;
-  cursor: pointer;
-  transition: $transition-all;
-
-  &:hover {
-    background: #e5e7eb;
-  }
-}
-
-.suggest-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.suggest-item {
-  padding: 0.3rem 0.4rem;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: $transition-all;
-
-  &:hover {
-    background: #f3f4ff;
-  }
-}
-
-.suggest-main {
-  display: flex;
-  flex-direction: column;
-  gap: 0.05rem;
-}
-
-.suggest-title {
-  font-size: 0.8rem;
-  color: #111827;
-  font-weight: 500;
-}
-
-.suggest-meta {
-  font-size: 0.72rem;
-  color: #9ca3af;
-}
-
 .header-actions {
   display: flex;
   align-items: center;
@@ -1192,132 +917,6 @@ watch(
   padding: $apple-space-6;
   overflow-y: auto;
   background: $apple-bg-page;
-}
-
-.notif-drawer-body {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.notif-drawer-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: $apple-space-4;
-
-  h3 {
-    margin: 0;
-    font-size: $apple-font-body;
-    font-weight: 600;
-    color: $apple-text-primary;
-    font-family: $apple-font-family;
-  }
-}
-
-.notif-list {
-  display: flex;
-  flex-direction: column;
-  gap: $apple-space-3;
-  max-height: 100%;
-  overflow-y: auto;
-}
-
-.notif-item {
-  position: relative;
-  padding: $apple-space-4;
-  border-radius: $apple-radius-sm;
-  border: 1px solid $apple-border-light;
-  background: $apple-bg-elevated;
-  backdrop-filter: $apple-glass-blur;
-  -webkit-backdrop-filter: $apple-glass-blur;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    border-color: $apple-accent;
-    box-shadow: $apple-shadow-sm;
-  }
-
-  &.unread {
-    background: rgba(0, 113, 227, 0.04);
-    border-color: rgba(0, 113, 227, 0.15);
-  }
-}
-
-.notif-main {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.notif-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.15rem;
-}
-
-.notif-tag {
-  font-size: 0.675rem;
-  padding: 2px 6px;
-  border-radius: 999px;
-  font-weight: 600;
-}
-
-.notif-tag.type-like {
-  background: rgba(249, 115, 22, 0.08);
-  color: #ea580c;
-}
-
-.notif-tag.type-comment {
-  background: rgba(59, 130, 246, 0.08);
-  color: #2563eb;
-}
-
-.notif-tag.type-follow {
-  background: rgba(16, 185, 129, 0.08);
-  color: #059669;
-}
-
-.notif-tag.type-review_result {
-  background: rgba(234, 179, 8, 0.08);
-  color: #ca8a04;
-}
-
-.notif-tag.type-system {
-  background: rgba(148, 163, 184, 0.12);
-  color: #4b5563;
-}
-
-.notif-time {
-  font-size: $apple-font-caption;
-  color: $apple-text-tertiary;
-  font-family: $apple-font-family;
-}
-
-.notif-title {
-  font-size: $apple-font-body;
-  font-weight: 600;
-  color: $apple-text-primary;
-  font-family: $apple-font-family;
-}
-
-.notif-content {
-  font-size: $apple-font-body;
-  color: $apple-text-secondary;
-  font-family: $apple-font-family;
-}
-
-.notif-status-dot {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: $accent-color;
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
 }
 
 .sidebar-disclaimer {

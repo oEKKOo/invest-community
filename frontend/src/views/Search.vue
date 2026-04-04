@@ -254,7 +254,7 @@ const goPost = (id: number) => {
 
 const goAsset = (id: number) => {
   preloadAssetDetailCharts()
-  router.push({ name: 'AssetDetail', params: { assetId: id } })
+  router.push({ name: 'AssetDetail', params: { assetId: String(id) } })
 }
 
 const goPortfolio = (id: number) => {

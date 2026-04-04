@@ -5,9 +5,10 @@ import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import viteCompression from 'vite-plugin-compression'
+import { visualizer } from 'rollup-plugin-visualizer'
 import { constants as zlibConstants } from 'zlib'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     vue(),
     AutoImport({
@@ -33,11 +34,19 @@ export default defineConfig({
         }
       }
     }),
-  ],
+    mode === 'analyze' &&
+      visualizer({
+        filename: 'dist/stats.html',
+        gzipSize: true,
+        brotliSize: true,
+        open: false,
+      }),
+  ].filter(Boolean),
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
     },
+    dedupe: ['dayjs', 'echarts', 'vue-echarts', 'zrender'],
   },
   server: {
     port: 3000,
@@ -63,23 +72,18 @@ export default defineConfig({
         manualChunks(id, { getModuleInfo }) {
           const normalizedId = id.replace(/\\/g, '/')
 
-          const isImportedByView = (moduleId: string, viewNames: string[], seen = new Set<string>()): boolean => {
+          const isImportedByAdminView = (moduleId: string, seen = new Set<string>()): boolean => {
             if (seen.has(moduleId)) return false
             seen.add(moduleId)
             const info = getModuleInfo(moduleId)
             if (!info) return false
-            const allImporters = [...info.importers, ...info.dynamicImporters]
-            for (const importer of allImporters) {
-              if (
-                viewNames.some(
-                  (name) => importer.includes(`/views/${name}.vue`) || importer.includes(`\\views\\${name}.vue`)
-                )
-              ) {
+            const all = [...info.importers, ...info.dynamicImporters]
+            for (const imp of all) {
+              const n = imp.replace(/\\/g, '/')
+              if (n.includes('/views/admin/') || n.includes('AdminPanel.vue')) {
                 return true
               }
-              if (isImportedByView(importer, viewNames, seen)) {
-                return true
-              }
+              if (isImportedByAdminView(imp, seen)) return true
             }
             return false
           }
@@ -106,6 +110,9 @@ export default defineConfig({
             normalizedId.includes('/node_modules/async-validator') ||
             normalizedId.includes('/node_modules/lodash-unified')
           ) {
+            if (isImportedByAdminView(id)) {
+              return 'vendor-element-admin'
+            }
             return 'vendor-element-advanced'
           }
           if (
@@ -113,12 +120,7 @@ export default defineConfig({
             normalizedId.includes('/node_modules/zrender/') ||
             normalizedId.includes('/node_modules/vue-echarts/')
           ) {
-            if (isImportedByView(id, ['Dashboard'])) {
-              return 'vendor-echarts-dashboard'
-            }
-            if (isImportedByView(id, ['Portfolios', 'PortfolioDetail', 'MyHoldings'])) {
-              return 'vendor-echarts-portfolio'
-            }
+            // 单一 chunk，避免按页面拆分导致同一份 echarts/zrender 被复制进多个异步包
             return 'vendor-echarts'
           }
           if (normalizedId.includes('/node_modules/lightweight-charts/')) {
@@ -136,4 +138,4 @@ export default defineConfig({
     reportCompressedSize: false,
     chunkSizeWarningLimit: 900
   }
-})
+}))

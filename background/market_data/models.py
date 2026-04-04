@@ -33,8 +33,14 @@ class AssetQuoteSnapshot(models.Model):
         verbose_name_plural = '行情快照'
         ordering = ['-quote_time']
         indexes = [
+            # 单资产最新快照：get_or_refresh_quote / 子查询 latest quote_time
             models.Index(fields=['asset', '-quote_time'], name='idx_quote_asset_time'),
             models.Index(fields=['-quote_time'], name='idx_quote_time'),
+            # 按写入时间取最新 id 的子查询（如 AssetList withQuote）
+            models.Index(fields=['asset', '-created_at'], name='idx_quote_asset_created'),
+            # 榜单 market_rankings：ORDER BY change_pct / volume（减轻 filesort）
+            models.Index(fields=['-change_pct'], name='idx_quote_change_pct'),
+            models.Index(fields=['-volume'], name='idx_quote_volume'),
         ]
 
     def __str__(self):

@@ -6,7 +6,7 @@
         <span class="subtitle">跟踪资产表现、成本结构与累计收益</span>
       </div>
       <el-button
-        type="primary"
+        plain
         size="large"
         :icon="Plus"
         class="add-btn"
@@ -425,6 +425,8 @@ import { getAssetsWithQuote } from '@/api/market'
 import { getMyHoldings, upsertHolding, updateHolding, deleteHolding, getHoldingPerformance, getHoldingReturnsHistory } from '@/api/holdings'
 import type { HoldingReturnsHistory } from '@/api/holdings'
 import { createLazyChartComponent, loadHoldingsChartComponent } from '@/utils/chart-loader'
+import { preloadAssetDetailCharts } from '@/utils/preload'
+import { scheduleIdle } from '@/utils/scheduleIdle'
 
 const VChart = createLazyChartComponent(loadHoldingsChartComponent)
 
@@ -741,7 +743,8 @@ const handleDelete = async (holding: UserHolding) => {
 }
 
 const goToAsset = (assetId: number) => {
-  router.push(`/assets/${assetId}`)
+  preloadAssetDetailCharts()
+  router.push({ name: 'AssetDetail', params: { assetId: String(assetId) } })
 }
 
 // ---- 格式化----
@@ -826,7 +829,9 @@ const pnlClass = (val: string | number | null | undefined) => {
 onMounted(() => {
   fetchHoldings()
   fetchPerformance()
-  fetchReturnsHistory()
+  scheduleIdle(() => {
+    fetchReturnsHistory()
+  })
 })
 </script>
 
@@ -874,16 +879,21 @@ onMounted(() => {
 }
 
 .add-btn {
-  background: $gradient-primary !important;
-  border: none !important;
-  box-shadow: $apple-shadow-md !important;
+  background: #ffffff !important;
+  color: $apple-text-primary !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: $apple-shadow-sm !important;
   font-weight: 600 !important;
   border-radius: $apple-radius-sm !important; // 10px
   font-family: $apple-font-family !important;
   transition: $transition-all !important;
 
-  &:hover {
-    box-shadow: 0 10px 30px rgba(29, 78, 216, 0.25) !important;
+  &:hover,
+  &:focus {
+    background: #ffffff !important;
+    border-color: rgba(37, 99, 235, 0.22) !important;
+    color: $apple-text-primary !important;
+    box-shadow: $apple-shadow-md !important;
     transform: translateY(-1px);
   }
 }

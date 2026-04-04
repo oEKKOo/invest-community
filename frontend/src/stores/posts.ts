@@ -89,51 +89,55 @@ export const usePostsStore = defineStore('posts', () => {
     }
   }
 
-  const toggleLike = async (postId: number) => {
-    const post = posts.value.find(p => p.id === postId) || currentPost.value
-    if (!post) return
+  /** 帖子详情与列表流可能各持有一份对象，需同时更新，否则详情页 UI 不会变 */
+  const collectPostTargets = (postId: number) => {
+    const set = new Set<Post>()
+    const inFeed = posts.value.find(p => p.id === postId)
+    const detail = currentPost.value?.id === postId ? currentPost.value : null
+    if (inFeed) set.add(inFeed)
+    if (detail) set.add(detail)
+    return [...set]
+  }
 
-    const wasLiked = post.isLiked
-    
-    try {
-      // 动态导入避免循环依赖
-      const { like, unlike } = await import('@/api/likes')
-      
-      if (wasLiked) {
-        await unlike({ targetType: 'POST', targetId: postId })
-        post.likes--
-        post.isLiked = false
-      } else {
-        await like({ targetType: 'POST', targetId: postId })
-        post.likes++
-        post.isLiked = true
+  const toggleLike = async (postId: number) => {
+    const targets = collectPostTargets(postId)
+    if (!targets.length) return
+
+    const wasLiked = targets[0].isLiked
+
+    const { like, unlike } = await import('@/api/likes')
+
+    if (wasLiked) {
+      await unlike({ targetType: 'POST', targetId: postId })
+      for (const p of targets) {
+        p.likes = Math.max(0, p.likes - 1)
+        p.isLiked = false
       }
-    } catch (error) {
-      // 回滚状态
-      post.isLiked = wasLiked
-      post.likes += wasLiked ? 1 : -1
-      throw error
+    } else {
+      await like({ targetType: 'POST', targetId: postId })
+      for (const p of targets) {
+        p.likes++
+        p.isLiked = true
+      }
     }
   }
 
   const toggleFavorite = async (postId: number) => {
-    const post = posts.value.find(p => p.id === postId) || currentPost.value
-    if (!post) return
+    const targets = collectPostTargets(postId)
+    if (!targets.length) return
 
-    const wasFavorited = post.isFavorited
+    const wasFavorited = targets[0].isFavorited
 
-    try {
-      if (wasFavorited) {
-        await postsApi.unfavoritePost(postId)
-        post.isFavorited = false
-      } else {
-        await postsApi.favoritePost(postId)
-        post.isFavorited = true
+    if (wasFavorited) {
+      await postsApi.unfavoritePost(postId)
+      for (const p of targets) {
+        p.isFavorited = false
       }
-    } catch (error) {
-      // 回滚状态
-      post.isFavorited = wasFavorited
-      throw error
+    } else {
+      await postsApi.favoritePost(postId)
+      for (const p of targets) {
+        p.isFavorited = true
+      }
     }
   }
 

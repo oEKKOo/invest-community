@@ -1,8 +1,8 @@
 import { onUnmounted, ref } from 'vue'
 import { useMarketStore } from '@/stores/market'
 
-// SSE 行情实时推送
-export function useQuoteStream(assetId: number) {
+// SSE 行情实时推送（用 getter 支持路由复用组件时切换标的）
+export function useQuoteStream(getAssetId: () => number) {
   const marketStore = useMarketStore()
   const isConnected = ref(false)
   const hasError = ref(false)
@@ -16,6 +16,9 @@ export function useQuoteStream(assetId: number) {
     if (es) {
       es.close()
     }
+
+    const assetId = getAssetId()
+    if (!Number.isFinite(assetId) || assetId <= 0) return
 
     const baseURL = import.meta.env.VITE_API_BASE_URL || '/api'
     const token = localStorage.getItem('investhub_token')

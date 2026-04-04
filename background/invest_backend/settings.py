@@ -80,7 +80,15 @@ INSTALLED_APPS = [
     'groups',       # 群组与关系模块
 ]
 
-MIDDLEWARE = [
+try:
+    import debug_toolbar  # noqa: F401
+
+    _DEBUG_TOOLBAR_AVAILABLE = True
+except ImportError:
+    _DEBUG_TOOLBAR_AVAILABLE = False
+
+# Django Debug Toolbar（仅 DEBUG 且已安装 django-debug-toolbar）
+_CORE_MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -90,6 +98,14 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+if DEBUG and _DEBUG_TOOLBAR_AVAILABLE:
+    INSTALLED_APPS = list(INSTALLED_APPS) + ['debug_toolbar']
+    MIDDLEWARE = ['debug_toolbar.middleware.DebugToolbarMiddleware'] + _CORE_MIDDLEWARE
+else:
+    MIDDLEWARE = list(_CORE_MIDDLEWARE)
+
+INTERNAL_IPS = ['127.0.0.1', '::1']
 
 ROOT_URLCONF = 'invest_backend.urls'
 
@@ -299,6 +315,10 @@ QUOTE_REFRESH_POPULAR_TOP_N = int(os.environ.get('QUOTE_REFRESH_POPULAR_TOP_N', 
 DASHBOARD_OVERVIEW_CACHE_TTL = int(os.environ.get('DASHBOARD_OVERVIEW_CACHE_TTL', 30))
 MARKET_RANKINGS_CACHE_TTL = int(os.environ.get('MARKET_RANKINGS_CACHE_TTL', 20))
 KLINE_API_CACHE_TTL = int(os.environ.get('KLINE_API_CACHE_TTL', 60))
+# 高频只读接口短缓存（秒）：全局搜索、管理台统计、前台板块树根
+GLOBAL_SEARCH_CACHE_TTL = int(os.environ.get('GLOBAL_SEARCH_CACHE_TTL', 20))
+ADMIN_STATS_CACHE_TTL = int(os.environ.get('ADMIN_STATS_CACHE_TTL', 45))
+BOARD_TREE_CACHE_TTL = int(os.environ.get('BOARD_TREE_CACHE_TTL', 90))
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Tushare 行情数据接入配置（A 股：沪深京三市）
@@ -374,5 +394,12 @@ LOGGING = {
     'root': {
         'handlers': ['console', 'file'],
         'level': 'INFO',
+    },
+    'loggers': {
+        'investhub.api_timing': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
     },
 }

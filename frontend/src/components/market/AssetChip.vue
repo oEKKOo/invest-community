@@ -19,7 +19,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import * as QuoteTag from './QuoteTag.vue'
+import QuoteTag from './QuoteTag.vue'
+import { preloadAssetDetailCharts } from '@/utils/preload'
 
 const props = defineProps<{
   assetId?: number
@@ -52,7 +53,8 @@ const marketClass = computed(() => {
 
 const handleClick = () => {
   if (props.assetId) {
-    router.push(`/assets/${props.assetId}`)
+    preloadAssetDetailCharts()
+    router.push({ name: 'AssetDetail', params: { assetId: String(props.assetId) } })
   }
 }
 </script>

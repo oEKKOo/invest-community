@@ -5,8 +5,8 @@
         <h2 class="page-title">社区论坛</h2>
         <p class="page-subtitle">分享投资观点、策略与市场观察</p>
       </div>
-      <el-button 
-        type="primary" 
+      <el-button
+        plain
         size="large"
         @click="showCreatePost = true"
         :icon="Plus"
@@ -150,7 +150,7 @@
             <el-icon style="color:#3B82F6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></el-icon>
             关联标的（可选）
           </div>
-          <AssetSelect v-model="createForm.assetIds" :max-count="5" />
+          <AssetSelect v-if="showCreatePost" v-model="createForm.assetIds" :max-count="5" />
         </el-form-item>
 
         <el-form-item>
@@ -343,7 +343,7 @@
 
 <script setup lang="ts">
 // @ts-nocheck
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, defineAsyncComponent } from 'vue'
 import { usePostsStore } from '../stores/posts'
 import { useAuthStore } from '../stores/auth'
 import { PostStatus } from '../types'
@@ -357,9 +357,11 @@ import {
   Warning
 } from '@element-plus/icons-vue'
 import { dayjs } from '@/utils/date'
-import AssetSelect from '@/components/market/AssetSelect.vue'
-import ReportDialog from '@/components/ReportDialog.vue'
+const AssetSelect = defineAsyncComponent(() => import('@/components/market/AssetSelect.vue'))
+const ReportDialog = defineAsyncComponent(() => import('@/components/ReportDialog.vue'))
 import { preloadAssetDetailCharts } from '@/utils/preload'
+import { scheduleIdle } from '@/utils/scheduleIdle'
+import { getAvatarPlaceholderDataUrl } from '@/utils/avatarPlaceholder'
 
 const postsStore = usePostsStore()
 const authStore = useAuthStore()
@@ -369,7 +371,7 @@ const showCreatePost = ref(false)
 const creating = ref(false)
 const activeFilter = ref<string>('ALL')
 const currentPage = ref(1)
-const pageSize = ref(20)
+const pageSize = ref(12)
 const selectedBoardId = ref<number | undefined>()
 const boardsLoading = ref(false)
 const boardTree = ref<any[]>([])
@@ -678,9 +680,7 @@ const formatDate = (dateStr: string) => {
   return dayjs(dateStr).format('YYYY-MM-DD HH:mm')
 }
 
-const getAvatarUrl = (id: number) => {
-  return `https://picsum.photos/seed/${id}/40/40`
-}
+const getAvatarUrl = (id: number) => getAvatarPlaceholderDataUrl(id, 40)
 
 const getAssetMarketTagType = (market?: string) => {
   const m = market?.toUpperCase()
@@ -691,8 +691,10 @@ const getAssetMarketTagType = (market?: string) => {
 }
 
 onMounted(() => {
-  fetchBoards()
   fetchPosts()
+  scheduleIdle(() => {
+    fetchBoards()
+  })
 })
 </script>
 
@@ -740,7 +742,23 @@ onMounted(() => {
 }
 
 .create-btn {
+  background: #ffffff !important;
+  color: $apple-text-primary !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: $apple-shadow-sm !important;
   font-weight: 600 !important;
+  border-radius: $apple-radius-sm !important;
+  font-family: $apple-font-family !important;
+  transition: $transition-all !important;
+
+  &:hover,
+  &:focus {
+    background: #ffffff !important;
+    border-color: rgba(37, 99, 235, 0.22) !important;
+    color: $apple-text-primary !important;
+    box-shadow: $apple-shadow-md !important;
+    transform: translateY(-1px);
+  }
 }
 
 .filter-tabs {

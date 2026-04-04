@@ -6,8 +6,8 @@
           <h2 class="page-title">投资组合</h2>
           <p class="page-subtitle">探索社区中的策略组合与资产配置思路</p>
         </div>
-        <el-button 
-          type="primary" 
+        <el-button
+          plain
           size="large"
           @click="showCreatePortfolio = true"
           :icon="Plus"
@@ -407,6 +407,7 @@ import { getMyHoldings, getHoldingPerformance } from '../api/holdings'
 import type { HoldingPerformance, HoldingPerformanceItem } from '../types'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { createLazyChartComponent, loadPortfoliosChartComponent } from '@/utils/chart-loader'
+import { getAvatarPlaceholderDataUrl } from '@/utils/avatarPlaceholder'
 import {
   Plus,
   Star,
@@ -776,9 +777,10 @@ const fetchPortfolios = async () => {
       // 这里需要后端支持，暂时在前端过滤
     }
     
-    await portfoliosStore.fetchPortfolios(params)
-    // 获取持仓收益（如果已登录）
-    fetchHoldingPerf()
+    await Promise.all([
+      portfoliosStore.fetchPortfolios(params),
+      fetchHoldingPerf()
+    ])
   } catch (error) {
     ElMessage.error('获取投资组合失败')
   }
@@ -1004,9 +1006,7 @@ const getPieChartOption = (assets: PortfolioAsset[]) => {
   }
 }
 
-const getAvatarUrl = (id: number) => {
-  return `https://picsum.photos/seed/${id}/40/40`
-}
+const getAvatarUrl = (id: number) => getAvatarPlaceholderDataUrl(id, 40)
 
 onMounted(() => {
   fetchPortfolios()
@@ -1087,15 +1087,21 @@ onMounted(() => {
 }
 
 .create-btn {
-  background: $gradient-primary !important;
-  border: none !important;
-  box-shadow: $shadow-purple !important;
+  background: #ffffff !important;
+  color: $text-primary !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: $shadow-sm !important;
   font-weight: 600 !important;
   border-radius: 10px !important;
+  font-family: $apple-font-family !important;
   transition: $transition-all !important;
 
-  &:hover {
-    box-shadow: 0 8px 24px rgba(29, 78, 216, 0.3) !important;
+  &:hover,
+  &:focus {
+    background: #ffffff !important;
+    border-color: rgba(37, 99, 235, 0.22) !important;
+    color: $text-primary !important;
+    box-shadow: $shadow-md !important;
     transform: translateY(-1px);
   }
 }

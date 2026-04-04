@@ -20,7 +20,17 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+]
 
+if settings.DEBUG:
+    try:
+        import debug_toolbar
+
+        urlpatterns += [path('__debug__/', include(debug_toolbar.urls))]
+    except ImportError:
+        pass
+
+urlpatterns += [
     # API endpoints
     path('api/auth/', include('accounts.urls')),
     path('api/users/', include('accounts.user_urls')),

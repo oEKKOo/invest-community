@@ -9,6 +9,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.conf import settings
 import os
 import re
 
@@ -25,6 +26,7 @@ from notifications.events import publish_event
 from accounts.feed_service import write_follow_feed_for_actor
 from accounts.user_score_service import apply_points
 from invest_backend.permissions import IsModeratorOrAdmin
+from invest_backend.perf_timing import timed_api
 
 User = get_user_model()
 
@@ -695,6 +697,7 @@ class AssetListView(generics.ListAPIView):
 
 
 @api_view(['GET'])
+@timed_api('asset_detail')
 def asset_detail(request, pk):
     """
     资产详情
@@ -1092,9 +1095,25 @@ class BoardListView(generics.ListAPIView):
         return queryset.order_by('sort_order', 'id')
 
     def list(self, request, *args, **kwargs):
+        qp = request.query_params
+        is_default_root = (
+            not qp.get('type')
+            and not qp.get('parentId')
+            and not qp.get('status')
+        )
+        if is_default_root:
+            ttl = int(getattr(settings, 'BOARD_TREE_CACHE_TTL', 90))
+            cache_key = 'boards:tree:root:v1'
+            cached = cache.get(cache_key)
+            if cached is not None:
+                return Response(cached)
+
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
-        return Response({'code': 0, 'data': {'items': serializer.data, 'total': queryset.count()}})
+        payload = {'code': 0, 'data': {'items': serializer.data, 'total': queryset.count()}}
+        if is_default_root:
+            cache.set(cache_key, payload, ttl)
+        return Response(payload)
 
 
 class AdminBoardListCreateView(generics.ListCreateAPIView):
@@ -1283,48 +1302,66 @@ def dashboard_overview(request):
 @permission_classes([AllowAny])
 def global_search(request):
     """全局搜索"""
-    q = request.query_params.get('q', '')
+    q_raw = request.query_params.get('q', '')
     search_type = request.query_params.get('type', 'all')
-    
+    q = (q_raw or '').strip()[:100]
+
+    if q:
+        ttl = int(getattr(settings, 'GLOBAL_SEARCH_CACHE_TTL', 20))
+        cache_key = f'search:v1:{q}:{search_type}'
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return Response({'code': 0, 'data': cached})
+
     results = {
         'posts': {'items': [], 'total': 0},
         'assets': {'items': [], 'total': 0},
-        'portfolios': {'items': [], 'total': 0}
+        'portfolios': {'items': [], 'total': 0},
     }
-    
+
     if q:
         if search_type in ['all', 'post']:
-            posts = Content.objects.filter(
+            base_posts = Content.objects.filter(
                 Q(title__icontains=q) | Q(body__icontains=q),
-                status='PUBLISHED'
-            ).prefetch_related('boards', 'assets')[:10]
+                status='PUBLISHED',
+            ).select_related('author').prefetch_related('boards', 'assets')
+            total_posts = base_posts.count()
+            posts = base_posts[:10]
             results['posts'] = {
-                'items': ContentListSerializer(posts, many=True, context={'request': request}).data,
-                'total': posts.count()
+                'items': ContentListSerializer(
+                    posts, many=True, context={'request': request}
+                ).data,
+                'total': total_posts,
             }
-        
+
         if search_type in ['all', 'asset']:
-            assets = Asset.objects.filter(
+            base_assets = Asset.objects.filter(
                 Q(code__icontains=q) | Q(name__icontains=q)
-            )[:10]
+            )
+            total_assets = base_assets.count()
+            assets = base_assets[:10]
             results['assets'] = {
                 'items': AssetSerializer(assets, many=True).data,
-                'total': assets.count()
+                'total': total_assets,
             }
-        
+
         if search_type in ['all', 'portfolio']:
             from portfolios.models import Portfolio
             from portfolios.serializers import PortfolioListSerializer
-            portfolios = Portfolio.objects.filter(
+
+            base_portfolios = Portfolio.objects.filter(
                 Q(title__icontains=q) | Q(description__icontains=q),
-                is_public=True
-            )[:10]
+                is_public=True,
+            ).select_related('owner').prefetch_related('assets', 'assets__asset')
+            total_portfolios = base_portfolios.count()
+            portfolios = base_portfolios[:10]
             results['portfolios'] = {
-                'items': PortfolioListSerializer(portfolios, many=True, context={'request': request}).data,
-                'total': portfolios.count()
+                'items': PortfolioListSerializer(
+                    portfolios, many=True, context={'request': request}
+                ).data,
+                'total': total_portfolios,
             }
-    
-    return Response({
-        'code': 0,
-        'data': results
-    })
+
+        cache.set(cache_key, results, ttl)
+
+    return Response({'code': 0, 'data': results})

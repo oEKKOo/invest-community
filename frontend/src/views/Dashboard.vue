@@ -361,7 +361,7 @@
             </el-button>
             <el-button
               v-if="authStore.isLoggedIn"
-              type="primary"
+              plain
               size="small"
               class="sidebar-action-btn"
               @click="$router.push('/portfolios')"
@@ -637,6 +637,8 @@ const chartTabs = [
 // 第一层：市场总览数据
 // ============================================================
 const marketLoading = ref(false)
+/** 首页精选榜仅 4 条，减小接口与 DB 排序开销；与全站榜单 limit 区分缓存 */
+const DASHBOARD_RANK_LIMIT = 4
 const activeRankType = ref<'gainers' | 'losers' | 'active'>('gainers')
 const displayedRankings = ref<MarketRankingItem[]>([])
 const activeChartTab = ref('7d')
@@ -646,13 +648,21 @@ const dashboardChartMounted = ref(false)
 let marketChartObserver: IntersectionObserver | null = null
 
 const fetchMarketRankings = async (type: string = activeRankType.value) => {
-  marketLoading.value = true
+  const stale = marketStore.peekStaleRankings(type, undefined, DASHBOARD_RANK_LIMIT)
+  if (stale?.length) {
+    displayedRankings.value = stale.slice(0, DASHBOARD_RANK_LIMIT)
+    marketLoading.value = false
+  } else {
+    marketLoading.value = true
+  }
   try {
-    const items = await marketStore.fetchRankings(type)
-    displayedRankings.value = items.slice(0, 4)
+    const items = await marketStore.fetchRankings(type, undefined, DASHBOARD_RANK_LIMIT)
+    displayedRankings.value = items.slice(0, DASHBOARD_RANK_LIMIT)
   } catch (e) {
     console.error('获取市场榜单失败:', e)
-    displayedRankings.value = []
+    if (!displayedRankings.value.length) {
+      displayedRankings.value = []
+    }
   } finally {
     marketLoading.value = false
   }
@@ -665,7 +675,7 @@ const switchRankType = async (type: string) => {
 
 const openAssetDetail = (targetAssetId: number) => {
   preloadAssetDetailCharts()
-  router.push(`/assets/${targetAssetId}`)
+  router.push({ name: 'AssetDetail', params: { assetId: String(targetAssetId) } })
 }
 
 const initMarketChartObserver = () => {
@@ -880,7 +890,7 @@ const fetchHotAssets = async () => {
   hotAssetsLoading.value = true
   try {
     // 优先使用已缓存榜单，避免重复请求
-    const items = await marketStore.fetchRankings('active')
+    const items = await marketStore.fetchRankings('active', undefined, 8)
     hotAssets.value = items.slice(0, 8)
   } catch (e) {
     console.error('获取热门标的失败:', e)
@@ -1945,6 +1955,21 @@ onBeforeUnmount(() => {
   flex: 1;
   font-size: 13px;
   font-weight: 500;
+
+  &.is-plain {
+    background: #ffffff !important;
+    color: $apple-text-primary !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    box-shadow: $apple-shadow-sm !important;
+
+    &:hover,
+    &:focus {
+      background: #ffffff !important;
+      border-color: rgba(37, 99, 235, 0.22) !important;
+      color: $apple-text-primary !important;
+      box-shadow: $apple-shadow-md !important;
+    }
+  }
 }
 
 // ---- Hot Assets ----

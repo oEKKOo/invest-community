@@ -266,6 +266,13 @@ python manage.py migrate
 
 可以通过 Django Admin 界面或 API 接口添加测试数据。
 
+## API 性能观测（可选）
+
+- **Django Debug Toolbar**：`DEBUG=True` 时启用，访问 `http://127.0.0.1:8000/__debug__/` 侧栏查看 SQL。依赖已列入 `requirements.txt`（`django-debug-toolbar`）。
+- **接口耗时日志**：Logger `investhub.api_timing`，在 `asset_detail`、`asset_kline`、`asset_contents` 及 `get_or_refresh_quote` 中输出 `endpoint=… duration_ms=…`。默认在 `DEBUG=True` 时写入；生产环境可设置环境变量 `DJANGO_API_TIMING_LOG=true` 开启（或设为 `false` 强制关闭）。
+- **行情榜单慢查询**：`asset_quote_snapshot` 上为 `change_pct`、`volume` 增加了降序索引（迁移 `market_data.0003`），并按 `created_at` 补充了 `(asset_id, created_at DESC)` 索引（迁移 `market_data.0004`）。说明与 `EXPLAIN` 自检见仓库 `docs/mysql_quote_snapshot_indexes.md`。
+- **高频只读短缓存**（默认走 `CACHES` 配置的 Redis 或 LocMem）：全局搜索 `GET /api/search/`（`GLOBAL_SEARCH_CACHE_TTL`，默认 20s）、管理台统计 `admin_stats`（`ADMIN_STATS_CACHE_TTL`，默认 45s）、前台板块树根无筛选参数时（`BOARD_TREE_CACHE_TTL`，默认 90s）。可通过环境变量覆盖同名设置项。
+
 ## 🚀 部署
 
 生产环境部署建议：

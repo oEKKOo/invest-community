@@ -59,8 +59,8 @@
           <!-- 操作按钮 -->
           <div class="hero-actions">
             <template v-if="isSelf">
-              <el-button 
-                type="primary" 
+              <el-button
+                plain
                 @click="showEditProfile = true"
                 size="large"
               >
@@ -843,7 +843,7 @@
 
 <script setup lang="ts">
 // @ts-nocheck
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, defineAsyncComponent } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { usePostsStore } from '../stores/posts'
@@ -862,7 +862,7 @@ import {
   MessageBox,
   Checked
 } from '@element-plus/icons-vue'
-import ReportDialog from '@/components/ReportDialog.vue'
+const ReportDialog = defineAsyncComponent(() => import('@/components/ReportDialog.vue'))
 import { dayjs } from '@/utils/date'
 import { getMyLikes } from '@/api/likes'
 import { getMyFavorites, uploadContentAttachment } from '@/api/posts'
@@ -883,6 +883,7 @@ import {
 } from '@/api/users'
 import { getInvestProfile, getKycStatus, updateCurrentUser, updateInvestProfile } from '@/api/auth'
 import { getPortfolios } from '@/api/portfolios'
+import { scheduleIdle } from '@/utils/scheduleIdle'
 
 const router = useRouter()
 const route = useRoute()
@@ -1271,12 +1272,16 @@ const userPosts = computed(() => {
 
 const userPostsCount = computed(() => userPosts.value.length)
 
-const fetchUserPosts = async () => {
+const fetchUserPosts = async (opts?: { pageSize?: number }) => {
   const uid = targetUserId.value
   if (!uid) return
   loading.value = true
   try {
-    await postsStore.fetchPosts({ authorId: uid, sort: 'new' })
+    await postsStore.fetchPosts({
+      authorId: uid,
+      sort: 'new',
+      pageSize: opts?.pageSize ?? 20
+    })
   } catch {
     ElMessage.error('获取用户帖子失败')
   } finally {
@@ -1289,12 +1294,12 @@ const userPortfolios = ref<Portfolio[]>([])
 
 const userPortfoliosCount = computed(() => userPortfolios.value.length)
 
-const fetchUserPortfolios = async () => {
+const fetchUserPortfolios = async (opts?: { pageSize?: number }) => {
   const uid = targetUserId.value
   if (!uid) return
   portfoliosLoading.value = true
   try {
-    const res = await getPortfolios({ userId: uid, pageSize: 50 })
+    const res = await getPortfolios({ userId: uid, pageSize: opts?.pageSize ?? 50 })
     userPortfolios.value = res.items
   } catch {
     ElMessage.error('获取投资组合失败')
@@ -1396,8 +1401,8 @@ const fetchOverviewData = async () => {
   overviewLoading.value = true
   try {
     await Promise.all([
-      fetchUserPosts(),
-      fetchUserPortfolios()
+      fetchUserPosts({ pageSize: 10 }),
+      fetchUserPortfolios({ pageSize: 12 })
     ])
   } finally {
     overviewLoading.value = false
@@ -1633,34 +1638,47 @@ const handleReportSubmitted = () => {
 // ──────────── 生命周期 ────────────
 const initProfilePage = async () => {
   await fetchDisplayUser()
-  if (authStore.isLoggedIn && displayUser.value && !isSelf.value) {
-    const status = await getFollowStatus(displayUser.value.id).catch(() => null)
-    if (status) {
-      isFollowing.value = status.isFollowing
-      isMutual.value = status.isMutual
-      isStarred.value = status.isStarred
+  const followPromise =
+    authStore.isLoggedIn && displayUser.value && !isSelf.value
+      ? getFollowStatus(displayUser.value.id)
+          .then((status) => {
+            if (status) {
+              isFollowing.value = status.isFollowing
+              isMutual.value = status.isMutual
+              isStarred.value = status.isStarred
+            }
+          })
+          .catch(() => undefined)
+      : Promise.resolve()
+
+  const tabPromise = (async () => {
+    if (activeTab.value === 'overview') {
+      await fetchOverviewData()
+    } else if (activeTab.value === 'posts') {
+      await fetchUserPosts()
+    } else if (activeTab.value === 'portfolios') {
+      await fetchUserPortfolios()
     }
-  }
-  if (activeTab.value === 'overview') {
-    await fetchOverviewData()
-  } else if (activeTab.value === 'posts') {
-    await fetchUserPosts()
-  } else if (activeTab.value === 'portfolios') {
-    await fetchUserPortfolios()
-  }
+  })()
+
+  await Promise.all([followPromise, tabPromise])
 }
 
 onMounted(() => {
   initProfilePage()
   if (isSelf.value) {
-    fetchLikesPreview()
-    fetchFavoritesPreview()
-    fetchAchievements()
-    fetchPrivacySettings()
-    fetchInvestProfile()
-    getMyStarFollowing().then((items) => {
-      myStarFollowingCount.value = items.length
-    }).catch(() => undefined)
+    scheduleIdle(() => {
+      fetchLikesPreview()
+      fetchFavoritesPreview()
+      fetchAchievements()
+      fetchPrivacySettings()
+      fetchInvestProfile()
+      getMyStarFollowing()
+        .then((items) => {
+          myStarFollowingCount.value = items.length
+        })
+        .catch(() => undefined)
+    })
   }
 })
 
@@ -1848,8 +1866,104 @@ watch(showEditProfile, (val) => {
   }
 }
 
+// Hero 操作区：与分段控件 / 卡片一致的轻量层次与 hover
 .hero-actions :deep(.el-button) {
-  border-radius: $apple-radius-md;
+  font-family: $apple-font-family;
+  font-weight: 500;
+  border-radius: $apple-radius-segmented;
+  transition: $transition-all;
+  padding: 12px 18px;
+}
+
+.hero-actions :deep(.el-button .el-icon) {
+  margin-inline-end: 6px;
+}
+
+.hero-actions :deep(.el-button--primary:not(.is-plain)) {
+  background: linear-gradient(135deg, $primary-dark 0%, $primary-light 100%);
+  border: none;
+  color: #fff;
+  box-shadow: $shadow-blue;
+
+  &:hover,
+  &:focus {
+    background: linear-gradient(135deg, $btn-primary-bg-hover 0%, $primary-dark 100%);
+    box-shadow: $btn-primary-shadow-hover;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: $shadow-blue;
+  }
+}
+
+.hero-actions :deep(.el-button.is-plain:not(.el-button--danger)) {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: $apple-text-primary;
+
+  &:hover,
+  &:focus {
+    background: #fff;
+    border-color: rgba(37, 99, 235, 0.22);
+    color: $primary-color;
+    box-shadow: $apple-shadow-sm;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+.hero-actions :deep(.el-button--primary.is-plain) {
+  color: $primary-color;
+
+  &:hover,
+  &:focus {
+    color: $primary-dark;
+  }
+}
+
+.hero-actions :deep(.el-button--danger.is-plain) {
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.22);
+  color: $error-color;
+
+  &:hover,
+  &:focus {
+    background: rgba(220, 38, 38, 0.12);
+    border-color: rgba(220, 38, 38, 0.35);
+    color: #b91c1c;
+    box-shadow: $apple-shadow-sm;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+.hero-actions :deep(.el-button--warning:not(.is-plain)) {
+  background: rgba(217, 119, 6, 0.14);
+  border: 1px solid rgba(217, 119, 6, 0.35);
+  color: #b45309;
+  box-shadow: none;
+
+  &:hover,
+  &:focus {
+    background: rgba(217, 119, 6, 0.2);
+    border-color: rgba(217, 119, 6, 0.45);
+    box-shadow: $apple-shadow-sm;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
 }
 
 // ──────────── 主体内容区 ────────────

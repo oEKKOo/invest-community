@@ -1,13 +1,11 @@
 import { defineAsyncComponent } from 'vue'
 
 type VueEchartsModule = typeof import('vue-echarts')
-type LightweightChartsModule = typeof import('lightweight-charts')
 
 let dashboardChartComponentPromise: Promise<VueEchartsModule['default']> | null = null
 let portfoliosChartComponentPromise: Promise<VueEchartsModule['default']> | null = null
 let portfolioDetailChartComponentPromise: Promise<VueEchartsModule['default']> | null = null
 let holdingsChartComponentPromise: Promise<VueEchartsModule['default']> | null = null
-let lightweightChartsPromise: Promise<LightweightChartsModule> | null = null
 
 const loadVueEchartsWithSetup = async (
   setup: () => void
@@ -55,13 +53,6 @@ export const loadHoldingsChartComponent = () => {
     })()
   }
   return holdingsChartComponentPromise
-}
-
-export const loadLightweightCharts = async () => {
-  if (!lightweightChartsPromise) {
-    lightweightChartsPromise = import('lightweight-charts')
-  }
-  return lightweightChartsPromise
 }
 
 export const createLazyChartComponent = (loader: () => Promise<any>) =>

@@ -372,7 +372,7 @@
             placeholder="写下你对这套组合的看法…&#10;比如配置逻辑、风险判断、收益预期等"
             class="comment-input"
           />
-          <el-button type="primary" size="default" class="comment-submit" @click="handleSubmitComment">
+          <el-button plain size="default" class="comment-submit" @click="handleSubmitComment">
             发布评论
           </el-button>
         </div>
@@ -423,7 +423,7 @@
 
 <script setup lang="ts">
 // @ts-nocheck
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router'
 import { usePortfoliosStore } from '../stores/portfolios'
 import { useAuthStore } from '../stores/auth'
@@ -433,7 +433,7 @@ import {
   Share,
   Warning
 } from '@element-plus/icons-vue'
-import ReportDialog from '@/components/ReportDialog.vue'
+const ReportDialog = defineAsyncComponent(() => import('@/components/ReportDialog.vue'))
 import { dayjs } from '@/utils/date'
 import { createLazyChartComponent, loadPortfolioDetailChartComponent } from '@/utils/chart-loader'
 import { getHoldingPerformance } from '../api/holdings'
@@ -444,6 +444,7 @@ import {
   createPortfolioComment,
   getPortfolioReturnsHistory
 } from '../api/portfolios'
+import { getAvatarPlaceholderDataUrl } from '@/utils/avatarPlaceholder'
 
 const VChart = createLazyChartComponent(loadPortfolioDetailChartComponent)
 
@@ -787,9 +788,7 @@ const changeTrendRange = async (v: '7d' | '30d' | 'all') => {
   await fetchTrend()
 }
 
-const getAvatarUrl = (id: number) => {
-  return `https://picsum.photos/seed/${id}/40/40`
-}
+const getAvatarUrl = (id: number) => getAvatarPlaceholderDataUrl(id, 40)
 
 const openReportPortfolioDialog = () => {
   if (!authStore.isLoggedIn) {
@@ -806,33 +805,34 @@ const handleReportSubmitted = () => {
   // 举报提交成功后的回调
 }
 
+const loadPortfolioCommentsAndUpdates = async (portfolioId: number) => {
+  try {
+    const [commentRes, updateRes] = await Promise.all([
+      getPortfolioComments(portfolioId),
+      getPortfolioUpdates(portfolioId)
+    ])
+    comments.value = commentRes?.items || commentRes || []
+    updateLogs.value = updateRes?.items || updateRes || []
+  } catch (commentError) {
+    console.warn('加载评论或更新日志失败:', commentError)
+    comments.value = []
+    updateLogs.value = []
+  }
+}
+
 onMounted(async () => {
   const portfolioId = Number(route.params.id)
-  if (portfolioId) {
-    try {
-      await portfoliosStore.fetchPortfolio(portfolioId)
-      await fetchTrend()
-      // 如果是本人的组合，同步拉持仓收益（非阻塞）
-      fetchHoldingPerf()
-      // 组合评论与更新日志
-      try {
-        const [commentRes, updateRes] = await Promise.all([
-          getPortfolioComments(portfolioId),
-          getPortfolioUpdates(portfolioId)
-        ])
-        // 容错处理：确保数据结构正确
-        comments.value = commentRes?.items || commentRes || []
-        updateLogs.value = updateRes?.items || updateRes || []
-      } catch (commentError) {
-        // 评论和更新日志加载失败不影响主页面显示
-        console.warn('加载评论或更新日志失败:', commentError)
-        comments.value = []
-        updateLogs.value = []
-      }
-    } catch (error) {
-      console.error('获取投资组合详情失败:', error)
-      ElMessage.error('获取投资组合详情失败')
-    }
+  if (!portfolioId) return
+  try {
+    await Promise.all([
+      portfoliosStore.fetchPortfolio(portfolioId),
+      fetchTrend(),
+      loadPortfolioCommentsAndUpdates(portfolioId)
+    ])
+    fetchHoldingPerf()
+  } catch (error) {
+    console.error('获取投资组合详情失败:', error)
+    ElMessage.error('获取投资组合详情失败')
   }
 })
 
@@ -1421,6 +1421,18 @@ const handleSubmitComment = async () => {
   align-self: flex-end;
   border-radius: $apple-input-radius;
   font-weight: 500;
+  background: #ffffff !important;
+  color: $text-primary !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: $shadow-sm !important;
+
+  &:hover,
+  &:focus {
+    background: #ffffff !important;
+    border-color: rgba(37, 99, 235, 0.22) !important;
+    color: $text-primary !important;
+    box-shadow: $shadow-md !important;
+  }
 }
 
 .update-timeline {

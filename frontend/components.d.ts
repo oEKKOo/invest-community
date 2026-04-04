@@ -55,6 +55,8 @@ declare module 'vue' {
     IntradayChart: typeof import('./src/components/market/IntradayChart.vue')['default']
     KlineChart: typeof import('./src/components/market/KlineChart.vue')['default']
     MainLayout: typeof import('./src/components/layout/MainLayout.vue')['default']
+    MainLayoutNotificationDrawer: typeof import('./src/components/layout/MainLayoutNotificationDrawer.vue')['default']
+    MainLayoutSearchDropdown: typeof import('./src/components/layout/MainLayoutSearchDropdown.vue')['default']
     QuoteMini: typeof import('./src/components/market/QuoteMini.vue')['default']
     QuoteTag: typeof import('./src/components/market/QuoteTag.vue')['default']
     ReportDialog: typeof import('./src/components/ReportDialog.vue')['default']

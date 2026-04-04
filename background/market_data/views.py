@@ -46,6 +46,8 @@ from .tasks import (
     dq_check, cleanup_old_snapshots,
 )
 
+from invest_backend.perf_timing import timed_api
+
 logger = logging.getLogger(__name__)
 
 
@@ -101,6 +103,7 @@ def asset_quote(request, pk):
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
+@timed_api('asset_kline')
 def asset_kline(request, pk):
     """
     获取资产 K 线数据（优先读数据库，库中无数据时从 Finnhub 拉取）
@@ -486,6 +489,7 @@ def asset_quote_stream(request, pk):
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
+@timed_api('asset_contents')
 def asset_contents(request, pk):
     """
     资产内容聚合（通用版，取代 /posts/ 路由，向后兼容）
@@ -725,6 +729,7 @@ def market_status(request):
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
+@timed_api('market_rankings')
 def market_rankings(request):
     """
     涨跌幅榜单（读最新快照）

@@ -59,7 +59,7 @@
 // @ts-nocheck
 import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { getAssetKline } from '../../api/market'
-import { loadLightweightCharts } from '@/utils/chart-loader'
+import { loadLightweightCharts } from '@/utils/lightweight-charts-loader'
 import type { AssetKlineItem } from '../../types/market'
 
 interface KlineChartProps {

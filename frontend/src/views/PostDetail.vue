@@ -180,8 +180,9 @@
             </div>
           </div>
           <div class="comment-actions">
-            <el-button 
-              type="primary" 
+            <el-button
+              plain
+              class="comment-submit-primary"
               @click="handleAddComment"
               :loading="commenting"
               :disabled="!newComment.trim() && !selectedCommentAttachments.length"
@@ -294,9 +295,9 @@
                 <div class="comment-footer">
                   <el-button
                     class="comment-like-btn"
+                    :class="{ 'is-liked': comment.isLiked }"
                     link
                     size="small"
-                    :type="comment.isLiked ? 'danger' : 'default'"
                     @click="toggleCommentLike(comment)"
                   >
                     赞 {{ comment.likeCount }}
@@ -405,9 +406,9 @@
                   <div class="comment-footer">
                     <el-button
                       class="comment-like-btn"
+                      :class="{ 'is-liked': reply.isLiked }"
                       link
                       size="small"
-                      :type="reply.isLiked ? 'danger' : 'default'"
                       @click="toggleCommentLike(reply)"
                     >
                       赞 {{ reply.likeCount }}
@@ -566,6 +567,7 @@ import {
 } from '@element-plus/icons-vue'
 import { dayjs } from '../utils/date'
 import { preloadAssetDetailCharts } from '../utils/preload'
+import { getAvatarPlaceholderDataUrl } from '@/utils/avatarPlaceholder'
 
 const route = useRoute()
 const postsStore = usePostsStore()
@@ -731,9 +733,7 @@ const formatDate = (dateStr: string) => {
   return dayjs(dateStr).format('YYYY年MM月DD日 HH:mm')
 }
 
-const getAvatarUrl = (id: number) => {
-  return `https://picsum.photos/seed/${id}/48/48`
-}
+const getAvatarUrl = (id: number) => getAvatarPlaceholderDataUrl(id, 48)
 
 const getAssetMarketType = (market?: string) => {
   const m = market?.toUpperCase()
@@ -743,19 +743,24 @@ const getAssetMarketType = (market?: string) => {
   return 'info'
 }
 
+const syncCommentCountFromPost = () => {
+  const post = postsStore.currentPost
+  if (!post) return
+  const serverComments: any = post.comments
+  commentCount.value =
+    typeof serverComments === 'number' ? serverComments : comments.value.length
+}
+
 const loadComments = async (postId: number) => {
   loadingComments.value = true
   try {
     const data = await postsApi.getPostComments(postId)
     comments.value = data
     if (postsStore.currentPost) {
-      const serverComments: any = postsStore.currentPost.comments
-      commentCount.value = typeof serverComments === 'number' ? serverComments : data.length
+      syncCommentCountFromPost()
     } else {
       commentCount.value = data.length
     }
-  } catch (error) {
-    ElMessage.error('加载评论失败')
   } finally {
     loadingComments.value = false
   }
@@ -1004,13 +1009,20 @@ const submitReport = async () => {
 
 onMounted(async () => {
   const postId = Number(route.params.id)
-  if (postId) {
-    try {
-      await postsStore.fetchPost(postId)
-      await loadComments(postId)
-    } catch (error) {
-      ElMessage.error('获取帖子详情失败')
-    }
+  if (!postId) return
+
+  const [postResult, commentResult] = await Promise.allSettled([
+    postsStore.fetchPost(postId),
+    loadComments(postId)
+  ])
+
+  if (postResult.status === 'rejected') {
+    ElMessage.error('获取帖子详情失败')
+    return
+  }
+  syncCommentCountFromPost()
+  if (commentResult.status === 'rejected') {
+    ElMessage.error('加载评论失败')
   }
 })
 </script>
@@ -1338,6 +1350,22 @@ onMounted(async () => {
   justify-content: flex-end;
 }
 
+.comment-submit-primary {
+  background: #ffffff !important;
+  color: $apple-text-primary !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: $apple-shadow-sm !important;
+  font-weight: 500;
+
+  &:hover:not(:disabled),
+  &:focus:not(:disabled) {
+    background: #ffffff !important;
+    border-color: rgba(37, 99, 235, 0.22) !important;
+    color: $apple-text-primary !important;
+    box-shadow: $apple-shadow-md !important;
+  }
+}
+
 .comment-reply-form {
   margin-top: 0.625rem;
 }
@@ -1457,6 +1485,25 @@ onMounted(async () => {
   line-height: 1.35;
   letter-spacing: 0.01em;
   margin-bottom: 0.875rem;
+}
+
+.comment-footer {
+  margin-top: 0.375rem;
+}
+
+/* 已赞：白底（与评论区卡片一致）+ 红字，避免 danger 类型的红底白字 */
+.comment-like-btn.is-liked {
+  color: rgba(232, 93, 93, 0.95) !important;
+  --el-button-text-color: rgba(232, 93, 93, 0.95);
+  --el-button-hover-text-color: rgba(232, 93, 93, 1);
+  --el-button-hover-bg-color: rgba(232, 93, 93, 0.08);
+  --el-button-bg-color: transparent;
+  background: transparent !important;
+  border-color: transparent !important;
+
+  &:hover {
+    color: rgba(232, 93, 93, 1) !important;
+  }
 }
 
 .comment-attachments-view {

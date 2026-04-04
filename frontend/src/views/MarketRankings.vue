@@ -190,7 +190,7 @@ const loadGainers = async () => {
   try {
     const res = await getMarketRankings({
       type: 'gainers',
-      limit: 20,
+      limit: 12,
       market: selectedMarket.value as any || undefined
     })
     gainers.value = res.items
@@ -206,7 +206,7 @@ const loadLosers = async () => {
   try {
     const res = await getMarketRankings({
       type: 'losers',
-      limit: 20,
+      limit: 12,
       market: selectedMarket.value as any || undefined
     })
     losers.value = res.items
@@ -222,7 +222,7 @@ const loadActives = async () => {
   try {
     const res = await getMarketRankings({
       type: 'active',
-      limit: 20,
+      limit: 12,
       market: selectedMarket.value as any || undefined
     })
     actives.value = res.items
