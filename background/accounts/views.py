@@ -7,7 +7,8 @@ from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from django.shortcuts import get_object_or_404
 from django.db import transaction
 from django.contrib.auth import get_user_model
-from django.db.models import Q, Sum
+from django.db.models import Q, Sum, F
+from django.db.models.functions import Greatest
 from django.utils import timezone
 from django.conf import settings
 from django.core.cache import cache
@@ -17,7 +18,8 @@ import random
 import uuid
 
 from content.models import Content
-from content.serializers import ContentListSerializer
+from content.serializers import ContentCardSerializer
+from content.post_list_helpers import build_post_card_context
 from portfolios.models import Portfolio
 from portfolios.serializers import PortfolioListSerializer
 
@@ -46,7 +48,7 @@ from .serializers import (
     RiskQuestionnaireSubmitSerializer,
     UserPrivacySettingsSerializer,
 )
-from notifications.events import publish_event
+from notifications.community_tasks import publish_follow_created_task, safe_task_delay
 from .feed_service import write_follow_feed_for_actor
 from .user_score_service import apply_points
 from .oauth.wechat_client import WeChatOAuthClient
@@ -631,6 +633,83 @@ def manage_current_user(request):
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
+def user_profile_overview(request, user_id):
+    """用户主页首屏聚合：公开资料 + 近期帖子 + 公开组合 + 关注统计。"""
+    from django.db.models import Count
+
+    from portfolios.views import get_portfolio_metrics
+
+    target = get_object_or_404(User, id=user_id)
+    profile = UserPublicSerializer(target).data
+
+    posts = list(
+        Content.objects.filter(author=target, status='PUBLISHED')
+        .select_related('author')
+        .prefetch_related('assets', 'boards', 'attachments', 'meta', 'poll__options')
+        .order_by('-created_at')[:10]
+    )
+    post_ctx = build_post_card_context(request, [p.id for p in posts])
+    recent_posts = ContentCardSerializer(posts, many=True, context=post_ctx).data
+
+    portfolios = list(
+        Portfolio.objects.filter(owner=target, is_public=True)
+        .select_related('owner')
+        .prefetch_related('assets', 'assets__asset')
+        .annotate(
+            favorites_count=Count('favorites', distinct=True),
+            asset_count=Count('assets', distinct=True),
+        )
+        .order_by('-created_at')[:12]
+    )
+    pids = [p.id for p in portfolios]
+    liked_pf = set()
+    fav_pf = set()
+    if request.user.is_authenticated and pids:
+        from content.models import Like
+        from portfolios.models import PortfolioFavorite
+
+        liked_pf = set(
+            Like.objects.filter(
+                user=request.user, target_type='PORTFOLIO', target_id__in=pids
+            ).values_list('target_id', flat=True)
+        )
+        fav_pf = set(
+            PortfolioFavorite.objects.filter(
+                user=request.user, portfolio_id__in=pids
+            ).values_list('portfolio_id', flat=True)
+        )
+    metrics = get_portfolio_metrics(portfolios)
+    recent_portfolios = PortfolioListSerializer(
+        portfolios,
+        many=True,
+        context={
+            'request': request,
+            'portfolio_metrics': metrics,
+            'liked_portfolio_ids': liked_pf,
+            'favorited_portfolio_ids': fav_pf,
+        },
+    ).data
+
+    star_following = UserStarFollow.objects.filter(user=target).count()
+    follow_stats = {
+        'followers': target.followers_count,
+        'following': target.following_count,
+        'starFollowing': star_following,
+    }
+
+    return Response({
+        'code': 0,
+        'data': {
+            'profile': profile,
+            'recentPosts': recent_posts,
+            'recentPortfolios': recent_portfolios,
+            'followStats': follow_stats,
+        },
+    })
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
 def get_user_profile(request, user_id):
     """获取用户公开资料"""
     user = get_object_or_404(User, id=user_id)
@@ -682,55 +761,61 @@ def manage_follow(request, user_id):
         }, status=status.HTTP_400_BAD_REQUEST)
     
     if request.method == 'POST':
-        # 关注用户
+        # 关注用户（计数用 F()/数据库原子更新，避免并发覆盖）
+        created = False
         with transaction.atomic():
-            follow, created = UserFollow.objects.get_or_create(
+            _, created = UserFollow.objects.get_or_create(
                 follower=request.user,
                 followee=target_user
             )
-            
             if created:
-                # 更新关注数和粉丝数
-                request.user.following_count += 1
-                target_user.followers_count += 1
-                request.user.save(update_fields=['following_count'])
-                target_user.save(update_fields=['followers_count'])
+                User.objects.filter(pk=request.user.pk).update(
+                    following_count=F('following_count') + 1
+                )
+                User.objects.filter(pk=target_user.pk).update(
+                    followers_count=F('followers_count') + 1
+                )
 
-                # 事件：关注已创建
-                publish_event("follow.created", follower=request.user, followee=target_user, follow=follow)
+        if created:
+            fid, tid = request.user.pk, target_user.pk
 
-                return Response({
-                    'code': 0,
-                    'message': '关注成功'
-                })
-            else:
-                return Response({
-                    'code': 4090,
-                    'message': '已经关注过了'
-                }, status=status.HTTP_409_CONFLICT)
-    
+            def _notify_follow():
+                safe_task_delay(publish_follow_created_task, args=(fid, tid))
+
+            transaction.on_commit(_notify_follow)
+            return Response({
+                'code': 0,
+                'message': '关注成功'
+            })
+        return Response({
+            'code': 4090,
+            'message': '已经关注过了'
+        }, status=status.HTTP_409_CONFLICT)
+
     elif request.method == 'DELETE':
         # 取消关注用户
         try:
             follow = UserFollow.objects.get(follower=request.user, followee=target_user)
-            with transaction.atomic():
-                follow.delete()
-                UserStarFollow.objects.filter(user=request.user, follow_user=target_user).delete()
-                # 更新关注数和粉丝数
-                request.user.following_count = max(0, request.user.following_count - 1)
-                target_user.followers_count = max(0, target_user.followers_count - 1)
-                request.user.save(update_fields=['following_count'])
-                target_user.save(update_fields=['followers_count'])
-            
-            return Response({
-                'code': 0,
-                'message': '取消关注成功'
-            })
         except UserFollow.DoesNotExist:
             return Response({
                 'code': 4040,
                 'message': '没有关注过该用户'
             }, status=status.HTTP_404_NOT_FOUND)
+
+        with transaction.atomic():
+            follow.delete()
+            UserStarFollow.objects.filter(user=request.user, follow_user=target_user).delete()
+            User.objects.filter(pk=request.user.pk).update(
+                following_count=Greatest(F('following_count') - 1, 0)
+            )
+            User.objects.filter(pk=target_user.pk).update(
+                followers_count=Greatest(F('followers_count') - 1, 0)
+            )
+
+        return Response({
+            'code': 0,
+            'message': '取消关注成功'
+        })
 
 
 class UserFollowersView(generics.ListAPIView):
@@ -899,7 +984,8 @@ def following_feed(request):
         post = posts_map.get(row.object_id)
         if not post:
             continue
-        data = ContentListSerializer(post, context={'request': request}).data
+        pctx = build_post_card_context(request, [post.id])
+        data = ContentCardSerializer(post, context=pctx).data
         data['feedMeta'] = {
             'actionType': row.action_type,
             'actorUserId': row.actor_user_id,
@@ -1505,12 +1591,24 @@ class UserFavoritesView(generics.ListAPIView):
 
     def get(self, request, *args, **kwargs):
         from content.models import Favorite
-        from content.serializers import ContentListSerializer
-        
-        favorites = Favorite.objects.filter(user=request.user).select_related('content')
+
+        favorites = (
+            Favorite.objects.filter(user=request.user)
+            .order_by('-created_at')
+            .select_related('content', 'content__author')
+            .prefetch_related(
+                'content__assets',
+                'content__boards',
+                'content__attachments',
+                'content__meta',
+                'content__poll__options',
+            )
+        )
         contents = [fav.content for fav in favorites]
-        
-        serializer = ContentListSerializer(contents, many=True, context={'request': request})
+        post_ids = [c.id for c in contents]
+        ctx = build_post_card_context(request, post_ids)
+
+        serializer = ContentCardSerializer(contents, many=True, context=ctx)
         return Response({
             'code': 0,
             'data': {

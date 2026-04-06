@@ -309,16 +309,30 @@ MARKET_DATA_SNAPSHOT_RETENTION_DAYS = int(os.environ.get('MARKET_DATA_SNAPSHOT_R
 QUOTE_REFRESH_POPULAR_TOP_N = int(os.environ.get('QUOTE_REFRESH_POPULAR_TOP_N', 20))
 
 # 热点接口缓存（秒）
-# dashboard/overview：首页聚合数据
-# market/rankings：行情榜单（首页卡片/榜单页）
+# dashboard/overview：首页聚合数据（约 30s–2min，默认 60）
+# market/rankings：行情榜单（约 1–5min，默认 120）
 # assets/{id}/kline：K线热点接口
-DASHBOARD_OVERVIEW_CACHE_TTL = int(os.environ.get('DASHBOARD_OVERVIEW_CACHE_TTL', 30))
-MARKET_RANKINGS_CACHE_TTL = int(os.environ.get('MARKET_RANKINGS_CACHE_TTL', 20))
+DASHBOARD_OVERVIEW_CACHE_TTL = int(os.environ.get('DASHBOARD_OVERVIEW_CACHE_TTL', 60))
+MARKET_RANKINGS_CACHE_TTL = int(os.environ.get('MARKET_RANKINGS_CACHE_TTL', 120))
 KLINE_API_CACHE_TTL = int(os.environ.get('KLINE_API_CACHE_TTL', 60))
+# GET /api/assets/{id}/kline/：默认返回条数上限（单页）；最大仍由视图侧 cap
+KLINE_DEFAULT_LIMIT = int(os.environ.get('KLINE_DEFAULT_LIMIT', 90))
+KLINE_MAX_LIMIT = int(os.environ.get('KLINE_MAX_LIMIT', 500))
+# POST /api/assets/quotes/：批量行情响应（读快照，短缓存降低重复查询）
+BULK_QUOTES_CACHE_TTL = int(os.environ.get('BULK_QUOTES_CACHE_TTL', 30))
+# quote_refresh 海外（Finnhub）支路：成功拉取后攒批再 bulk_create，降低逐条 INSERT 开销
+QUOTE_REFRESH_FH_DB_BATCH_SIZE = int(os.environ.get('QUOTE_REFRESH_FH_DB_BATCH_SIZE', 200))
+# GET /api/assets/{id}/：AssetSerializer 静态字段（不含 quote）
+ASSET_DETAIL_STATIC_CACHE_TTL = int(os.environ.get('ASSET_DETAIL_STATIC_CACHE_TTL', 600))
 # 高频只读接口短缓存（秒）：全局搜索、管理台统计、前台板块树根
 GLOBAL_SEARCH_CACHE_TTL = int(os.environ.get('GLOBAL_SEARCH_CACHE_TTL', 20))
 ADMIN_STATS_CACHE_TTL = int(os.environ.get('ADMIN_STATS_CACHE_TTL', 45))
 BOARD_TREE_CACHE_TTL = int(os.environ.get('BOARD_TREE_CACHE_TTL', 90))
+# 组合列表/详情卡片上的加权收益指标（_build_portfolio_metrics）短缓存，秒
+PORTFOLIO_METRICS_CACHE_TTL = int(os.environ.get('PORTFOLIO_METRICS_CACHE_TTL', 120))
+# GET holdings/returns-history：默认回溯天数与硬上限（防一次拉全表）
+HOLDING_RETURNS_HISTORY_DEFAULT_DAYS = int(os.environ.get('HOLDING_RETURNS_HISTORY_DEFAULT_DAYS', 365))
+HOLDING_RETURNS_HISTORY_MAX_DAYS = int(os.environ.get('HOLDING_RETURNS_HISTORY_MAX_DAYS', 3650))
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Tushare 行情数据接入配置（A 股：沪深京三市）
@@ -344,8 +358,14 @@ TUSHARE_REQUEST_DELAY = float(os.environ.get('TUSHARE_REQUEST_DELAY', 0.4))
 # 若未安装 Redis，自动降级为本地内存缓存（LocMemCache）
 # ─────────────────────────────────────────────────────────────────────────────
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/1')
+USE_REDIS_CONFIGURED = os.environ.get('USE_REDIS', 'false').lower() == 'true'
+# 浏览量：先写 Redis 增量，由 manage.py flush_view_count_buffer 周期回写 DB（需 USE_REDIS）
+VIEW_COUNT_USE_REDIS_BUFFER = (
+    os.environ.get('VIEW_COUNT_USE_REDIS_BUFFER', 'false').lower() == 'true'
+    and USE_REDIS_CONFIGURED
+)
 
-if os.environ.get('USE_REDIS', 'false').lower() == 'true':
+if USE_REDIS_CONFIGURED:
     CACHES = {
         'default': {
             'BACKEND': 'django_redis.cache.RedisCache',
@@ -403,3 +423,43 @@ LOGGING = {
         },
     },
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Celery（可选，需安装 celery 与 broker，如 Redis）
+# 启动：celery -A invest_backend worker -l info
+# Beat：celery -A invest_backend beat -l info
+# 任务注册：market_data/celery_tasks.py（需在 invest_backend/celery.py 中 import）
+# ─────────────────────────────────────────────────────────────────────────────
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://127.0.0.1:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', CELERY_BROKER_URL)
+CELERY_TASK_ALWAYS_EAGER = os.environ.get('CELERY_TASK_ALWAYS_EAGER', 'false').lower() in (
+    '1', 'true', 'yes',
+)
+CELERY_TIMEZONE = TIME_ZONE
+
+try:
+    from datetime import timedelta as _celery_td
+
+    from celery.schedules import crontab as _celery_crontab
+except ImportError:
+    CELERY_BEAT_SCHEDULE = {}
+else:
+    # 可按部署时区调整 crontab；热门行情 2 分钟一轮，日终 K 线/快照/清理走固定钟点
+    CELERY_BEAT_SCHEDULE = {
+        'market-quote-popular': {
+            'task': 'market_data.celery_tasks.quote_refresh_popular_task',
+            'schedule': _celery_td(minutes=2),
+        },
+        'market-kline-sync-daily': {
+            'task': 'market_data.celery_tasks.kline_sync_daily_task',
+            'schedule': _celery_crontab(hour=17, minute=30),
+        },
+        'portfolios-fill-holding-snapshots': {
+            'task': 'market_data.celery_tasks.fill_holding_snapshots_task',
+            'schedule': _celery_crontab(hour=18, minute=0),
+        },
+        'market-cleanup-quote-snapshots': {
+            'task': 'market_data.celery_tasks.cleanup_quote_snapshots_task',
+            'schedule': _celery_crontab(hour=3, minute=15),
+        },
+    }

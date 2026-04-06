@@ -124,7 +124,7 @@
               </div>
 
               <h4 class="review-title">{{ post.title }}</h4>
-              <p class="review-text">{{ post.content }}</p>
+              <p class="review-text">{{ post.excerpt || post.content }}</p>
 
               <div class="post-tags" v-if="post.tags?.length">
                 <el-tag 

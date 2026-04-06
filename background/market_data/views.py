@@ -12,7 +12,7 @@
 
 数据源路由规则：
   market in {SH,SZ,BJ} → Tushare（A 股日线数据）
-  market HK 日 K       → Tushare hk_daily（库空回补）；分钟线等仍可用 Finnhub
+  market HK 日 K       → Tushare hk_daily（由定时 KLINE_SYNC 写入）；分钟线等仍可用 Finnhub
   其他（如 US）         → Finnhub（实时行情 + K 线）
 """
 import json
@@ -34,7 +34,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from content.models import Asset, Content
-from content.serializers import ContentListSerializer
+from content.serializers import ContentCardSerializer
+from content.post_list_helpers import build_post_card_context
 from .models import AssetQuoteSnapshot, AssetKline, DataJobLog
 from .serializers import (
     QuoteSnapshotSerializer, KlineItemSerializer,
@@ -98,7 +99,7 @@ def asset_quote(request, pk):
 # ─────────────────────────────────────────────────────────────
 # 6.5  K 线数据
 # GET /api/assets/{asset_id}/kline/
-# Query: interval(1d|60m|15m|5m|1m), limit(默认200), from, to
+# Query: interval(1d|60m|15m|5m|1m), limit(默认见 settings.KLINE_DEFAULT_LIMIT), from, to
 # ─────────────────────────────────────────────────────────────
 
 @api_view(['GET'])
@@ -106,7 +107,8 @@ def asset_quote(request, pk):
 @timed_api('asset_kline')
 def asset_kline(request, pk):
     """
-    获取资产 K 线数据（优先读数据库，库中无数据时从 Finnhub 拉取）
+    获取资产 K 线数据（仅读数据库已同步数据；不在请求内调用第三方回补）。
+    冷数据由定时任务 kline_sync 或管理端 POST .../market/jobs/trigger/ KLINE_SYNC 写入。
     interval 映射关系：
       1d  → resolution='D'
       60m → resolution='60'
@@ -117,7 +119,9 @@ def asset_kline(request, pk):
     asset = get_object_or_404(Asset, pk=pk)
 
     interval = request.query_params.get('interval', '1d')
-    limit = min(int(request.query_params.get('limit', 200)), 500)
+    _default_limit = int(getattr(settings, 'KLINE_DEFAULT_LIMIT', 90))
+    _max_limit = int(getattr(settings, 'KLINE_MAX_LIMIT', 500))
+    limit = min(int(request.query_params.get('limit', _default_limit)), _max_limit)
     from_param = request.query_params.get('from')
     to_param = request.query_params.get('to')
 
@@ -159,60 +163,6 @@ def asset_kline(request, pk):
     queryset = queryset.order_by('-k_time')[:limit]
     klines = list(queryset)
 
-    # 数据库无数据时，按市场选择数据源拉取并落库
-    if not klines:
-        from .tasks import _write_klines
-        from .tushare_service import CN_MARKETS
-        from . import tushare_service as ts_svc
-
-        if asset.market in CN_MARKETS and resolution == 'D':
-            # A 股日线 → Tushare
-            ts_code = ts_svc.get_tushare_code(asset.code, asset.market)
-            if ts_code and ts_svc.is_api_token_configured():
-                logger.info('[kline] 数据库无 %s [%s] 数据，从 Tushare 拉取', asset.code, resolution)
-                days = 365
-                from_dt = datetime.now(tz=py_tz.utc) - timedelta(days=days)
-                start_str = ts_svc.date_to_tushare_str(from_dt)
-                end_str   = ts_svc.date_to_tushare_str(datetime.now(tz=py_tz.utc))
-                items = ts_svc.get_daily_klines(ts_code, start_str, end_str)
-                if items:
-                    _write_klines(asset, 'D', items, force_refetch=False)
-                    queryset = AssetKline.objects.filter(
-                        asset=asset, resolution=resolution
-                    ).order_by('-k_time')[:limit]
-                    klines = list(queryset)
-
-        elif asset.market == 'HK' and resolution == 'D' and ts_svc.is_api_token_configured():
-            ts_code = ts_svc.get_hk_tushare_code(asset.code)
-            if ts_code:
-                logger.info('[kline] 数据库无 %s [%s] 数据，从 Tushare 港股拉取', asset.code, resolution)
-                days = 365
-                from_dt = datetime.now(tz=py_tz.utc) - timedelta(days=days)
-                start_str = ts_svc.date_to_tushare_str(from_dt)
-                end_str   = ts_svc.date_to_tushare_str(datetime.now(tz=py_tz.utc))
-                items = ts_svc.get_hk_daily_klines(ts_code, start_str, end_str)
-                if items:
-                    _write_klines(asset, 'D', items, force_refetch=False)
-                    queryset = AssetKline.objects.filter(
-                        asset=asset, resolution=resolution
-                    ).order_by('-k_time')[:limit]
-                    klines = list(queryset)
-
-        if not klines and asset.finnhub_symbol:
-            # 美股 / 港股分钟线 / 港股日 K 未走通 Tushare 时回退
-            from . import finnhub_service as fh
-            logger.info('[kline] 数据库无 %s [%s] 数据，从 Finnhub 拉取', asset.code, resolution)
-            days = 365 if resolution == 'D' else 30
-            to_ts = fh.now_ts()
-            from_ts = fh.datetime_to_ts(datetime.now(tz=py_tz.utc) - timedelta(days=days))
-            data = fh.get_candles(asset.finnhub_symbol, resolution, from_ts, to_ts)
-            if data:
-                _write_klines(asset, resolution, data['items'], force_refetch=False)
-                queryset = AssetKline.objects.filter(
-                    asset=asset, resolution=resolution
-                ).order_by('-k_time')[:limit]
-                klines = list(queryset)
-
     # 按时间正序排列返回给前端（ECharts 需要升序）
     klines.reverse()
 
@@ -225,6 +175,10 @@ def asset_kline(request, pk):
         'count': len(klines),
         'items': serializer.data,
     }
+    if not klines:
+        payload['hint'] = (
+            '本地暂无该周期 K 线数据。请等待定时同步任务，或由管理员触发 KLINE_SYNC 任务回补。'
+        )
     cache.set(cache_key, payload, cache_ttl)
     return Response({'code': 0, 'data': payload})
 
@@ -344,6 +298,12 @@ def asset_quotes_bulk(request):
         }, status=status.HTTP_400_BAD_REQUEST)
 
     asset_ids = serializer.validated_data['assetIds']
+    ttl = int(getattr(settings, 'BULK_QUOTES_CACHE_TTL', 30))
+    cache_key = f'assets:bulk_quotes:v1:{":".join(str(i) for i in asset_ids)}'
+    cached_payload = cache.get(cache_key)
+    if cached_payload is not None:
+        return Response({'code': 0, 'data': cached_payload})
+
     assets = Asset.objects.filter(id__in=asset_ids)
 
     # 批量从快照表获取（最新快照，不实时调 Finnhub）
@@ -399,12 +359,14 @@ def asset_quotes_bulk(request):
                 'dataUpdatedAt': None,
             })
 
+    payload = {
+        'items': results,
+        'total': len(results),
+    }
+    cache.set(cache_key, payload, ttl)
     return Response({
         'code': 0,
-        'data': {
-            'items': results,
-            'total': len(results),
-        }
+        'data': payload,
     })
 
 
@@ -505,7 +467,9 @@ def asset_contents(request, pk):
     queryset = Content.objects.filter(
         assets=asset,
         status='PUBLISHED'
-    ).select_related('author').prefetch_related('assets')
+    ).select_related('author').prefetch_related(
+        'assets', 'boards', 'attachments', 'meta', 'poll__options'
+    )
 
     if content_type:
         # 预留：将来 Content 模型加 content_type 字段时在此过滤
@@ -519,9 +483,11 @@ def asset_contents(request, pk):
     total = queryset.count()
     start = (page - 1) * page_size
     end = start + page_size
-    items = queryset[start:end]
+    items = list(queryset[start:end])
+    post_ids = [c.id for c in items]
+    ser_ctx = build_post_card_context(request, post_ids)
 
-    serializer = ContentListSerializer(items, many=True, context={'request': request})
+    serializer = ContentCardSerializer(items, many=True, context=ser_ctx)
 
     return Response({
         'code': 0,
@@ -735,61 +701,15 @@ def market_rankings(request):
     涨跌幅榜单（读最新快照）
     type: gainers(涨幅榜) | losers(跌幅榜) | active(活跃榜/按成交量)
     """
+    from .rankings import get_cached_rankings_payload
+
     rank_type = request.query_params.get('type', 'gainers')
     limit = min(int(request.query_params.get('limit', 10)), 50)
     market = request.query_params.get('market')  # 可选市场过滤
-    cache_ttl = int(getattr(settings, 'MARKET_RANKINGS_CACHE_TTL', 20))
-    cache_key = f'rankings:v2:{rank_type}:{market or "ALL"}:{limit}'
-    cached_payload = cache.get(cache_key)
-    if cached_payload is not None:
-        return Response({'code': 0, 'data': cached_payload})
 
-    # 获取每个资产的最新快照（使用子查询取最新）
-    from django.db.models import OuterRef, Subquery
-
-    latest_times = AssetQuoteSnapshot.objects.filter(
-        asset=OuterRef('asset')
-    ).order_by('-quote_time').values('quote_time')[:1]
-
-    snapshots = AssetQuoteSnapshot.objects.filter(
-        quote_time=Subquery(latest_times),
-        price__isnull=False,
-        change_pct__isnull=False,
-    ).select_related('asset')
-
-    if market:
-        snapshots = snapshots.filter(asset__market=market)
-
-    if rank_type == 'gainers':
-        snapshots = snapshots.order_by('-change_pct')[:limit]
-    elif rank_type == 'losers':
-        snapshots = snapshots.order_by('change_pct')[:limit]
-    elif rank_type == 'active':
-        snapshots = snapshots.filter(volume__isnull=False).order_by('-volume')[:limit]
-    else:
-        return Response({'code': 4001, 'message': '不支持的 type'})
-
-    items = []
-    for i, snap in enumerate(snapshots, 1):
-        items.append({
-            'rank': i,
-            'assetId': snap.asset_id,
-            'code': snap.asset.code,
-            'name': snap.asset.name,
-            'market': snap.asset.market,
-            'price': float(snap.price) if snap.price else None,
-            'changePct': float(snap.change_pct) if snap.change_pct else None,
-            'change': float(snap.change_amount) if snap.change_amount else None,
-            'volume': snap.volume,
-            'quoteTime': snap.quote_time.isoformat() if snap.quote_time else None,
-        })
-
-    payload = {
-        'type': rank_type,
-        'market': market,
-        'items': items,
-    }
-    cache.set(cache_key, payload, cache_ttl)
+    payload, err = get_cached_rankings_payload(rank_type, limit, market)
+    if err:
+        return Response({'code': 4001, 'message': err})
     return Response({'code': 0, 'data': payload})
 
 

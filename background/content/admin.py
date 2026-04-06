@@ -3,6 +3,7 @@ from .models import (
     Asset, Board, Content, ContentAsset, ContentBoard, Comment, Like, Favorite,
     ContentMeta, Poll, PollOption, PollVote, Repost, Mention, ContentAttachment, CommentAttachment
 )
+from .cache_utils import invalidate_board_tree_cache
 
 
 @admin.register(Asset)
@@ -42,6 +43,14 @@ class BoardAdmin(admin.ModelAdmin):
     search_fields = ['name', 'slug', 'industry_code', 'stock_code']
     ordering = ['board_type', 'sort_order', 'id']
     readonly_fields = ['created_at', 'updated_at']
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        invalidate_board_tree_cache()
+
+    def delete_model(self, request, obj):
+        super().delete_model(request, obj)
+        invalidate_board_tree_cache()
 
 
 @admin.register(Content)

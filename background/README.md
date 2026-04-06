@@ -39,27 +39,28 @@ CREATE DATABASE community_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ### 2. 环境配置
 
 1. 复制环境变量文件：
-   ```bash
+  ```bash
    cp .env.example .env
-   ```
-
+  ```
 2. 编辑 `.env` 文件，配置数据库信息：
-   ```
+  ```
    DB_NAME=invest_db
    DB_USER=root
    DB_PASSWORD=your_password
    DB_HOST=localhost
    DB_PORT=3306
-   ```
+  ```
 
 ### 3. 自动初始化（推荐）
 
 **Windows:**
+
 ```bash
 python setup.py
 ```
 
 **或者使用启动脚本:**
+
 ```bash
 # Windows
 start_dev.bat
@@ -87,11 +88,21 @@ python manage.py runserver
 ```
 
 > **Windows PowerShell 每次启动前需设置环境变量：**
+>
 > ```powershell
 > cd D:\invest\background
 > $env:FINNHUB_API_KEY="your_finnhub_key_here"
 > $env:USE_REDIS="false"
 > ```
+
+### 缓存与 Redis（生产环境）
+
+| 配置 | 说明 |
+|------|------|
+| `USE_REDIS` | 设为 `true` 时使用 **django-redis**（见 `invest_backend/settings.py`），缓存与行情 L1 在 **多 Gunicorn 进程 / 多机** 间共享。为 `false`（默认）时使用 **LocMemCache**，仅**当前进程内存**有效，不适合多 worker 或水平扩展。 |
+| `REDIS_URL` | 默认 `redis://localhost:6379/1`，与 `KEY_PREFIX=invest_market` 一起使用。 |
+| `VIEW_COUNT_USE_REDIS_BUFFER` | 需同时 `USE_REDIS=true`。为 `true` 时帖子浏览量先写入 Redis 增量，再靠定时任务合并回 MySQL，减轻高频 `UPDATE`。合并命令：`python manage.py flush_view_count_buffer`（建议 cron 每 1～5 分钟执行）。未开启时仍为每次浏览直接更新数据库。 |
+| `DASHBOARD_OVERVIEW_CACHE_TTL` / `MARKET_RANKINGS_CACHE_TTL` 等 | 见 `settings.py` 注释，可通过环境变量覆盖。 |
 
 ---
 
@@ -144,6 +155,9 @@ python manage.py fill_holding_snapshots --days 365
 ### 🎯 其他常用管理命令
 
 ```bash
+# 将 Redis 中缓冲的帖子浏览量合并回数据库（需 VIEW_COUNT_USE_REDIS_BUFFER）
+python manage.py flush_view_count_buffer
+
 # 只导入指定股票的K线+行情（快速测试用）
 python manage.py import_cn_stocks --codes 600519,000858,300750 --kline --quote
 
@@ -161,52 +175,59 @@ python manage.py fill_holding_snapshots --holding-id 5
 
 ### 📋 命令参数速查表
 
-| 命令 | 关键参数 | 说明 |
-|---|---|---|
-| `import_cn_stocks` | _(无)_ | 仅导入股票列表，不同步K线/行情 |
-| `import_cn_stocks` | `--kline --days N` | 导入列表 + 同步最近N天K线 |
-| `import_cn_stocks` | `--quote` | 导入列表 + 刷新行情快照 |
-| `import_cn_stocks` | `--kline --quote --days N` | 导入列表 + K线 + 行情（初始化一步到位） |
-| `import_cn_stocks` | `--kline-only --days N` | **跳过导入**，只同步K线 ✅ 每日更新用 |
-| `import_cn_stocks` | `--quote-only` | **跳过导入**，只刷新行情快照 |
-| `import_cn_stocks` | `--codes A,B --kline --quote` | 指定代码同步 |
-| `fill_holding_snapshots` | `--days N` | 补全最近N天持仓快照（补缺模式） |
-| `fill_holding_snapshots` | `--user-id N` | 只处理指定用户 |
-| `fill_holding_snapshots` | `--holding-id N` | 只处理指定持仓记录（调试用） |
-| `fill_holding_snapshots` | `--force` | 强制重建（先删后补） |
+
+| 命令                       | 关键参数                          | 说明                      |
+| ------------------------ | ----------------------------- | ----------------------- |
+| `import_cn_stocks`       | *(无)*                         | 仅导入股票列表，不同步K线/行情        |
+| `import_cn_stocks`       | `--kline --days N`            | 导入列表 + 同步最近N天K线         |
+| `import_cn_stocks`       | `--quote`                     | 导入列表 + 刷新行情快照           |
+| `import_cn_stocks`       | `--kline --quote --days N`    | 导入列表 + K线 + 行情（初始化一步到位） |
+| `import_cn_stocks`       | `--kline-only --days N`       | **跳过导入**，只同步K线 ✅ 每日更新用  |
+| `import_cn_stocks`       | `--quote-only`                | **跳过导入**，只刷新行情快照        |
+| `import_cn_stocks`       | `--codes A,B --kline --quote` | 指定代码同步                  |
+| `fill_holding_snapshots` | `--days N`                    | 补全最近N天持仓快照（补缺模式）        |
+| `fill_holding_snapshots` | `--user-id N`                 | 只处理指定用户                 |
+| `fill_holding_snapshots` | `--holding-id N`              | 只处理指定持仓记录（调试用）          |
+| `fill_holding_snapshots` | `--force`                     | 强制重建（先删后补）              |
+
 
 ## 📡 API 接口
 
 项目启动后，可以访问以下地址：
 
-- **开发服务器**: http://127.0.0.1:8000/
-- **管理后台**: http://127.0.0.1:8000/admin/
-- **API 根路径**: http://127.0.0.1:8000/api/
+- **开发服务器**: [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
+- **管理后台**: [http://127.0.0.1:8000/admin/](http://127.0.0.1:8000/admin/)
+- **API 根路径**: [http://127.0.0.1:8000/api/](http://127.0.0.1:8000/api/)
 
 ### 主要 API 端点
 
 #### 用户认证
+
 - `POST /api/auth/register/` - 用户注册
 - `POST /api/auth/login/` - 用户登录
 - `POST /api/auth/refresh/` - 刷新 Token
 
 #### 用户管理
+
 - `GET /api/users/me/` - 获取当前用户信息
 - `PATCH /api/users/me/profile/` - 更新用户资料
 - `POST /api/users/{id}/follow/` - 关注用户
 
 #### 内容管理
+
 - `GET /api/posts/` - 获取帖子列表
 - `POST /api/posts/` - 创建帖子
 - `GET /api/posts/{id}/` - 获取帖子详情
 - `POST /api/posts/{id}/comments/` - 发表评论
 
 #### 投资组合
+
 - `GET /api/portfolios/` - 获取组合列表
 - `POST /api/portfolios/` - 创建组合
 - `GET /api/portfolios/top/` - 获取热门组合
 
 #### 其他功能
+
 - `POST /api/likes/` - 点赞/取消点赞
 - `POST /api/reports/` - 举报内容
 - `GET /api/notifications/` - 获取通知列表
@@ -287,6 +308,7 @@ python manage.py migrate
 ## 📞 技术支持
 
 如有问题，请检查：
+
 1. Python 和 Django 版本是否符合要求
 2. 数据库连接是否正确配置
 3. 依赖包是否完整安装

@@ -614,7 +614,7 @@ def quote_refresh(
     """
     刷新行情快照（自动选择数据源，可高频调用）：
     - A 股（SH/SZ/BJ）→ Tushare 全市场批量拉取（1 次 API + bulk_create，秒级完成）
-    - 其他（US/HK）   → Finnhub 实时报价（逐个调用，delay 节流）
+    - 其他（US/HK）   → Finnhub 实时报价（逐个调用，delay 节流 API）；DB 侧分批 bulk_create
 
     - asset_ids=None：刷新所有符合条件的 ACTIVE 资产（A 股 + 有 finnhub_symbol 的资产）
     - asset_ids=[...]：仅刷新指定资产
@@ -625,6 +625,7 @@ def quote_refresh(
     from content.models import Asset
 
     _BULK_BATCH = 2000
+    fh_db_batch = int(getattr(settings, 'QUOTE_REFRESH_FH_DB_BATCH_SIZE', 200))
 
     ttl = _get_quote_ttl()
     job = _start_job('QUOTE_REFRESH')
@@ -704,7 +705,28 @@ def quote_refresh(
                 no_data += len(cn_assets)
                 logger.warning('[Task:quote_refresh] A股批量行情无数据（可能为非交易日）')
 
-        # ── 海外资产（US/HK）：Finnhub 逐个调用 ─────────────────────────────
+        # ── 海外资产（US/HK）：Finnhub 仍逐个请求（delay 限流）；DB 攒批 bulk_create ──
+        fh_pending: List[AssetQuoteSnapshot] = []
+
+        def _flush_fh_snapshots():
+            nonlocal written
+            nonlocal fh_pending
+            if not fh_pending:
+                return
+            batch = fh_pending
+            fh_pending = []
+            created = AssetQuoteSnapshot.objects.bulk_create(
+                batch, batch_size=min(fh_db_batch, len(batch) or 1)
+            )
+            written += len(created)
+            for snap in created:
+                try:
+                    a = snap.asset
+                    result = _snapshot_to_dict(a, snap)
+                    cache.set(_quote_cache_key(snap.asset_id), result, timeout=ttl)
+                except Exception:
+                    pass
+
         for idx, asset in enumerate(fh_assets, 1):
             try:
                 quote = _fetch_quote_for_asset(asset)
@@ -719,7 +741,7 @@ def quote_refresh(
                     continue
 
                 source = quote.get('source', 'finnhub')
-                new_snapshot = AssetQuoteSnapshot.objects.create(
+                fh_pending.append(AssetQuoteSnapshot(
                     asset=asset,
                     price=quote.get('price'),
                     change_amount=quote.get('change_amount'),
@@ -732,11 +754,9 @@ def quote_refresh(
                     amount=quote.get('amount'),
                     quote_time=quote.get('quote_time'),
                     source=source,
-                )
-                written += 1
-
-                result = _snapshot_to_dict(asset, new_snapshot)
-                cache.set(_quote_cache_key(asset.id), result, timeout=ttl)
+                ))
+                if len(fh_pending) >= fh_db_batch:
+                    _flush_fh_snapshots()
 
                 if idx % log_interval == 0 or idx == len(fh_assets):
                     logger.info(
@@ -749,6 +769,8 @@ def quote_refresh(
                 failed.append(asset.code)
 
             _time.sleep(delay)
+
+        _flush_fh_snapshots()
 
         status = 'SUCCESS' if not failed else ('PARTIAL' if written > 0 else 'FAILED')
         job.status = status

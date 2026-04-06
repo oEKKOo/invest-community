@@ -5,11 +5,13 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.shortcuts import get_object_or_404
 from django.db.models import Q, F
+from django.db.models.functions import Greatest
 from django.db import transaction
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.conf import settings
+import copy
 import os
 import re
 
@@ -18,12 +20,36 @@ from .models import (
     Poll, PollOption, PollVote, Repost, Mention, ContentAttachment, ContentMeta, CommentAttachment
 )
 from .serializers import (
-    ContentListSerializer, ContentDetailSerializer, ContentCreateSerializer,
+    ContentListSerializer, ContentCardSerializer, ContentDetailSerializer, ContentCreateSerializer,
     CommentSerializer, CommentCreateSerializer, AssetSerializer, LikeSerializer,
     BoardSerializer, BoardCreateUpdateSerializer, ContentAttachmentSerializer, CommentAttachmentSerializer, PollSerializer
 )
+from .post_list_helpers import (
+    build_post_card_context,
+    build_comment_like_context,
+    prefetch_reply_previews_for_comments,
+)
+from .search_helpers import filter_posts_by_keyword, filter_assets_by_keyword
+from .cache_utils import BOARD_TREE_ROOT_CACHE_KEY, invalidate_board_tree_cache
+from .asset_cache import get_cached_asset_static, set_cached_asset_static
+from .view_count_buffer import record_content_view
+from .thumbnail_utils import (
+    MAX_COMMENT_ATTACHMENT_BYTES,
+    MAX_CONTENT_ATTACHMENT_BYTES,
+    save_instance_thumbnail,
+    validate_attachment_size,
+    validate_image_pixel_bounds,
+)
 from notifications.events import publish_event
-from accounts.feed_service import write_follow_feed_for_actor
+from notifications.community_tasks import (
+    apply_points_comment_task,
+    apply_points_post_created_task,
+    publish_comment_created_task,
+    publish_like_created_task,
+    publish_mention_created_task,
+    safe_task_delay,
+    write_follow_feed_post_published_task,
+)
 from accounts.user_score_service import apply_points
 from invest_backend.permissions import IsModeratorOrAdmin
 from invest_backend.perf_timing import timed_api
@@ -45,6 +71,7 @@ def _extract_mention_users(text: str):
 
 def _create_mentions(source_type: str, source_id: int, from_user, text: str):
     users = _extract_mention_users(text)
+    to_ids = []
     for u in users:
         if u.id == from_user.id:
             continue
@@ -54,12 +81,24 @@ def _create_mentions(source_type: str, source_id: int, from_user, text: str):
             to_user=u,
             defaults={'from_user': from_user}
         )
-        publish_event("mention.created", from_user=from_user, to_user=u, source_type=source_type, source_id=source_id)
+        to_ids.append(u.id)
+    if not to_ids:
+        return
+    fid = from_user.id
+
+    def _notify_mentions():
+        for tid in to_ids:
+            safe_task_delay(
+                publish_mention_created_task,
+                args=(fid, tid, source_type, source_id),
+            )
+
+    transaction.on_commit(_notify_mentions)
 
 
 class ContentListView(generics.ListCreateAPIView):
     """内容列表和创建"""
-    serializer_class = ContentListSerializer
+    serializer_class = ContentCardSerializer
     permission_classes = [AllowAny]
 
     def get_queryset(self):
@@ -103,9 +142,7 @@ class ContentListView(generics.ListCreateAPIView):
         
         q = self.request.query_params.get('q')
         if q:
-            queryset = queryset.filter(
-                Q(title__icontains=q) | Q(body__icontains=q)
-            )
+            queryset = filter_posts_by_keyword(queryset, q)
         
         # 排序
         sort_param = self.request.query_params.get('sort', 'new')
@@ -129,7 +166,9 @@ class ContentListView(generics.ListCreateAPIView):
         end = start + page_size
         
         paginated_queryset = queryset[start:end]
-        serializer = self.get_serializer(paginated_queryset, many=True)
+        post_ids = [c.id for c in paginated_queryset]
+        ser_ctx = build_post_card_context(request, post_ids)
+        serializer = self.get_serializer(paginated_queryset, many=True, context=ser_ctx)
 
         return Response({
             'code': 0,
@@ -155,21 +194,23 @@ class ContentListView(generics.ListCreateAPIView):
         serializer = ContentCreateSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
             content = serializer.save(author=request.user)
-            apply_points(
-                user=request.user,
-                event_type='POST_CREATED',
-                source_type='POST',
-                source_id=content.id,
-                reason='发布内容积分',
-            )
+            uid = request.user.pk
+            cid = content.pk
+
+            def _post_side_effects():
+                safe_task_delay(apply_points_post_created_task, args=(uid, cid))
+
+            transaction.on_commit(_post_side_effects)
             _create_mentions('POST', content.id, request.user, content.body)
             if content.status == 'PUBLISHED':
-                write_follow_feed_for_actor(
-                    actor_user=request.user,
-                    action_type='POST_PUBLISHED',
-                    object_type='POST',
-                    object_id=content.id,
-                )
+
+                def _feed():
+                    safe_task_delay(
+                        write_follow_feed_post_published_task,
+                        args=(uid, cid),
+                    )
+
+                transaction.on_commit(_feed)
 
             # 返回详细信息
             response_serializer = ContentDetailSerializer(content, context={'request': request})
@@ -187,7 +228,7 @@ class ContentListView(generics.ListCreateAPIView):
     def get_serializer_class(self):
         if self.request.method == 'POST':
             return ContentCreateSerializer
-        return ContentListSerializer
+        return ContentCardSerializer
 
     def get_permissions(self):
         if self.request.method == 'POST':
@@ -198,7 +239,12 @@ class ContentListView(generics.ListCreateAPIView):
 @api_view(['GET', 'PATCH', 'DELETE'])
 def content_detail(request, pk):
     """内容详情、更新、删除"""
-    content = get_object_or_404(Content.objects.prefetch_related('attachments', 'poll__options', 'meta'), pk=pk)
+    content = get_object_or_404(
+        Content.objects.select_related('author').prefetch_related(
+            'attachments', 'poll__options', 'meta'
+        ),
+        pk=pk,
+    )
     
     # 权限检查
     if request.method == 'GET':
@@ -212,9 +258,9 @@ def content_detail(request, pk):
                 return Response({'code': 4030, 'message': '无权访问'}, 
                                status=status.HTTP_403_FORBIDDEN)
         
-        # 增加浏览量
-        Content.objects.filter(pk=pk).update(view_count=F('view_count') + 1)
-        
+        # 浏览量：可选 Redis 缓冲 + 周期回写（见 VIEW_COUNT_USE_REDIS_BUFFER）
+        record_content_view(pk)
+
         serializer = ContentDetailSerializer(content, context={'request': request})
         return Response({'code': 0, 'data': serializer.data})
     
@@ -239,13 +285,17 @@ def content_detail(request, pk):
             serializer.save()
             _create_mentions('POST', content.id, request.user, content.body)
             if old_status != 'PUBLISHED' and content.status == 'PUBLISHED':
-                write_follow_feed_for_actor(
-                    actor_user=content.author,
-                    action_type='POST_PUBLISHED',
-                    object_type='POST',
-                    object_id=content.id,
-                )
-            
+                aid = content.author_id
+                oid = content.id
+
+                def _feed_patch():
+                    safe_task_delay(
+                        write_follow_feed_post_published_task,
+                        args=(aid, oid),
+                    )
+
+                transaction.on_commit(_feed_patch)
+
             return Response({'code': 0, 'data': ContentDetailSerializer(content, context={'request': request}).data})
         
         return Response({'code': 4001, 'errors': serializer.errors}, 
@@ -275,6 +325,7 @@ def toggle_favorite(request, pk):
     if request.method == 'POST':
         favorite, created = Favorite.objects.get_or_create(user=request.user, content=content)
         if created:
+            Content.objects.filter(pk=content.pk).update(favorite_count=F('favorite_count') + 1)
             return Response({'code': 0, 'message': '收藏成功'})
         else:
             return Response({'code': 4090, 'message': '已收藏过'}, 
@@ -284,6 +335,9 @@ def toggle_favorite(request, pk):
         try:
             favorite = Favorite.objects.get(user=request.user, content=content)
             favorite.delete()
+            Content.objects.filter(pk=content.pk).update(
+                favorite_count=Greatest(F('favorite_count') - 1, 0)
+            )
             return Response({'code': 0, 'message': '取消收藏成功'})
         except Favorite.DoesNotExist:
             return Response({'code': 4040, 'message': '未收藏过'}, 
@@ -291,12 +345,23 @@ def toggle_favorite(request, pk):
 
 
 class UserFavoritesView(generics.ListAPIView):
-    """用户收藏列表"""
-    serializer_class = ContentListSerializer
+    """用户收藏列表（与 accounts 路由重复时以 accounts 为准）"""
+    serializer_class = ContentCardSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        favorites = Favorite.objects.filter(user=self.request.user).select_related('content')
+        favorites = (
+            Favorite.objects.filter(user=self.request.user)
+            .order_by('-created_at')
+            .select_related('content', 'content__author')
+            .prefetch_related(
+                'content__assets',
+                'content__boards',
+                'content__attachments',
+                'content__meta',
+                'content__poll__options',
+            )
+        )
         return [fav.content for fav in favorites]
 
 
@@ -317,19 +382,36 @@ def post_comments(request, pk):
             status='NORMAL'
         ).select_related('author', 'reply_to_user').prefetch_related('attachments').order_by('created_at')
 
-        # 可选分页参数（不改变原有返回结构，仍然返回数组）
+        # 分页：默认首屏 20 条，返回 { items, page, pageSize, total }
         try:
             page = int(request.query_params.get('page', 1))
-            page_size = int(request.query_params.get('pageSize', 50))
+            page_size = int(request.query_params.get('pageSize', 20))
         except (TypeError, ValueError):
-            page, page_size = 1, 50
+            page, page_size = 1, 20
 
+        total = qs.count()
         start = (page - 1) * page_size
         end = start + page_size
-        comments = qs[start:end]
+        comments = list(qs[start:end])
+        reply_previews = prefetch_reply_previews_for_comments(comments, 5)
+        all_cids = []
+        for c in comments:
+            all_cids.append(c.id)
+            for r in reply_previews.get(c.id, []):
+                all_cids.append(r.id)
+        cctx = {'request': request, 'reply_previews': reply_previews}
+        cctx.update(build_comment_like_context(request, all_cids))
 
-        serializer = CommentSerializer(comments, many=True, context={'request': request})
-        return Response({'code': 0, 'data': serializer.data})
+        serializer = CommentSerializer(comments, many=True, context=cctx)
+        return Response({
+            'code': 0,
+            'data': {
+                'items': serializer.data,
+                'page': page,
+                'pageSize': page_size,
+                'total': total,
+            },
+        })
     
     elif request.method == 'POST':
         # 创建评论 - 需要认证
@@ -348,20 +430,27 @@ def post_comments(request, pk):
         )
 
         if serializer.is_valid():
-            comment = serializer.save()
-            apply_points(
-                user=request.user,
-                event_type='COMMENT_CREATED',
-                source_type='COMMENT',
-                source_id=comment.id,
-                reason='发表评论积分',
-            )
+            with transaction.atomic():
+                comment = serializer.save()
+                Content.objects.filter(pk=pk).update(comment_count=F('comment_count') + 1)
 
-            # 更新内容的评论数
-            Content.objects.filter(pk=pk).update(comment_count=F('comment_count') + 1)
+            uid = request.user.pk
+            cid = comment.id
 
-            # 事件：评论已创建（用于通知 / 积分 / 推荐特征等扩展）
-            publish_event("comment.created", comment=comment)
+            def _comment_side():
+                safe_task_delay(
+                    apply_points_comment_task,
+                    args=(
+                        uid,
+                        'COMMENT_CREATED',
+                        'COMMENT',
+                        cid,
+                        '发表评论积分',
+                    ),
+                )
+                safe_task_delay(publish_comment_created_task, args=(cid,))
+
+            transaction.on_commit(_comment_side)
             _create_mentions('COMMENT', comment.id, request.user, comment.body)
 
             response_data = CommentSerializer(comment, context={'request': request}).data
@@ -444,9 +533,12 @@ def comment_replies(request, comment_id):
     total = qs.count()
     start = (page - 1) * page_size
     end = start + page_size
-    items = qs[start:end]
+    items = list(qs[start:end])
+    cids = [c.id for c in items]
+    cr_ctx = {'request': request}
+    cr_ctx.update(build_comment_like_context(request, cids))
 
-    serializer = CommentSerializer(items, many=True, context={'request': request})
+    serializer = CommentSerializer(items, many=True, context=cr_ctx)
     return Response({
         'code': 0,
         'data': {
@@ -468,24 +560,26 @@ def toggle_like(request):
             target_type = serializer.validated_data['targetType']
             target_id = serializer.validated_data['targetId']
 
-            like, created = Like.objects.get_or_create(
-                user=request.user,
-                target_type=target_type,
-                target_id=target_id
-            )
-
-            if created:
-                # 更新点赞计数
-                _update_like_count(target_type, target_id, 1)
-
-                # 事件：点赞已创建
-                publish_event(
-                    "like.created",
+            with transaction.atomic():
+                like, created = Like.objects.get_or_create(
                     user=request.user,
                     target_type=target_type,
-                    target_id=target_id,
-                    like=like,
+                    target_id=target_id
                 )
+
+                if created:
+                    _update_like_count(target_type, target_id, 1)
+
+            if created:
+                uid = request.user.pk
+
+                def _like_evt():
+                    safe_task_delay(
+                        publish_like_created_task,
+                        args=(uid, target_type, target_id),
+                    )
+
+                transaction.on_commit(_like_evt)
 
                 return Response({'code': 0, 'message': '点赞成功', 'data': {'id': like.id}})
             else:
@@ -542,21 +636,26 @@ def comment_toggle_like(request, comment_id):
             target_type = serializer.validated_data['targetType']
             target_id = serializer.validated_data['targetId']
 
-            like, created = Like.objects.get_or_create(
-                user=request.user,
-                target_type=target_type,
-                target_id=target_id
-            )
-
-            if created:
-                _update_like_count(target_type, target_id, 1)
-                publish_event(
-                    "like.created",
+            with transaction.atomic():
+                like, created = Like.objects.get_or_create(
                     user=request.user,
                     target_type=target_type,
-                    target_id=target_id,
-                    like=like,
+                    target_id=target_id
                 )
+
+                if created:
+                    _update_like_count(target_type, target_id, 1)
+
+            if created:
+                uid = request.user.pk
+
+                def _like_evt():
+                    safe_task_delay(
+                        publish_like_created_task,
+                        args=(uid, target_type, target_id),
+                    )
+
+                transaction.on_commit(_like_evt)
                 return Response({'code': 0, 'message': '点赞成功', 'data': {'id': like.id}})
 
             return Response({'code': 4090, 'message': '已点赞过'},
@@ -629,9 +728,7 @@ class AssetListView(generics.ListAPIView):
 
         q = self.request.query_params.get('q')
         if q:
-            queryset = queryset.filter(
-                Q(code__icontains=q) | Q(name__icontains=q) | Q(industry__icontains=q)
-            )
+            queryset = filter_assets_by_keyword(queryset, q)
 
         return queryset.order_by('code')
 
@@ -704,8 +801,12 @@ def asset_detail(request, pk):
     改造：直接附带最新行情 quote 字段（减少前端额外请求）
     """
     asset = get_object_or_404(Asset, pk=pk)
-    serializer = AssetSerializer(asset)
-    data = serializer.data
+    data = get_cached_asset_static(asset.id)
+    if data is None:
+        serializer = AssetSerializer(asset)
+        raw = copy.deepcopy(dict(serializer.data))
+        set_cached_asset_static(asset.id, raw)
+        data = raw
 
     # 附带 quote 字段（camelCase，与 /assets/{id}/quote/ 接口格式保持一致）
     try:
@@ -747,7 +848,9 @@ def asset_posts(request, pk):
     queryset = Content.objects.filter(
         assets=asset,
         status='PUBLISHED'
-    ).select_related('author').prefetch_related('assets', 'boards')
+    ).select_related('author').prefetch_related(
+        'assets', 'boards', 'attachments', 'meta', 'poll__options'
+    )
     
     sort_param = request.query_params.get('sort', 'new')
     if sort_param == 'hot':
@@ -764,9 +867,11 @@ def asset_posts(request, pk):
     
     posts = queryset[start:end]
     total = queryset.count()
-    
-    serializer = ContentListSerializer(posts, many=True, context={'request': request})
-    
+
+    post_ids = [p.id for p in posts]
+    ser_ctx = build_post_card_context(request, post_ids)
+    serializer = ContentCardSerializer(posts, many=True, context=ser_ctx)
+
     return Response({
         'code': 0,
         'data': {
@@ -782,7 +887,7 @@ def asset_posts(request, pk):
 
 class AdminPostsView(generics.ListAPIView):
     """管理员查看帖子列表"""
-    serializer_class = ContentListSerializer
+    serializer_class = ContentCardSerializer
     permission_classes = [IsAuthenticated, IsModeratorOrAdmin]
 
     def get_queryset(self):
@@ -828,7 +933,9 @@ class AdminPostsView(generics.ListAPIView):
         end = start + page_size
 
         paginated_queryset = queryset[start:end]
-        serializer = self.get_serializer(paginated_queryset, many=True)
+        post_ids = [c.id for c in paginated_queryset]
+        ser_ctx = build_post_card_context(request, post_ids)
+        serializer = self.get_serializer(paginated_queryset, many=True, context=ser_ctx)
 
         return Response({
             'code': 0,
@@ -912,6 +1019,12 @@ def upload_content_attachment(request):
     if ext not in allowed:
         return Response({'code': 4001, 'message': '不支持的文件类型'}, status=status.HTTP_400_BAD_REQUEST)
 
+    try:
+        validate_attachment_size(upload, MAX_CONTENT_ATTACHMENT_BYTES)
+        validate_image_pixel_bounds(upload)
+    except ValueError as exc:
+        return Response({'code': 4001, 'message': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
     attachment = ContentAttachment.objects.create(
         uploaded_by=request.user,
         file=upload,
@@ -920,6 +1033,9 @@ def upload_content_attachment(request):
         file_size=getattr(upload, 'size', 0) or 0,
         status='PENDING'
     )
+    save_instance_thumbnail(attachment)
+    if attachment.thumb:
+        attachment.save(update_fields=['thumb'])
     data = ContentAttachmentSerializer(attachment, context={'request': request}).data
     return Response({'code': 0, 'data': data}, status=status.HTTP_201_CREATED)
 
@@ -939,6 +1055,12 @@ def upload_comment_attachment(request):
     if ext not in allowed:
         return Response({'code': 4001, 'message': '不支持的文件类型'}, status=status.HTTP_400_BAD_REQUEST)
 
+    try:
+        validate_attachment_size(upload, MAX_COMMENT_ATTACHMENT_BYTES)
+        validate_image_pixel_bounds(upload)
+    except ValueError as exc:
+        return Response({'code': 4001, 'message': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
     attachment = CommentAttachment.objects.create(
         uploaded_by=request.user,
         file=upload,
@@ -946,6 +1068,9 @@ def upload_comment_attachment(request):
         mime_type=getattr(upload, 'content_type', '') or '',
         file_size=getattr(upload, 'size', 0) or 0,
     )
+    save_instance_thumbnail(attachment)
+    if attachment.thumb:
+        attachment.save(update_fields=['thumb'])
     data = CommentAttachmentSerializer(attachment, context={'request': request}).data
     return Response({'code': 0, 'data': data}, status=status.HTTP_201_CREATED)
 
@@ -1103,7 +1228,7 @@ class BoardListView(generics.ListAPIView):
         )
         if is_default_root:
             ttl = int(getattr(settings, 'BOARD_TREE_CACHE_TTL', 90))
-            cache_key = 'boards:tree:root:v1'
+            cache_key = BOARD_TREE_ROOT_CACHE_KEY
             cached = cache.get(cache_key)
             if cached is not None:
                 return Response(cached)
@@ -1153,6 +1278,7 @@ class AdminBoardListCreateView(generics.ListCreateAPIView):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             board = serializer.save()
+            invalidate_board_tree_cache()
             return Response({'code': 0, 'data': BoardSerializer(board, context={'request': request}).data}, status=status.HTTP_201_CREATED)
         return Response({'code': 4001, 'message': '创建失败', 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1173,6 +1299,7 @@ def admin_board_detail(request, pk):
         serializer = BoardCreateUpdateSerializer(board, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
+            invalidate_board_tree_cache()
             return Response({'code': 0, 'data': BoardSerializer(board, context={'request': request}).data})
         return Response({'code': 4001, 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1182,22 +1309,25 @@ def admin_board_detail(request, pk):
     if ContentBoard.objects.filter(board=board).exists():
         return Response({'code': 4001, 'message': '板块已关联内容，建议先停用或迁移'}, status=status.HTTP_400_BAD_REQUEST)
     board.delete()
+    invalidate_board_tree_cache()
     return Response({'code': 0, 'message': '删除成功'})
 
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def dashboard_overview(request):
-    """Dashboard概览数据"""
+    """Dashboard概览数据。Query: include 可选逗号分隔 rankings,gainers,hotAssets,active,notifUnread。"""
     from portfolios.models import Portfolio
     from portfolios.serializers import PortfolioListSerializer
     from portfolios.models import PortfolioFavorite
     from django.conf import settings
     from django.db.models import Count
-    
+
     cache_ttl = int(getattr(settings, 'DASHBOARD_OVERVIEW_CACHE_TTL', 30))
     user_key = request.user.id if request.user.is_authenticated else 'anon'
-    cache_key = f'dashboard:overview:v2:{user_key}'
+    include_raw = (request.query_params.get('include') or '').strip()
+    cache_suffix = include_raw[:120] if include_raw else 'default'
+    cache_key = f'dashboard:overview:v3:{user_key}:{cache_suffix}'
     cached = cache.get(cache_key)
     if cached is not None:
         return Response({'code': 0, 'data': cached})
@@ -1211,28 +1341,11 @@ def dashboard_overview(request):
         .order_by('-like_count', '-comment_count')[:10]
     )
     trending_ids = [item.id for item in trending_posts]
-    liked_post_ids = set()
-    favorited_post_ids = set()
-    if request.user.is_authenticated and trending_ids:
-        liked_post_ids = set(
-            Like.objects.filter(
-                user=request.user, target_type='POST', target_id__in=trending_ids
-            ).values_list('target_id', flat=True)
-        )
-        favorited_post_ids = set(
-            Favorite.objects.filter(
-                user=request.user, content_id__in=trending_ids
-            ).values_list('content_id', flat=True)
-        )
-
-    trending_serializer = ContentListSerializer(
+    trending_ctx = build_post_card_context(request, trending_ids)
+    trending_serializer = ContentCardSerializer(
         trending_posts,
         many=True,
-        context={
-            'request': request,
-            'liked_post_ids': liked_post_ids,
-            'favorited_post_ids': favorited_post_ids,
-        }
+        context=trending_ctx,
     )
 
     # 热门组合（补充 owner / assets 预加载，避免序列化 N+1）
@@ -1294,6 +1407,28 @@ def dashboard_overview(request):
             'strategiesSharedCount': strategies_shared_count
         }
     }
+
+    if include_raw:
+        parts = {p.strip().lower() for p in include_raw.split(',') if p.strip()}
+        if parts & {'rankings', 'gainers'}:
+            from market_data.rankings import get_cached_rankings_payload
+
+            pl, err = get_cached_rankings_payload('gainers', 8, None)
+            if not err:
+                data['rankingsGainers'] = pl
+        if parts & {'hotassets', 'active'}:
+            from market_data.rankings import get_cached_rankings_payload
+
+            pl, err = get_cached_rankings_payload('active', 8, None)
+            if not err:
+                data['hotAssets'] = pl
+        if 'notifunread' in parts and request.user.is_authenticated:
+            from notifications.models import Notification
+
+            data['notificationsUnread'] = Notification.objects.filter(
+                user=request.user, is_read=False
+            ).count()
+
     cache.set(cache_key, data, cache_ttl)
     return Response({'code': 0, 'data': data})
 
@@ -1321,23 +1456,25 @@ def global_search(request):
 
     if q:
         if search_type in ['all', 'post']:
-            base_posts = Content.objects.filter(
-                Q(title__icontains=q) | Q(body__icontains=q),
-                status='PUBLISHED',
-            ).select_related('author').prefetch_related('boards', 'assets')
+            base_posts = filter_posts_by_keyword(
+                Content.objects.filter(status='PUBLISHED'),
+                q,
+            ).select_related('author').prefetch_related(
+                'boards', 'assets', 'attachments', 'meta', 'poll__options'
+            )
             total_posts = base_posts.count()
-            posts = base_posts[:10]
+            posts = list(base_posts[:10])
+            post_ids = [p.id for p in posts]
+            search_ctx = build_post_card_context(request, post_ids)
             results['posts'] = {
-                'items': ContentListSerializer(
-                    posts, many=True, context={'request': request}
+                'items': ContentCardSerializer(
+                    posts, many=True, context=search_ctx
                 ).data,
                 'total': total_posts,
             }
 
         if search_type in ['all', 'asset']:
-            base_assets = Asset.objects.filter(
-                Q(code__icontains=q) | Q(name__icontains=q)
-            )
+            base_assets = filter_assets_by_keyword(Asset.objects.all(), q)
             total_assets = base_assets.count()
             assets = base_assets[:10]
             results['assets'] = {

@@ -76,8 +76,11 @@
               @click="goPost(post.id)"
             >
               <h4 class="title">{{ post.title }}</h4>
+              <div v-if="post.thumbUrl" class="post-thumb">
+                <img :src="post.thumbUrl" alt="" loading="lazy" decoding="async" />
+              </div>
               <p class="excerpt">
-                {{ post.content }}
+                {{ post.excerpt || post.content }}
               </p>
               <div class="meta">
                 <span class="author">{{ post.authorName }}</span>
@@ -440,6 +443,21 @@ onMounted(() => {
     font-size: 0.95rem;
     font-weight: 600;
     color: #111827;
+  }
+
+  .post-thumb {
+    margin: 0.35rem 0 0.4rem;
+    border-radius: 8px;
+    overflow: hidden;
+    max-height: 140px;
+    background: #f3f4f6;
+
+    img {
+      width: 100%;
+      display: block;
+      object-fit: cover;
+      max-height: 140px;
+    }
   }
 
   .excerpt {

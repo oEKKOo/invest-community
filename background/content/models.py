@@ -203,6 +203,7 @@ class Content(models.Model):
     
     like_count = models.PositiveIntegerField('点赞数', default=0)
     comment_count = models.PositiveIntegerField('评论数', default=0)
+    favorite_count = models.PositiveIntegerField('收藏数', default=0)
     view_count = models.PositiveIntegerField('浏览数', default=0)
     
     created_at = models.DateTimeField('创建时间', default=timezone.now)
@@ -240,6 +241,12 @@ class ContentAsset(models.Model):
         verbose_name = '内容资产关联'
         verbose_name_plural = '内容资产关联'
         unique_together = ['content', 'asset']
+        indexes = [
+            models.Index(
+                fields=['asset', '-created_at'],
+                name='idx_content_asset_time',
+            ),
+        ]
 
     def __str__(self):
         return f"{self.content.title} - {self.asset.code}"
@@ -398,6 +405,13 @@ class ContentAttachment(models.Model):
     )
     uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='content_attachments', verbose_name='上传者')
     file = models.FileField('附件文件', upload_to='content_attachments/%Y/%m/')
+    thumb = models.FileField(
+        '缩略图',
+        upload_to='content_attachments/thumbs/%Y/%m/',
+        blank=True,
+        null=True,
+        help_text='图片附件生成的小图，供列表等场景使用',
+    )
     original_name = models.CharField('原始文件名', max_length=255, blank=True)
     mime_type = models.CharField('文件类型', max_length=100, blank=True)
     file_size = models.PositiveBigIntegerField('文件大小', default=0)
@@ -437,6 +451,12 @@ class CommentAttachment(models.Model):
     )
     uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comment_attachments', verbose_name='上传者')
     file = models.FileField('附件文件', upload_to='comment_attachments/%Y/%m/')
+    thumb = models.FileField(
+        '缩略图',
+        upload_to='comment_attachments/thumbs/%Y/%m/',
+        blank=True,
+        null=True,
+    )
     original_name = models.CharField('原始文件名', max_length=255, blank=True)
     mime_type = models.CharField('文件类型', max_length=100, blank=True)
     file_size = models.PositiveBigIntegerField('文件大小', default=0)
@@ -530,6 +550,9 @@ class Favorite(models.Model):
         verbose_name = '收藏'
         verbose_name_plural = '收藏'
         unique_together = ['user', 'content']
+        indexes = [
+            models.Index(fields=['user', '-created_at'], name='idx_favorite_user_time'),
+        ]
 
     def __str__(self):
         return f"{self.user.username}收藏了{self.content.title}"

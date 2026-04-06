@@ -240,7 +240,10 @@
           </div>
 
           <h3 class="post-title">{{ post.title }}</h3>
-          <p class="post-content">{{ post.content }}</p>
+          <div v-if="post.thumbUrl" class="post-card-thumb">
+            <img :src="post.thumbUrl" alt="" loading="lazy" decoding="async" />
+          </div>
+          <p class="post-content">{{ post.excerpt || post.content }}</p>
 
           <div class="post-tags" v-if="post.tags?.length || post.assets?.length || post.boards?.length">
             <el-tag
@@ -1068,6 +1071,22 @@ onMounted(() => {
 
   &:hover {
     color: $apple-accent;
+  }
+}
+
+.post-card-thumb {
+  margin: 0 0 0.75rem 0;
+  border-radius: 12px;
+  overflow: hidden;
+  max-height: 200px;
+  background: rgba(0, 0, 0, 0.04);
+
+  img {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: cover;
+    max-height: 200px;
   }
 }
 

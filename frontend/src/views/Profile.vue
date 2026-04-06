@@ -289,7 +289,7 @@
                       <div v-if="featuredPost" class="featured-card" @click="$router.push(`/posts/${featuredPost.id}`)">
                         <div class="featured-badge">代表帖子</div>
                         <h4 class="featured-title">{{ featuredPost.title }}</h4>
-                        <p class="featured-content">{{ featuredPost.content?.slice(0, 100) }}...</p>
+                        <p class="featured-content">{{ (featuredPost.excerpt || featuredPost.content || '').slice(0, 100) }}...</p>
                         <div class="featured-stats">
                           <span><el-icon><Star /></el-icon> {{ featuredPost.likes }}</span>
                           <span><el-icon><ChatLineRound /></el-icon> {{ featuredPost.comments }}</span>
@@ -404,7 +404,7 @@
                       <span class="post-date">{{ formatDate(post.createdAt) }}</span>
                     </div>
                     <h4 class="post-title">{{ post.title }}</h4>
-                    <p class="post-content">{{ post.content?.slice(0, 150) }}...</p>
+                    <p class="post-content">{{ (post.excerpt || post.content || '').slice(0, 150) }}...</p>
                     <div class="post-stats">
                       <span class="stat-item">
                         <el-icon><Star /></el-icon>

@@ -195,7 +195,8 @@
         <div class="comments-list">
           <el-skeleton v-if="loadingComments" :rows="3" animated />
           <el-empty v-else-if="!comments.length" description="暂无评论" />
-          <div v-else class="comment-items">
+          <div v-else class="comments-with-more">
+          <div class="comment-items">
             <div
               v-for="comment in comments"
               :key="comment.id"
@@ -429,6 +430,15 @@
                       ? '收起回复'
                       : `展开${hiddenReplyCount(comment)}条回复` }}
                   </el-button>
+                  <el-button
+                    v-if="isRepliesExpanded(comment.id) && canLoadMoreReplies(comment)"
+                    link
+                    size="small"
+                    :loading="loadingRepliesId === comment.id"
+                    @click="loadMoreReplies(comment)"
+                  >
+                    加载更多回复
+                  </el-button>
                 </div>
               </div>
 
@@ -487,6 +497,16 @@
                   </el-button>
                 </div>
               </div>
+            </div>
+          </div>
+            <div v-if="hasMoreTopComments" class="comments-load-more">
+              <el-button
+                text
+                :loading="loadingMoreComments"
+                @click="loadMoreComments"
+              >
+                加载更多评论
+              </el-button>
             </div>
           </div>
         </div>
@@ -578,6 +598,14 @@ const commenting = ref(false)
 const comments = ref<Comment[]>([])
 const commentCount = ref(0)
 const loadingComments = ref(false)
+const commentsPage = ref(1)
+const commentsTotal = ref(0)
+const loadingMoreComments = ref(false)
+const COMMENT_PAGE_SIZE = 20
+const REPLY_PAGE_SIZE = 15
+/** 每条顶级评论已加载的回复页码 / 总条数（用于分页累加） */
+const replyPages = ref<Record<number, number>>({})
+const replyTotals = ref<Record<number, number>>({})
 const showShareDialog = ref(false)
 
 // 楼中楼 & 交互状态
@@ -607,6 +635,10 @@ const reportForm = ref({
 const shareUrl = computed(() => {
   return `${window.location.origin}/posts/${route.params.id}`
 })
+
+const hasMoreTopComments = computed(
+  () => comments.value.length < commentsTotal.value
+)
 
 const handleLike = async () => {
   if (!authStore.isLoggedIn) {
@@ -690,6 +722,7 @@ const handleAddComment = async () => {
       attachmentIds: selectedCommentAttachments.value.map(item => item.id)
     })
     comments.value.push(comment)
+    commentsTotal.value += 1
     commentCount.value += 1
     ElMessage.success('评论发表成功')
     newComment.value = ''
@@ -754,15 +787,41 @@ const syncCommentCountFromPost = () => {
 const loadComments = async (postId: number) => {
   loadingComments.value = true
   try {
-    const data = await postsApi.getPostComments(postId)
-    comments.value = data
+    const data = await postsApi.getPostComments(postId, {
+      page: 1,
+      pageSize: COMMENT_PAGE_SIZE
+    })
+    comments.value = data.items
+    commentsPage.value = data.page
+    commentsTotal.value = data.total
+    replyPages.value = {}
+    replyTotals.value = {}
     if (postsStore.currentPost) {
       syncCommentCountFromPost()
     } else {
-      commentCount.value = data.length
+      commentCount.value = data.total
     }
   } finally {
     loadingComments.value = false
+  }
+}
+
+const loadMoreComments = async () => {
+  if (!postsStore.currentPost || loadingMoreComments.value || !hasMoreTopComments.value) return
+  loadingMoreComments.value = true
+  try {
+    const nextPage = commentsPage.value + 1
+    const data = await postsApi.getPostComments(postsStore.currentPost.id, {
+      page: nextPage,
+      pageSize: COMMENT_PAGE_SIZE
+    })
+    comments.value = [...comments.value, ...data.items]
+    commentsPage.value = data.page
+    commentsTotal.value = data.total
+  } catch {
+    ElMessage.error('加载更多评论失败')
+  } finally {
+    loadingMoreComments.value = false
   }
 }
 
@@ -804,6 +863,9 @@ const confirmReply = async (parentComment: Comment) => {
     if (target) {
       if (!target.replies) target.replies = []
       target.replies.push(reply)
+    }
+    if (replyTotals.value[parentComment.id] != null) {
+      replyTotals.value[parentComment.id] += 1
     }
     commentCount.value += 1
     ElMessage.success('回复已发送')
@@ -879,22 +941,47 @@ const toggleReplies = async (comment: Comment) => {
     expandedReplies.value[comment.id] = false
     return
   }
-  if (hasMoreReplies(comment)) {
-    await loadAllReplies(comment)
+  // 预览已满 5 条时认为服务端可能还有更多，首屏拉取第 1 页替换预览
+  const needPagedFetch =
+    hasMoreReplies(comment) && (comment.replies?.length || 0) >= 5
+  if (needPagedFetch && !replyPages.value[comment.id]) {
+    await loadAllReplies(comment, false)
   }
   expandedReplies.value[comment.id] = true
 }
 
-const loadAllReplies = async (comment: Comment) => {
+const canLoadMoreReplies = (comment: Comment) => {
+  const t = replyTotals.value[comment.id]
+  if (t == null) return false
+  return (comment.replies?.length || 0) < t
+}
+
+const loadAllReplies = async (comment: Comment, loadMore: boolean) => {
+  const curPage = replyPages.value[comment.id] || 0
+  const page = loadMore ? curPage + 1 : 1
+  if (loadMore && !canLoadMoreReplies(comment)) return
   loadingRepliesId.value = comment.id
   try {
-    const data = await postsApi.getCommentReplies(comment.id, { page: 1, pageSize: 50 })
-    comment.replies = data.items
-  } catch (error) {
-    ElMessage.error('加载更多回复失败')
+    const data = await postsApi.getCommentReplies(comment.id, {
+      page,
+      pageSize: REPLY_PAGE_SIZE
+    })
+    if (page === 1) {
+      comment.replies = data.items
+    } else {
+      comment.replies = [...(comment.replies || []), ...data.items]
+    }
+    replyPages.value[comment.id] = page
+    replyTotals.value[comment.id] = data.total
+  } catch {
+    ElMessage.error(loadMore ? '加载更多回复失败' : '加载回复失败')
   } finally {
     loadingRepliesId.value = null
   }
+}
+
+const loadMoreReplies = async (comment: Comment) => {
+  await loadAllReplies(comment, true)
 }
 
 const startEdit = (comment: Comment) => {
@@ -943,6 +1030,12 @@ const handleDeleteComment = async (comment: Comment) => {
       })
       .filter((c): c is Comment => c !== null)
 
+    const isTopLevel = !comment.parentId
+    if (isTopLevel) {
+      commentsTotal.value = Math.max(0, commentsTotal.value - 1)
+    } else if (comment.parentId != null && replyTotals.value[comment.parentId] != null) {
+      replyTotals.value[comment.parentId] = Math.max(0, replyTotals.value[comment.parentId] - 1)
+    }
     commentCount.value = Math.max(0, commentCount.value - 1)
     ElMessage.success('评论已删除')
   } catch (error) {
@@ -1409,6 +1502,12 @@ onMounted(async () => {
 
 .comments-list {
   margin-top: 0;
+}
+
+.comments-load-more {
+  display: flex;
+  justify-content: center;
+  padding: 0.75rem 0 0;
 }
 
 .comment-items {

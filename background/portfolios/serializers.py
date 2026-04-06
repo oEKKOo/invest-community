@@ -112,6 +112,7 @@ class PortfolioListSerializer(serializers.ModelSerializer):
     isPublic = serializers.BooleanField(source='is_public', read_only=True)
     likes = serializers.IntegerField(source='like_count', read_only=True)
     favorites = serializers.IntegerField(source='favorites_count', read_only=True, default=0)
+    subscriptionCount = serializers.IntegerField(source='subscription_count', read_only=True)
     assetCount = serializers.IntegerField(source='asset_count', read_only=True, default=0)
     isLiked = serializers.SerializerMethodField()
     isFavorited = serializers.SerializerMethodField()
@@ -129,7 +130,7 @@ class PortfolioListSerializer(serializers.ModelSerializer):
         model = Portfolio
         fields = [
             'id', 'userId', 'userName', 'title', 'description',
-            'riskLevel', 'returnsYTD', 'isPublic', 'visibility', 'likes', 'favorites',
+            'riskLevel', 'returnsYTD', 'isPublic', 'visibility', 'likes', 'favorites', 'subscriptionCount',
             'assets', 'assetCount', 'isLiked', 'isFavorited', 'createdAt', 'updatedAt',
             'lastRebalanceAt', 'totalReturn', 'dailyReturn', 'sevenDayReturn', 'strategyNote'
         ]

@@ -71648,3 +71648,330 @@ INFO 2026-04-04 14:52:03,254 perf_timing 31356 14508 api_timing endpoint=get_or_
 INFO 2026-04-04 14:52:06,240 perf_timing 31356 15516 api_timing endpoint=get_or_refresh_quote duration_ms=0.14 asset_id=30 code=000001 layer=L1
 INFO 2026-04-04 14:52:08,256 perf_timing 31356 14508 api_timing endpoint=get_or_refresh_quote duration_ms=0.14 asset_id=30 code=000001 layer=L1
 INFO 2026-04-04 14:52:13,258 perf_timing 31356 14508 api_timing endpoint=get_or_refresh_quote duration_ms=0.09 asset_id=30 code=000001 layer=L1
+INFO 2026-04-06 11:23:15,829 autoreload 29404 27068 Watching for file changes with StatReloader
+INFO 2026-04-06 11:23:49,395 perf_timing 29404 4484 api_timing endpoint=market_rankings duration_ms=155.02 path=/api/market/rankings/
+INFO 2026-04-06 11:23:49,439 perf_timing 29404 28252 api_timing endpoint=market_rankings duration_ms=121.45 path=/api/market/rankings/
+INFO 2026-04-06 11:25:10,241 perf_timing 29404 28924 api_timing endpoint=market_rankings duration_ms=12.54 path=/api/market/rankings/
+INFO 2026-04-06 11:25:10,329 perf_timing 29404 1104 api_timing endpoint=market_rankings duration_ms=29.19 path=/api/market/rankings/
+INFO 2026-04-06 11:31:17,237 perf_timing 29404 23096 api_timing endpoint=market_rankings duration_ms=22.81 path=/api/market/rankings/
+INFO 2026-04-06 11:31:17,258 perf_timing 29404 30444 api_timing endpoint=market_rankings duration_ms=28.79 path=/api/market/rankings/
+WARNING 2026-04-06 11:32:49,019 log 29404 33112 Unauthorized: /api/holdings/performance/
+WARNING 2026-04-06 11:32:49,029 log 29404 33320 Unauthorized: /api/portfolios/
+INFO 2026-04-06 12:17:17,601 autoreload 32680 30120 Watching for file changes with StatReloader
+INFO 2026-04-06 12:19:50,743 autoreload 26068 34344 Watching for file changes with StatReloader
+INFO 2026-04-06 12:20:11,377 perf_timing 26068 6972 api_timing endpoint=market_rankings duration_ms=26.73 path=/api/market/rankings/
+INFO 2026-04-06 12:20:11,382 perf_timing 26068 34332 api_timing endpoint=market_rankings duration_ms=27.60 path=/api/market/rankings/
+WARNING 2026-04-06 12:24:25,998 log 26068 19968 Unauthorized: /api/market/rankings/
+WARNING 2026-04-06 12:24:26,000 log 26068 1840 Unauthorized: /api/dashboard/overview/
+WARNING 2026-04-06 12:24:26,024 log 26068 10040 Unauthorized: /api/portfolios/top/
+WARNING 2026-04-06 12:24:26,028 log 26068 28976 Unauthorized: /api/posts/
+WARNING 2026-04-06 12:24:26,030 log 26068 34076 Unauthorized: /api/market/rankings/
+INFO 2026-04-06 12:24:26,097 perf_timing 26068 26636 api_timing endpoint=market_rankings duration_ms=18.19 path=/api/market/rankings/
+INFO 2026-04-06 12:24:26,111 perf_timing 26068 21376 api_timing endpoint=market_rankings duration_ms=31.95 path=/api/market/rankings/
+INFO 2026-04-06 12:24:43,609 perf_timing 26068 22524 api_timing endpoint=market_rankings duration_ms=3.06 path=/api/market/rankings/
+INFO 2026-04-06 12:24:44,202 perf_timing 26068 34768 api_timing endpoint=market_rankings duration_ms=33.33 path=/api/market/rankings/
+INFO 2026-04-06 12:24:50,088 perf_timing 26068 30248 api_timing endpoint=market_rankings duration_ms=17.91 path=/api/market/rankings/
+INFO 2026-04-06 12:24:50,656 perf_timing 26068 29196 api_timing endpoint=market_rankings duration_ms=57.85 path=/api/market/rankings/
+INFO 2026-04-06 12:27:57,207 perf_timing 26068 4796 api_timing endpoint=market_rankings duration_ms=22.96 path=/api/market/rankings/
+INFO 2026-04-06 12:27:57,345 perf_timing 26068 15708 api_timing endpoint=market_rankings duration_ms=44.91 path=/api/market/rankings/
+INFO 2026-04-06 12:28:48,527 perf_timing 26068 2524 api_timing endpoint=market_rankings duration_ms=49.12 path=/api/market/rankings/
+INFO 2026-04-06 12:28:51,115 perf_timing 26068 12568 api_timing endpoint=market_rankings duration_ms=18.49 path=/api/market/rankings/
+INFO 2026-04-06 12:29:21,694 tushare_service 26068 27632 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-04-06 12:29:23,085 perf_timing 26068 27632 api_timing endpoint=get_or_refresh_quote duration_ms=4109.28 asset_id=558 code=000012 layer=L3
+INFO 2026-04-06 12:29:23,086 perf_timing 26068 27632 api_timing endpoint=asset_detail duration_ms=4116.22 path=/api/assets/558/
+INFO 2026-04-06 12:29:23,289 perf_timing 26068 33296 api_timing endpoint=asset_contents duration_ms=21.15 path=/api/assets/558/contents/
+INFO 2026-04-06 12:29:23,314 perf_timing 26068 31496 api_timing endpoint=asset_kline duration_ms=43.77 path=/api/assets/558/kline/
+INFO 2026-04-06 12:29:23,446 perf_timing 26068 28872 api_timing endpoint=get_or_refresh_quote duration_ms=0.24 asset_id=558 code=000012 layer=L1
+INFO 2026-04-06 12:29:28,448 perf_timing 26068 28872 api_timing endpoint=get_or_refresh_quote duration_ms=0.21 asset_id=558 code=000012 layer=L1
+INFO 2026-04-06 12:29:33,451 perf_timing 26068 28872 api_timing endpoint=get_or_refresh_quote duration_ms=0.13 asset_id=558 code=000012 layer=L1
+INFO 2026-04-06 12:29:38,452 perf_timing 26068 28872 api_timing endpoint=get_or_refresh_quote duration_ms=0.15 asset_id=558 code=000012 layer=L1
+WARNING 2026-04-06 12:33:41,091 log 26068 28476 Unauthorized: /api/portfolios/16/returns-history/
+WARNING 2026-04-06 12:33:41,104 log 26068 18788 Unauthorized: /api/portfolios/16/
+WARNING 2026-04-06 12:33:41,124 log 26068 33008 Unauthorized: /api/portfolios/16/updates/
+WARNING 2026-04-06 12:33:41,135 log 26068 7932 Unauthorized: /api/portfolios/16/comments/
+INFO 2026-04-06 12:36:11,796 perf_timing 26068 26716 api_timing endpoint=market_rankings duration_ms=29.50 path=/api/market/rankings/
+INFO 2026-04-06 12:36:11,951 perf_timing 26068 5708 api_timing endpoint=market_rankings duration_ms=59.81 path=/api/market/rankings/
+INFO 2026-04-06 12:49:16,373 perf_timing 26068 2436 api_timing endpoint=market_rankings duration_ms=26.44 path=/api/market/rankings/
+INFO 2026-04-06 12:49:16,449 perf_timing 26068 3144 api_timing endpoint=market_rankings duration_ms=21.74 path=/api/market/rankings/
+INFO 2026-04-06 12:49:18,478 perf_timing 26068 31504 api_timing endpoint=market_rankings duration_ms=13.02 path=/api/market/rankings/
+INFO 2026-04-06 12:49:19,035 perf_timing 26068 27120 api_timing endpoint=market_rankings duration_ms=13.36 path=/api/market/rankings/
+INFO 2026-04-06 13:00:39,319 perf_timing 26068 33436 api_timing endpoint=market_rankings duration_ms=7.38 path=/api/market/rankings/
+INFO 2026-04-06 13:00:39,476 perf_timing 26068 27800 api_timing endpoint=market_rankings duration_ms=15.15 path=/api/market/rankings/
+INFO 2026-04-06 13:06:03,540 perf_timing 26068 2256 api_timing endpoint=market_rankings duration_ms=36.03 path=/api/market/rankings/
+INFO 2026-04-06 13:06:03,704 perf_timing 26068 26052 api_timing endpoint=market_rankings duration_ms=65.57 path=/api/market/rankings/
+INFO 2026-04-06 13:06:41,731 perf_timing 26068 15308 api_timing endpoint=get_or_refresh_quote duration_ms=2071.40 asset_id=553 code=000007 layer=L3
+INFO 2026-04-06 13:06:41,732 perf_timing 26068 15308 api_timing endpoint=asset_detail duration_ms=2078.80 path=/api/assets/553/
+INFO 2026-04-06 13:06:41,971 perf_timing 26068 22524 api_timing endpoint=asset_contents duration_ms=18.25 path=/api/assets/553/contents/
+INFO 2026-04-06 13:06:41,986 perf_timing 26068 18848 api_timing endpoint=asset_kline duration_ms=32.46 path=/api/assets/553/kline/
+INFO 2026-04-06 13:06:42,125 perf_timing 26068 28928 api_timing endpoint=get_or_refresh_quote duration_ms=0.19 asset_id=553 code=000007 layer=L1
+INFO 2026-04-06 13:06:47,127 perf_timing 26068 28928 api_timing endpoint=get_or_refresh_quote duration_ms=0.15 asset_id=553 code=000007 layer=L1
+INFO 2026-04-06 13:06:52,129 perf_timing 26068 28928 api_timing endpoint=get_or_refresh_quote duration_ms=0.17 asset_id=553 code=000007 layer=L1
+INFO 2026-04-06 13:06:57,130 perf_timing 26068 28928 api_timing endpoint=get_or_refresh_quote duration_ms=0.14 asset_id=553 code=000007 layer=L1
+INFO 2026-04-06 13:29:05,791 perf_timing 26068 8840 api_timing endpoint=market_rankings duration_ms=26.33 path=/api/market/rankings/
+INFO 2026-04-06 13:29:05,927 perf_timing 26068 31504 api_timing endpoint=market_rankings duration_ms=44.18 path=/api/market/rankings/
+WARNING 2026-04-06 13:37:44,406 log 26068 31820 Unauthorized: /api/portfolios/
+WARNING 2026-04-06 13:37:44,411 log 26068 19348 Unauthorized: /api/holdings/performance/
+WARNING 2026-04-06 13:37:44,937 log 26068 196 Unauthorized: /api/portfolios/
+WARNING 2026-04-06 13:37:44,951 log 26068 2656 Unauthorized: /api/holdings/performance/
+WARNING 2026-04-06 13:37:45,675 log 26068 31780 Unauthorized: /api/portfolios/
+WARNING 2026-04-06 13:37:45,678 log 26068 12500 Unauthorized: /api/holdings/performance/
+WARNING 2026-04-06 13:37:45,975 log 26068 29676 Unauthorized: /api/holdings/performance/
+WARNING 2026-04-06 13:37:45,979 log 26068 7620 Unauthorized: /api/portfolios/
+INFO 2026-04-06 13:40:57,179 perf_timing 26068 31328 api_timing endpoint=market_rankings duration_ms=23.23 path=/api/market/rankings/
+INFO 2026-04-06 13:40:57,299 perf_timing 26068 33292 api_timing endpoint=market_rankings duration_ms=32.00 path=/api/market/rankings/
+INFO 2026-04-06 13:54:20,348 autoreload 26068 34344 D:\invest\background\content\serializers.py changed, reloading.
+INFO 2026-04-06 13:54:21,902 autoreload 14076 8000 Watching for file changes with StatReloader
+INFO 2026-04-06 13:54:38,418 autoreload 14076 8000 D:\invest\background\content\serializers.py changed, reloading.
+INFO 2026-04-06 13:54:39,544 autoreload 29384 20964 Watching for file changes with StatReloader
+INFO 2026-04-06 13:54:58,436 autoreload 29384 20964 D:\invest\background\content\serializers.py changed, reloading.
+INFO 2026-04-06 13:54:59,619 autoreload 34068 28052 Watching for file changes with StatReloader
+INFO 2026-04-06 13:55:06,461 autoreload 34068 28052 D:\invest\background\content\serializers.py changed, reloading.
+INFO 2026-04-06 13:55:07,618 autoreload 7560 26828 Watching for file changes with StatReloader
+INFO 2026-04-06 13:55:10,749 autoreload 7560 26828 D:\invest\background\content\serializers.py changed, reloading.
+INFO 2026-04-06 13:55:11,929 autoreload 28584 28624 Watching for file changes with StatReloader
+INFO 2026-04-06 13:55:19,909 autoreload 28584 28624 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 13:55:21,007 autoreload 19792 34344 Watching for file changes with StatReloader
+INFO 2026-04-06 13:55:23,780 autoreload 19792 34344 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 13:55:24,905 autoreload 33308 30320 Watching for file changes with StatReloader
+INFO 2026-04-06 13:55:40,066 autoreload 33308 30320 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 13:55:41,211 autoreload 33712 18468 Watching for file changes with StatReloader
+INFO 2026-04-06 13:55:48,577 autoreload 33712 18468 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 13:55:49,714 autoreload 15624 15376 Watching for file changes with StatReloader
+INFO 2026-04-06 13:55:52,834 autoreload 15624 15376 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 13:55:53,968 autoreload 33032 33836 Watching for file changes with StatReloader
+INFO 2026-04-06 13:55:56,847 autoreload 33032 33836 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 13:55:58,020 autoreload 17272 32680 Watching for file changes with StatReloader
+INFO 2026-04-06 13:56:02,271 autoreload 17272 32680 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 13:56:03,448 autoreload 29360 21812 Watching for file changes with StatReloader
+INFO 2026-04-06 13:56:07,931 autoreload 29360 21812 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 13:56:09,112 autoreload 12472 28524 Watching for file changes with StatReloader
+INFO 2026-04-06 13:56:11,704 autoreload 12472 28524 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 13:56:12,781 autoreload 29068 34728 Watching for file changes with StatReloader
+INFO 2026-04-06 13:56:15,732 autoreload 29068 34728 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 13:56:16,870 autoreload 4340 25396 Watching for file changes with StatReloader
+INFO 2026-04-06 13:56:24,731 autoreload 4340 25396 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 13:56:25,883 autoreload 28040 29556 Watching for file changes with StatReloader
+INFO 2026-04-06 13:56:34,075 autoreload 28040 29556 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 13:56:35,238 autoreload 8500 31504 Watching for file changes with StatReloader
+INFO 2026-04-06 13:56:57,194 autoreload 8500 31504 D:\invest\background\market_data\views.py changed, reloading.
+INFO 2026-04-06 13:56:58,328 autoreload 33284 29544 Watching for file changes with StatReloader
+INFO 2026-04-06 13:57:03,531 autoreload 33284 29544 D:\invest\background\market_data\views.py changed, reloading.
+INFO 2026-04-06 13:57:04,674 autoreload 27948 6244 Watching for file changes with StatReloader
+INFO 2026-04-06 13:57:11,410 autoreload 27948 6244 D:\invest\background\market_data\views.py changed, reloading.
+INFO 2026-04-06 13:57:12,511 autoreload 34496 31636 Watching for file changes with StatReloader
+INFO 2026-04-06 13:57:58,440 autoreload 34496 31636 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 13:57:59,697 autoreload 10048 20320 Watching for file changes with StatReloader
+INFO 2026-04-06 13:58:02,654 autoreload 10048 20320 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 13:58:03,868 autoreload 12740 14288 Watching for file changes with StatReloader
+INFO 2026-04-06 13:58:11,987 autoreload 12740 14288 D:\invest\background\accounts\views.py changed, reloading.
+INFO 2026-04-06 13:58:13,140 autoreload 34952 29384 Watching for file changes with StatReloader
+INFO 2026-04-06 13:58:22,103 autoreload 34952 29384 D:\invest\background\accounts\views.py changed, reloading.
+INFO 2026-04-06 13:58:23,240 autoreload 11512 35504 Watching for file changes with StatReloader
+INFO 2026-04-06 13:58:34,548 autoreload 11512 35504 D:\invest\background\accounts\views.py changed, reloading.
+INFO 2026-04-06 13:58:35,665 autoreload 35072 35560 Watching for file changes with StatReloader
+INFO 2026-04-06 13:58:44,717 autoreload 35072 35560 D:\invest\background\accounts\views.py changed, reloading.
+INFO 2026-04-06 13:58:45,800 autoreload 28460 28776 Watching for file changes with StatReloader
+INFO 2026-04-06 13:59:00,366 autoreload 28460 28776 D:\invest\background\accounts\user_urls.py changed, reloading.
+INFO 2026-04-06 13:59:01,445 autoreload 35668 35260 Watching for file changes with StatReloader
+INFO 2026-04-06 14:00:06,738 autoreload 35668 35260 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 14:00:07,971 autoreload 33112 2948 Watching for file changes with StatReloader
+INFO 2026-04-06 14:00:10,938 autoreload 33112 2948 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 14:00:12,067 autoreload 28892 29152 Watching for file changes with StatReloader
+INFO 2026-04-06 14:08:14,966 perf_timing 28892 35084 api_timing endpoint=market_rankings duration_ms=220.38 path=/api/market/rankings/
+INFO 2026-04-06 14:08:14,972 perf_timing 28892 32620 api_timing endpoint=market_rankings duration_ms=132.82 path=/api/market/rankings/
+INFO 2026-04-06 14:08:25,900 tushare_service 28892 34876 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-04-06 14:08:27,246 perf_timing 28892 34876 api_timing endpoint=get_or_refresh_quote duration_ms=3598.78 asset_id=30 code=000001 layer=L3
+INFO 2026-04-06 14:08:27,248 perf_timing 28892 34876 api_timing endpoint=asset_detail duration_ms=3608.32 path=/api/assets/30/
+INFO 2026-04-06 14:08:27,473 perf_timing 28892 18916 api_timing endpoint=asset_kline duration_ms=34.77 path=/api/assets/30/kline/
+INFO 2026-04-06 14:08:27,538 perf_timing 28892 14968 api_timing endpoint=get_or_refresh_quote duration_ms=0.19 asset_id=30 code=000001 layer=L1
+INFO 2026-04-06 14:08:28,471 perf_timing 28892 30528 api_timing endpoint=asset_contents duration_ms=10.87 path=/api/assets/30/contents/
+INFO 2026-04-06 14:08:30,937 views 28892 19020 [kline] 数据库无 000001 [60] 数据，从 Finnhub 拉取
+WARNING 2026-04-06 14:08:31,873 finnhub_service 28892 19020 [Finnhub] 无访问权限(403), endpoint=/stock/candle —— 免费版套餐限制，已标记端点后续跳过
+WARNING 2026-04-06 14:08:31,874 finnhub_service 28892 19020 [Finnhub] 端点已被标记为无权限（403），后续请求将跳过: /stock/candle
+INFO 2026-04-06 14:08:31,879 perf_timing 28892 19020 api_timing endpoint=asset_kline duration_ms=950.23 path=/api/assets/30/kline/
+INFO 2026-04-06 14:08:32,541 perf_timing 28892 14968 api_timing endpoint=get_or_refresh_quote duration_ms=0.16 asset_id=30 code=000001 layer=L1
+INFO 2026-04-06 14:08:33,303 views 28892 14464 [kline] 数据库无 000001 [15] 数据，从 Finnhub 拉取
+INFO 2026-04-06 14:08:33,304 perf_timing 28892 14464 api_timing endpoint=asset_kline duration_ms=8.92 path=/api/assets/30/kline/
+INFO 2026-04-06 14:08:37,542 perf_timing 28892 14968 api_timing endpoint=get_or_refresh_quote duration_ms=0.23 asset_id=30 code=000001 layer=L1
+INFO 2026-04-06 14:08:42,545 perf_timing 28892 14968 api_timing endpoint=get_or_refresh_quote duration_ms=0.11 asset_id=30 code=000001 layer=L1
+INFO 2026-04-06 14:08:45,913 perf_timing 28892 10540 api_timing endpoint=market_rankings duration_ms=11.63 path=/api/market/rankings/
+INFO 2026-04-06 14:08:45,945 perf_timing 28892 28844 api_timing endpoint=market_rankings duration_ms=24.12 path=/api/market/rankings/
+INFO 2026-04-06 14:13:23,567 autoreload 28892 29152 D:\invest\background\content\models.py changed, reloading.
+INFO 2026-04-06 14:13:25,032 autoreload 35372 30452 Watching for file changes with StatReloader
+INFO 2026-04-06 14:13:27,853 autoreload 35372 30452 D:\invest\background\content\models.py changed, reloading.
+INFO 2026-04-06 14:13:28,967 autoreload 32620 34556 Watching for file changes with StatReloader
+INFO 2026-04-06 14:13:31,930 autoreload 32620 34556 D:\invest\background\portfolios\models.py changed, reloading.
+INFO 2026-04-06 14:13:33,187 autoreload 34604 29384 Watching for file changes with StatReloader
+INFO 2026-04-06 14:13:37,656 autoreload 34604 29384 D:\invest\background\portfolios\models.py changed, reloading.
+INFO 2026-04-06 14:13:38,840 autoreload 11512 28384 Watching for file changes with StatReloader
+INFO 2026-04-06 14:15:48,909 autoreload 11512 28384 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 14:15:50,042 autoreload 21928 27716 Watching for file changes with StatReloader
+INFO 2026-04-06 14:15:56,133 autoreload 21928 27716 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 14:15:57,295 autoreload 31184 31844 Watching for file changes with StatReloader
+INFO 2026-04-06 14:16:01,957 autoreload 31184 31844 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 14:16:03,108 autoreload 12536 35444 Watching for file changes with StatReloader
+INFO 2026-04-06 14:16:07,320 autoreload 12536 35444 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 14:16:08,485 autoreload 15376 35600 Watching for file changes with StatReloader
+INFO 2026-04-06 14:16:16,866 autoreload 15376 35600 D:\invest\background\accounts\views.py changed, reloading.
+INFO 2026-04-06 14:16:18,107 autoreload 25876 10340 Watching for file changes with StatReloader
+INFO 2026-04-06 14:16:22,333 autoreload 25876 10340 D:\invest\background\portfolios\views.py changed, reloading.
+INFO 2026-04-06 14:16:23,548 autoreload 25348 6572 Watching for file changes with StatReloader
+INFO 2026-04-06 14:16:26,741 autoreload 25348 6572 D:\invest\background\portfolios\serializers.py changed, reloading.
+INFO 2026-04-06 14:16:27,919 autoreload 9048 35668 Watching for file changes with StatReloader
+INFO 2026-04-06 14:16:44,257 autoreload 9048 35668 D:\invest\background\content\serializers.py changed, reloading.
+INFO 2026-04-06 14:16:45,507 autoreload 14892 17124 Watching for file changes with StatReloader
+INFO 2026-04-06 14:17:56,192 autoreload 14892 17124 D:\invest\background\content\search_helpers.py changed, reloading.
+INFO 2026-04-06 14:17:57,411 autoreload 22896 35396 Watching for file changes with StatReloader
+INFO 2026-04-06 14:19:55,393 perf_timing 22896 1972 api_timing endpoint=market_rankings duration_ms=82.50 path=/api/market/rankings/
+INFO 2026-04-06 14:19:55,400 perf_timing 22896 34876 api_timing endpoint=market_rankings duration_ms=89.98 path=/api/market/rankings/
+INFO 2026-04-06 14:21:22,155 perf_timing 22896 35044 api_timing endpoint=market_rankings duration_ms=24.49 path=/api/market/rankings/
+INFO 2026-04-06 14:21:22,301 perf_timing 22896 13636 api_timing endpoint=market_rankings duration_ms=53.53 path=/api/market/rankings/
+INFO 2026-04-06 14:21:22,932 perf_timing 22896 29532 api_timing endpoint=market_rankings duration_ms=19.39 path=/api/market/rankings/
+INFO 2026-04-06 14:21:23,000 perf_timing 22896 6744 api_timing endpoint=market_rankings duration_ms=49.91 path=/api/market/rankings/
+INFO 2026-04-06 14:31:17,316 autoreload 22896 35396 D:\invest\background\invest_backend\settings.py changed, reloading.
+INFO 2026-04-06 14:31:18,637 autoreload 33748 23156 Watching for file changes with StatReloader
+INFO 2026-04-06 14:31:33,004 autoreload 33748 23156 D:\invest\background\content\apps.py changed, reloading.
+INFO 2026-04-06 14:31:34,168 autoreload 9356 34028 Watching for file changes with StatReloader
+INFO 2026-04-06 14:31:37,144 autoreload 9356 34028 D:\invest\background\content\serializers.py changed, reloading.
+INFO 2026-04-06 14:31:38,341 autoreload 35300 5708 Watching for file changes with StatReloader
+INFO 2026-04-06 14:31:45,596 autoreload 35300 5708 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 14:31:46,801 autoreload 20448 10604 Watching for file changes with StatReloader
+INFO 2026-04-06 14:31:52,598 autoreload 20448 10604 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 14:31:53,815 autoreload 33696 2948 Watching for file changes with StatReloader
+INFO 2026-04-06 14:31:58,918 autoreload 33696 2948 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 14:32:00,082 autoreload 23028 30716 Watching for file changes with StatReloader
+INFO 2026-04-06 14:32:18,291 autoreload 23028 30716 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 14:32:19,564 autoreload 30688 25396 Watching for file changes with StatReloader
+INFO 2026-04-06 14:32:32,348 autoreload 30688 25396 D:\invest\background\market_data\views.py changed, reloading.
+INFO 2026-04-06 14:32:33,608 autoreload 35100 29104 Watching for file changes with StatReloader
+INFO 2026-04-06 14:32:42,390 autoreload 35100 29104 D:\invest\background\content\admin.py changed, reloading.
+INFO 2026-04-06 14:32:43,589 autoreload 10036 30680 Watching for file changes with StatReloader
+INFO 2026-04-06 14:32:52,350 autoreload 10036 30680 D:\invest\background\content\admin.py changed, reloading.
+INFO 2026-04-06 14:32:53,614 autoreload 33112 7380 Watching for file changes with StatReloader
+INFO 2026-04-06 14:34:54,128 autoreload 33112 7380 D:\invest\background\content\serializers.py changed, reloading.
+INFO 2026-04-06 14:34:55,443 autoreload 30180 12888 Watching for file changes with StatReloader
+INFO 2026-04-06 14:42:26,746 autoreload 30180 12888 D:\invest\background\invest_backend\settings.py changed, reloading.
+INFO 2026-04-06 14:42:27,858 autoreload 4992 11616 Watching for file changes with StatReloader
+INFO 2026-04-06 14:42:39,450 autoreload 4992 11616 D:\invest\background\market_data\views.py changed, reloading.
+INFO 2026-04-06 14:42:40,531 autoreload 33376 22724 Watching for file changes with StatReloader
+INFO 2026-04-06 14:42:46,382 autoreload 33376 22724 D:\invest\background\market_data\views.py changed, reloading.
+INFO 2026-04-06 14:42:47,430 autoreload 12496 27740 Watching for file changes with StatReloader
+INFO 2026-04-06 14:42:55,867 autoreload 12496 27740 D:\invest\background\market_data\views.py changed, reloading.
+INFO 2026-04-06 14:42:56,881 autoreload 33184 26096 Watching for file changes with StatReloader
+INFO 2026-04-06 14:43:12,977 autoreload 33184 26096 D:\invest\background\invest_backend\settings.py changed, reloading.
+INFO 2026-04-06 14:43:14,077 autoreload 22236 13120 Watching for file changes with StatReloader
+INFO 2026-04-06 14:43:25,719 autoreload 22236 13120 D:\invest\background\market_data\tasks.py changed, reloading.
+INFO 2026-04-06 14:43:26,713 autoreload 30908 35052 Watching for file changes with StatReloader
+INFO 2026-04-06 14:43:38,314 autoreload 30908 35052 D:\invest\background\market_data\tasks.py changed, reloading.
+INFO 2026-04-06 14:43:39,410 autoreload 28080 33608 Watching for file changes with StatReloader
+INFO 2026-04-06 14:44:03,807 autoreload 28080 33608 D:\invest\background\invest_backend\settings.py changed, reloading.
+INFO 2026-04-06 14:44:04,832 autoreload 35764 8656 Watching for file changes with StatReloader
+INFO 2026-04-06 14:44:08,303 autoreload 35764 8656 D:\invest\background\portfolios\views.py changed, reloading.
+INFO 2026-04-06 14:44:09,338 autoreload 23156 31784 Watching for file changes with StatReloader
+INFO 2026-04-06 14:44:11,636 autoreload 23156 31784 D:\invest\background\portfolios\views.py changed, reloading.
+INFO 2026-04-06 14:44:12,697 autoreload 29244 28220 Watching for file changes with StatReloader
+INFO 2026-04-06 14:44:15,020 autoreload 29244 28220 D:\invest\background\portfolios\views.py changed, reloading.
+INFO 2026-04-06 14:44:16,005 autoreload 29128 19768 Watching for file changes with StatReloader
+INFO 2026-04-06 14:44:18,450 autoreload 29128 19768 D:\invest\background\portfolios\views.py changed, reloading.
+INFO 2026-04-06 14:44:19,622 autoreload 35596 9496 Watching for file changes with StatReloader
+INFO 2026-04-06 14:44:27,727 autoreload 35596 9496 D:\invest\background\accounts\views.py changed, reloading.
+INFO 2026-04-06 14:44:28,751 autoreload 35600 35348 Watching for file changes with StatReloader
+INFO 2026-04-06 14:44:55,290 autoreload 35600 35348 D:\invest\background\invest_backend\settings.py changed, reloading.
+INFO 2026-04-06 14:44:56,296 autoreload 29736 34936 Watching for file changes with StatReloader
+INFO 2026-04-06 14:45:13,496 autoreload 29736 34936 D:\invest\background\portfolios\views.py changed, reloading.
+INFO 2026-04-06 14:45:14,491 autoreload 35304 6660 Watching for file changes with StatReloader
+INFO 2026-04-06 14:45:22,598 autoreload 35304 6660 D:\invest\background\portfolios\views.py changed, reloading.
+INFO 2026-04-06 14:45:23,567 autoreload 34252 8664 Watching for file changes with StatReloader
+INFO 2026-04-06 14:46:23,621 autoreload 34252 8664 D:\invest\background\invest_backend\settings.py changed, reloading.
+INFO 2026-04-06 14:46:24,639 autoreload 35496 35148 Watching for file changes with StatReloader
+INFO 2026-04-06 14:46:26,970 autoreload 35496 35148 D:\invest\background\invest_backend\celery.py changed, reloading.
+INFO 2026-04-06 14:46:27,967 autoreload 35584 34892 Watching for file changes with StatReloader
+WARNING 2026-04-06 14:46:59,175 log 35584 34260 Unauthorized: /api/portfolios/
+WARNING 2026-04-06 14:46:59,253 log 35584 34752 Unauthorized: /api/portfolios/
+WARNING 2026-04-06 14:50:42,902 log 35584 14788 Unauthorized: /api/assets/
+INFO 2026-04-06 14:50:45,354 perf_timing 35584 22524 api_timing endpoint=market_rankings duration_ms=120.26 path=/api/market/rankings/
+INFO 2026-04-06 14:50:45,359 perf_timing 35584 24844 api_timing endpoint=market_rankings duration_ms=183.15 path=/api/market/rankings/
+INFO 2026-04-06 14:50:56,898 tushare_service 35584 31184 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-04-06 14:50:58,285 perf_timing 35584 31184 api_timing endpoint=get_or_refresh_quote duration_ms=3720.92 asset_id=538 code=000002 layer=L3
+INFO 2026-04-06 14:50:58,286 perf_timing 35584 31184 api_timing endpoint=asset_detail duration_ms=3732.99 path=/api/assets/538/
+INFO 2026-04-06 14:50:58,499 perf_timing 35584 30680 api_timing endpoint=asset_contents duration_ms=24.19 path=/api/assets/538/contents/
+INFO 2026-04-06 14:50:58,516 perf_timing 35584 18808 api_timing endpoint=asset_kline duration_ms=36.93 path=/api/assets/538/kline/
+INFO 2026-04-06 14:50:58,666 perf_timing 35584 34352 api_timing endpoint=get_or_refresh_quote duration_ms=0.26 asset_id=538 code=000002 layer=L1
+INFO 2026-04-06 14:51:02,964 perf_timing 35584 19612 api_timing endpoint=get_or_refresh_quote duration_ms=1134.19 asset_id=555 code=000009 layer=L3
+INFO 2026-04-06 14:51:02,966 perf_timing 35584 19612 api_timing endpoint=asset_detail duration_ms=1145.43 path=/api/assets/555/
+INFO 2026-04-06 14:51:03,148 perf_timing 35584 8656 api_timing endpoint=asset_contents duration_ms=14.50 path=/api/assets/555/contents/
+INFO 2026-04-06 14:51:03,175 perf_timing 35584 27948 api_timing endpoint=asset_kline duration_ms=34.26 path=/api/assets/555/kline/
+INFO 2026-04-06 14:51:03,293 perf_timing 35584 3412 api_timing endpoint=get_or_refresh_quote duration_ms=0.21 asset_id=555 code=000009 layer=L1
+INFO 2026-04-06 14:51:03,685 perf_timing 35584 34352 api_timing endpoint=get_or_refresh_quote duration_ms=0.22 asset_id=538 code=000002 layer=L1
+INFO 2026-04-06 14:51:08,300 perf_timing 35584 3412 api_timing endpoint=get_or_refresh_quote duration_ms=0.16 asset_id=555 code=000009 layer=L1
+INFO 2026-04-06 14:51:08,687 perf_timing 35584 34352 api_timing endpoint=get_or_refresh_quote duration_ms=0.21 asset_id=538 code=000002 layer=L1
+INFO 2026-04-06 14:51:13,303 perf_timing 35584 3412 api_timing endpoint=get_or_refresh_quote duration_ms=0.09 asset_id=555 code=000009 layer=L1
+INFO 2026-04-06 15:00:21,156 autoreload 35584 34892 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 15:00:22,574 autoreload 20880 21188 Watching for file changes with StatReloader
+INFO 2026-04-06 15:00:25,576 autoreload 20880 21188 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 15:00:26,815 autoreload 30912 33776 Watching for file changes with StatReloader
+INFO 2026-04-06 15:00:36,655 autoreload 30912 33776 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 15:00:37,795 autoreload 28448 10856 Watching for file changes with StatReloader
+INFO 2026-04-06 15:00:40,424 autoreload 28448 10856 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 15:00:41,515 autoreload 35532 34348 Watching for file changes with StatReloader
+INFO 2026-04-06 15:00:45,180 autoreload 35532 34348 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 15:00:46,265 autoreload 35340 4680 Watching for file changes with StatReloader
+INFO 2026-04-06 15:00:48,858 autoreload 35340 4680 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 15:00:50,049 autoreload 11376 17196 Watching for file changes with StatReloader
+INFO 2026-04-06 15:00:52,479 autoreload 11376 17196 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 15:00:53,533 autoreload 34220 22620 Watching for file changes with StatReloader
+INFO 2026-04-06 15:00:56,146 autoreload 34220 22620 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 15:00:57,384 autoreload 33604 22276 Watching for file changes with StatReloader
+INFO 2026-04-06 15:02:50,697 autoreload 33604 22276 D:\invest\background\accounts\views.py changed, reloading.
+INFO 2026-04-06 15:02:51,823 autoreload 30908 32000 Watching for file changes with StatReloader
+INFO 2026-04-06 15:02:59,441 autoreload 30908 32000 D:\invest\background\accounts\views.py changed, reloading.
+INFO 2026-04-06 15:03:00,590 autoreload 29264 20064 Watching for file changes with StatReloader
+INFO 2026-04-06 15:03:09,730 autoreload 29264 20064 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 15:03:10,883 autoreload 22480 11660 Watching for file changes with StatReloader
+INFO 2026-04-06 15:03:13,987 autoreload 22480 11660 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 15:03:15,200 autoreload 34856 30716 Watching for file changes with StatReloader
+INFO 2026-04-06 15:03:47,443 autoreload 34856 30716 D:\invest\background\content\models.py changed, reloading.
+INFO 2026-04-06 15:03:48,539 autoreload 35768 516 Watching for file changes with StatReloader
+INFO 2026-04-06 15:03:51,354 autoreload 35768 516 D:\invest\background\content\models.py changed, reloading.
+INFO 2026-04-06 15:03:52,544 autoreload 27488 29584 Watching for file changes with StatReloader
+INFO 2026-04-06 15:04:29,221 autoreload 27488 29584 D:\invest\background\content\serializers.py changed, reloading.
+INFO 2026-04-06 15:04:30,339 autoreload 28388 34448 Watching for file changes with StatReloader
+INFO 2026-04-06 15:04:34,152 autoreload 28388 34448 D:\invest\background\content\serializers.py changed, reloading.
+INFO 2026-04-06 15:04:35,267 autoreload 31496 9476 Watching for file changes with StatReloader
+INFO 2026-04-06 15:04:39,950 autoreload 31496 9476 D:\invest\background\content\serializers.py changed, reloading.
+INFO 2026-04-06 15:04:41,072 autoreload 34068 22216 Watching for file changes with StatReloader
+INFO 2026-04-06 15:05:01,166 autoreload 34068 22216 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 15:05:02,379 autoreload 35080 3412 Watching for file changes with StatReloader
+INFO 2026-04-06 15:05:13,342 autoreload 35080 3412 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 15:05:14,539 autoreload 26636 35100 Watching for file changes with StatReloader
+INFO 2026-04-06 15:05:20,172 autoreload 26636 35100 D:\invest\background\content\views.py changed, reloading.
+INFO 2026-04-06 15:05:21,373 autoreload 7024 35436 Watching for file changes with StatReloader
+INFO 2026-04-06 15:07:36,677 autoreload 7024 35436 D:\invest\background\content\serializers.py changed, reloading.
+INFO 2026-04-06 15:07:37,800 autoreload 28280 30020 Watching for file changes with StatReloader
+INFO 2026-04-06 15:09:37,184 autoreload 28280 30020 D:\invest\background\accounts\views.py changed, reloading.
+INFO 2026-04-06 15:09:38,322 autoreload 27716 33448 Watching for file changes with StatReloader
+INFO 2026-04-06 15:10:38,502 perf_timing 27716 10116 api_timing endpoint=market_rankings duration_ms=40.89 path=/api/market/rankings/
+INFO 2026-04-06 15:10:38,505 perf_timing 27716 27632 api_timing endpoint=market_rankings duration_ms=52.66 path=/api/market/rankings/
+INFO 2026-04-06 15:10:46,234 perf_timing 27716 21096 api_timing endpoint=market_rankings duration_ms=4.96 path=/api/market/rankings/
+INFO 2026-04-06 15:10:46,278 perf_timing 27716 30192 api_timing endpoint=market_rankings duration_ms=30.74 path=/api/market/rankings/
+INFO 2026-04-06 15:15:05,674 tushare_service 35776 6696 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-04-06 15:15:07,933 tushare_service 35776 6696 [Tushare] get_stock_basic: 获取 5497 只 A 股
+INFO 2026-04-06 15:15:34,808 tushare_service 35776 6696 [Tushare] get_daily_klines_by_date: 20260403 获取 5486 条（全市场）
+INFO 2026-04-06 15:15:51,782 tushare_service 35776 6696 [Tushare] get_daily_klines_by_date: 20260403 获取 5486 条（全市场）
+INFO 2026-04-06 15:15:51,783 tushare_service 35776 6696 [Tushare] get_latest_daily_quotes_all: 取到 20260403 共 5486 条
+INFO 2026-04-06 15:16:25,995 autoreload 29692 16160 Watching for file changes with StatReloader
+INFO 2026-04-06 15:16:45,964 perf_timing 29692 19536 api_timing endpoint=market_rankings duration_ms=104.48 path=/api/market/rankings/
+INFO 2026-04-06 15:16:45,993 perf_timing 29692 23008 api_timing endpoint=market_rankings duration_ms=133.86 path=/api/market/rankings/
+INFO 2026-04-06 15:16:48,808 perf_timing 29692 34416 api_timing endpoint=market_rankings duration_ms=5.94 path=/api/market/rankings/
+INFO 2026-04-06 15:16:48,833 perf_timing 29692 34756 api_timing endpoint=market_rankings duration_ms=12.59 path=/api/market/rankings/
+INFO 2026-04-06 15:16:49,342 perf_timing 29692 34676 api_timing endpoint=market_rankings duration_ms=17.23 path=/api/market/rankings/
+INFO 2026-04-06 15:16:49,400 perf_timing 29692 34636 api_timing endpoint=market_rankings duration_ms=26.95 path=/api/market/rankings/
+INFO 2026-04-06 15:16:59,140 tushare_service 29692 35712 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-04-06 15:17:00,760 perf_timing 29692 35712 api_timing endpoint=get_or_refresh_quote duration_ms=3664.20 asset_id=556 code=000010 layer=L3
+INFO 2026-04-06 15:17:00,761 perf_timing 29692 35712 api_timing endpoint=asset_detail duration_ms=3678.07 path=/api/assets/556/
+INFO 2026-04-06 15:17:00,946 perf_timing 29692 9812 api_timing endpoint=asset_contents duration_ms=28.00 path=/api/assets/556/contents/
+INFO 2026-04-06 15:17:00,967 perf_timing 29692 20832 api_timing endpoint=asset_kline duration_ms=46.66 path=/api/assets/556/kline/
+INFO 2026-04-06 15:17:01,099 perf_timing 29692 33788 api_timing endpoint=get_or_refresh_quote duration_ms=0.20 asset_id=556 code=000010 layer=L1
+INFO 2026-04-06 15:17:06,109 perf_timing 29692 33788 api_timing endpoint=get_or_refresh_quote duration_ms=0.15 asset_id=556 code=000010 layer=L1
+INFO 2026-04-06 15:17:11,121 perf_timing 29692 33788 api_timing endpoint=get_or_refresh_quote duration_ms=0.20 asset_id=556 code=000010 layer=L1
+INFO 2026-04-06 15:17:16,130 perf_timing 29692 33788 api_timing endpoint=get_or_refresh_quote duration_ms=0.15 asset_id=556 code=000010 layer=L1

@@ -22,9 +22,17 @@ export const preloadAssetDetailCharts = () => {
     }
   }
 
-  if ('requestIdleCallback' in window) {
-    ;(window as any).requestIdleCallback(run, { timeout: 1500 })
+  // 先等一帧 paint，再进 idle，减轻与首屏 JS/CSS/接口 争用
+  const schedule = () => {
+    if ('requestIdleCallback' in window) {
+      ;(window as any).requestIdleCallback(run, { timeout: 2800 })
+    } else {
+      globalThis.setTimeout(run, 400)
+    }
+  }
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(() => schedule())
   } else {
-    globalThis.setTimeout(run, 200)
+    schedule()
   }
 }

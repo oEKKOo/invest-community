@@ -23,6 +23,7 @@ class Portfolio(models.Model):
     
     is_public = models.BooleanField('是否公开', default=True)
     like_count = models.PositiveIntegerField('点赞数', default=0)
+    subscription_count = models.PositiveIntegerField('订阅数', default=0)
     
     created_at = models.DateTimeField('创建时间', default=timezone.now)
     updated_at = models.DateTimeField('更新时间', auto_now=True)
@@ -216,6 +217,10 @@ class PortfolioComment(models.Model):
         verbose_name = '组合评论'
         verbose_name_plural = '组合评论'
         ordering = ['created_at']
+        indexes = [
+            models.Index(fields=['portfolio', 'created_at'], name='idx_portfolio_cmt_port_time'),
+            models.Index(fields=['parent', 'created_at'], name='idx_portfolio_cmt_parent_time'),
+        ]
 
     def __str__(self):
         return f"{self.author.username}: {self.body[:20]}"
@@ -242,6 +247,10 @@ class PortfolioSubscription(models.Model):
         verbose_name = '组合订阅'
         verbose_name_plural = '组合订阅'
         unique_together = ['portfolio', 'user']
+        indexes = [
+            models.Index(fields=['user', '-created_at'], name='idx_portfolio_sub_user_time'),
+            models.Index(fields=['portfolio', '-created_at'], name='idx_portfolio_sub_port_time'),
+        ]
 
     def __str__(self):
         return f"{self.user.username} -> {self.portfolio.title}"

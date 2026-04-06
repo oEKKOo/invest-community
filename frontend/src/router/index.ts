@@ -60,25 +60,25 @@ const routes: RouteRecordRaw[] = [
         path: '',
         name: 'Dashboard',
         component: Dashboard,
-        meta: { title: 'Dashboard', preload: 'assetDetailCharts' }
+        meta: { title: 'Dashboard' }
       },
       {
         path: '/search',
         name: 'Search',
         component: SearchView,
-        meta: { title: '搜索', preload: 'assetDetailCharts' }
+        meta: { title: '搜索' }
       },
       {
         path: '/community',
         name: 'Community',
         component: Community,
-        meta: { title: 'Community', preload: 'assetDetailCharts' }
+        meta: { title: 'Community' }
       },
       {
         path: '/portfolios',
         name: 'Portfolios',
         component: Portfolios,
-        meta: { title: 'Portfolios', preload: 'assetDetailCharts' }
+        meta: { title: 'Portfolios' }
       },
       {
         path: '/admin',

@@ -62,11 +62,15 @@ export interface Post {
   authorName: string
   authorAvatar?: string
   title: string
-  content: string
+  /** 列表/卡片接口返回摘要；详情接口为全文 */
+  excerpt?: string
+  content?: string
   status: PostStatus
   tags: string[]
   likes: number
   comments: number
+  /** 冗余收藏数（列表卡片接口返回） */
+  favoriteCount?: number
   createdAt: string
   assets?: Asset[]
   boards?: Board[]
@@ -76,6 +80,8 @@ export interface Post {
   reposts?: number
   isLiked?: boolean
   isFavorited?: boolean
+  /** 首图缩略图 URL（列表卡片接口），省流 */
+  thumbUrl?: string | null
 }
 
 export interface Attachment {
@@ -86,6 +92,8 @@ export interface Attachment {
   status: 'PENDING' | 'APPROVED' | 'REJECTED'
   reject_reason?: string
   fileUrl?: string
+  /** 图片小图 URL，列表/缩略用；详情仍可打开 fileUrl */
+  thumbUrl?: string
   created_at?: string
 }
 
@@ -95,6 +103,7 @@ export interface CommentAttachment {
   mime_type?: string
   file_size?: number
   fileUrl?: string
+  thumbUrl?: string
   created_at?: string
 }
 
@@ -227,6 +236,7 @@ export interface Portfolio {
   visibility?: 'PUBLIC' | 'PRIVATE' | 'FOLLOWERS' | string
   likes: number
   favorites?: number
+  subscriptionCount?: number
   assets: PortfolioAsset[]
   assetCount?: number
   isLiked?: boolean
@@ -329,6 +339,10 @@ export interface DashboardData {
     activeInvestorsCount: number
     strategiesSharedCount: number
   }
+  /** 当 overview 请求带 include=rankings,gainers 等时由后端填充 */
+  rankingsGainers?: { type: string; market: string | null; items: unknown[] }
+  hotAssets?: { type: string; market: string | null; items: unknown[] }
+  notificationsUnread?: number
 }
 
 // 管理员统计数据

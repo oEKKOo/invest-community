@@ -7,6 +7,7 @@ from .models import (
     ContentMeta, Poll, PollOption, PollVote, Repost, ContentAttachment, Mention, CommentAttachment
 )
 from .moderation_service import evaluate_content_risk, persist_moderation_result
+from .post_list_helpers import build_comment_like_context, prefetch_reply_previews_for_comments
 
 User = get_user_model()
 
@@ -31,33 +32,68 @@ class PollSerializer(serializers.ModelSerializer):
 
 class ContentAttachmentSerializer(serializers.ModelSerializer):
     fileUrl = serializers.SerializerMethodField()
+    thumbUrl = serializers.SerializerMethodField()
 
     class Meta:
         model = ContentAttachment
         fields = [
             'id', 'original_name', 'mime_type', 'file_size',
-            'status', 'reject_reason', 'fileUrl', 'created_at'
+            'status', 'reject_reason', 'fileUrl', 'thumbUrl', 'created_at'
         ]
+
+    def _is_image_name(self, name: str) -> bool:
+        n = (name or '').lower()
+        return n.endswith(('.png', '.jpg', '.jpeg', '.webp'))
 
     def get_fileUrl(self, obj):
         request = self.context.get('request')
         if request and obj.file:
             return request.build_absolute_uri(obj.file.url)
         return obj.file.url if obj.file else ''
+
+    def get_thumbUrl(self, obj):
+        """列表/卡片优先用小图；无缩略图时非图片返回空，图片回退原图 URL。"""
+        request = self.context.get('request')
+        if not self._is_image_name(obj.original_name or '') and not (
+            obj.mime_type or ''
+        ).lower().startswith('image/'):
+            return ''
+        target = obj.thumb if getattr(obj, 'thumb', None) else obj.file
+        if not target:
+            return ''
+        url = target.url
+        return request.build_absolute_uri(url) if request else url
 
 
 class CommentAttachmentSerializer(serializers.ModelSerializer):
     fileUrl = serializers.SerializerMethodField()
+    thumbUrl = serializers.SerializerMethodField()
 
     class Meta:
         model = CommentAttachment
-        fields = ['id', 'original_name', 'mime_type', 'file_size', 'fileUrl', 'created_at']
+        fields = ['id', 'original_name', 'mime_type', 'file_size', 'fileUrl', 'thumbUrl', 'created_at']
+
+    def _is_image_name(self, name: str) -> bool:
+        n = (name or '').lower()
+        return n.endswith(('.png', '.jpg', '.jpeg', '.webp'))
 
     def get_fileUrl(self, obj):
         request = self.context.get('request')
         if request and obj.file:
             return request.build_absolute_uri(obj.file.url)
         return obj.file.url if obj.file else ''
+
+    def get_thumbUrl(self, obj):
+        request = self.context.get('request')
+        if not self._is_image_name(obj.original_name or '') and not (
+            obj.mime_type or ''
+        ).lower().startswith('image/'):
+            return ''
+        target = obj.thumb if getattr(obj, 'thumb', None) else obj.file
+        if not target:
+            return ''
+        url = target.url
+        return request.build_absolute_uri(url) if request else url
 
 
 class AssetSerializer(serializers.ModelSerializer):
@@ -104,6 +140,179 @@ class BoardSerializer(serializers.ModelSerializer):
         return BoardSerializer(children, many=True, context=self.context).data
 
 
+class AssetCardSerializer(serializers.ModelSerializer):
+    """列表/卡片内嵌标的：仅必要字段。"""
+
+    assetType = serializers.CharField(source='asset_type', read_only=True)
+    displayMarket = serializers.CharField(source='display_market', read_only=True)
+
+    class Meta:
+        model = Asset
+        fields = ['id', 'code', 'name', 'assetType', 'market', 'displayMarket']
+
+
+class BoardCardSerializer(serializers.ModelSerializer):
+    """列表/卡片内嵌板块：无递归 children。"""
+
+    parentId = serializers.IntegerField(source='parent_id', read_only=True)
+
+    class Meta:
+        model = Board
+        fields = [
+            'id', 'name', 'slug', 'board_type', 'parentId',
+            'icon', 'sort_order', 'status',
+        ]
+
+
+class PollCardSerializer(serializers.ModelSerializer):
+    """列表中的投票摘要。"""
+
+    options = PollOptionSerializer(many=True, read_only=True)
+    totalVotes = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Poll
+        fields = [
+            'id', 'question', 'allow_multiple', 'expires_at', 'is_closed',
+            'options', 'totalVotes',
+        ]
+
+    def get_totalVotes(self, obj):
+        return obj.options.aggregate(total=Sum('vote_count')).get('total') or 0
+
+
+class PostInteractionMixin:
+    """列表卡片共用：批量 context 降低 N+1。"""
+
+    def get_isLiked(self, obj):
+        user = self.context.get('request').user
+        if user.is_authenticated:
+            liked_post_ids = self.context.get('liked_post_ids')
+            if liked_post_ids is not None:
+                return obj.id in liked_post_ids
+            return Like.objects.filter(
+                user=user, target_type='POST', target_id=obj.id
+            ).exists()
+        return False
+
+    def get_isFavorited(self, obj):
+        user = self.context.get('request').user
+        if user.is_authenticated:
+            favorited_post_ids = self.context.get('favorited_post_ids')
+            if favorited_post_ids is not None:
+                return obj.id in favorited_post_ids
+            return Favorite.objects.filter(user=user, content=obj).exists()
+        return False
+
+    def get_reposts(self, obj):
+        meta = getattr(obj, 'meta', None)
+        if meta is not None:
+            return meta.repost_count
+        rc = self.context.get('repost_counts')
+        if rc is not None:
+            return rc.get(obj.id, 0)
+        return obj.reposts.count()
+
+
+class ContentCardSerializer(PostInteractionMixin, serializers.ModelSerializer):
+    """列表/卡片：摘要 + 精简关联，不含正文全文。"""
+
+    authorName = serializers.CharField(source='author.display_name', read_only=True)
+    authorAvatar = serializers.URLField(source='author.avatar_url', read_only=True)
+    excerpt = serializers.SerializerMethodField()
+    tags = serializers.JSONField(source='tags_json', read_only=True)
+    likes = serializers.IntegerField(source='like_count', read_only=True)
+    comments = serializers.IntegerField(source='comment_count', read_only=True)
+    favoriteCount = serializers.IntegerField(source='favorite_count', read_only=True)
+    createdAt = serializers.DateTimeField(source='created_at', read_only=True)
+    assets = AssetCardSerializer(many=True, read_only=True)
+    boards = BoardCardSerializer(many=True, read_only=True)
+    attachmentCount = serializers.SerializerMethodField()
+    contentType = serializers.SerializerMethodField()
+    poll = serializers.SerializerMethodField()
+    reposts = serializers.SerializerMethodField()
+    isLiked = serializers.SerializerMethodField()
+    isFavorited = serializers.SerializerMethodField()
+    thumbUrl = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Content
+        fields = [
+            'id', 'authorName', 'authorAvatar',
+            'title', 'excerpt', 'status', 'tags',
+            'likes', 'comments', 'favoriteCount', 'createdAt', 'assets', 'boards', 'attachmentCount',
+            'contentType', 'poll', 'reposts',
+            'isLiked', 'isFavorited', 'thumbUrl',
+        ]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['authorId'] = instance.author_id
+        return data
+
+    def get_excerpt(self, obj):
+        body = (obj.body or '').strip()
+        if not body:
+            return ''
+        collapsed = ' '.join(body.split())
+        max_len = 320
+        if len(collapsed) <= max_len:
+            return collapsed
+        return collapsed[: max_len - 1] + '…'
+
+    def get_attachmentCount(self, obj):
+        if hasattr(obj, '_prefetched_objects_cache') and 'attachments' in getattr(
+            obj, '_prefetched_objects_cache', {}
+        ):
+            return len(obj.attachments.all())
+        return obj.attachments.count()
+
+    def get_contentType(self, obj):
+        meta = getattr(obj, 'meta', None)
+        if meta is not None:
+            return meta.content_type
+        return 'NORMAL'
+
+    def get_poll(self, obj):
+        if hasattr(obj, 'poll'):
+            return PollCardSerializer(obj.poll, context=self.context).data
+        return None
+
+    def get_reposts(self, obj):
+        return PostInteractionMixin.get_reposts(self, obj)
+
+    def get_isLiked(self, obj):
+        return PostInteractionMixin.get_isLiked(self, obj)
+
+    def get_isFavorited(self, obj):
+        return PostInteractionMixin.get_isFavorited(self, obj)
+
+    def get_thumbUrl(self, obj):
+        """首条已通过审核的图片附件缩略图，供列表省流。"""
+        request = self.context.get('request')
+        attachments = getattr(obj, 'attachments', None)
+        if attachments is None:
+            return None
+        raw = list(attachments.all() if hasattr(attachments, 'all') else attachments)
+        seq = sorted(raw, key=lambda a: a.id)
+        for att in seq:
+            if getattr(att, 'status', None) != 'APPROVED':
+                continue
+            name = (att.original_name or '').lower()
+            mime = (att.mime_type or '').lower()
+            if not (
+                mime.startswith('image/')
+                or name.endswith(('.png', '.jpg', '.jpeg', '.webp'))
+            ):
+                continue
+            target = getattr(att, 'thumb', None) or att.file
+            if not target:
+                continue
+            url = target.url
+            return request.build_absolute_uri(url) if request else url
+        return None
+
+
 class BoardCreateUpdateSerializer(serializers.ModelSerializer):
     """板块创建与更新序列化器"""
 
@@ -130,8 +339,8 @@ class BoardCreateUpdateSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class ContentListSerializer(serializers.ModelSerializer):
-    """内容列表序列化器"""
+class ContentListSerializer(PostInteractionMixin, serializers.ModelSerializer):
+    """内容列表序列化器（含全文 content，仅用于需兼容的旧路径；列表接口优先用 ContentCardSerializer）。"""
     authorName = serializers.CharField(source='author.display_name', read_only=True)
     authorAvatar = serializers.URLField(source='author.avatar_url', read_only=True)
     content = serializers.CharField(source='body', read_only=True)  # 接口文档要求用content字段
@@ -162,26 +371,6 @@ class ContentListSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         data['authorId'] = instance.author_id  # 手动设置authorId
         return data
-    
-    def get_isLiked(self, obj):
-        user = self.context.get('request').user
-        if user.is_authenticated:
-            liked_post_ids = self.context.get('liked_post_ids')
-            if liked_post_ids is not None:
-                return obj.id in liked_post_ids
-            return Like.objects.filter(
-                user=user, target_type='POST', target_id=obj.id
-            ).exists()
-        return False
-    
-    def get_isFavorited(self, obj):
-        user = self.context.get('request').user
-        if user.is_authenticated:
-            favorited_post_ids = self.context.get('favorited_post_ids')
-            if favorited_post_ids is not None:
-                return obj.id in favorited_post_ids
-            return Favorite.objects.filter(user=user, content=obj).exists()
-        return False
 
     def get_contentType(self, obj):
         if hasattr(obj, 'meta'):
@@ -194,22 +383,45 @@ class ContentListSerializer(serializers.ModelSerializer):
         return None
 
     def get_reposts(self, obj):
-        if hasattr(obj, 'meta'):
-            return obj.meta.repost_count
-        return obj.reposts.count()
+        return PostInteractionMixin.get_reposts(self, obj)
+
+    def get_isLiked(self, obj):
+        return PostInteractionMixin.get_isLiked(self, obj)
+
+    def get_isFavorited(self, obj):
+        return PostInteractionMixin.get_isFavorited(self, obj)
 
 
 class ContentDetailSerializer(ContentListSerializer):
     """内容详情序列化器"""
+    viewCount = serializers.SerializerMethodField()
     comments = serializers.SerializerMethodField()
 
     class Meta(ContentListSerializer.Meta):
-        fields = ContentListSerializer.Meta.fields + ['comments']
+        # 去掉列表中的整数 comments，改为下方 SerializerMethodField（评论列表）
+        fields = [
+            f for f in ContentListSerializer.Meta.fields if f != 'comments'
+        ] + ['viewCount', 'comments']
+
+    def get_viewCount(self, obj):
+        from .view_count_buffer import get_display_view_count
+
+        return get_display_view_count(obj.pk, obj.view_count)
 
     def get_comments(self, obj):
-        # 只返回顶级评论，前端可以单独加载子评论
-        top_comments = obj.comments.filter(parent__isnull=True, status='NORMAL')[:10]
-        return CommentSerializer(top_comments, many=True, context=self.context).data
+        top_comments = list(
+            obj.comments.filter(parent__isnull=True, status='NORMAL').order_by('created_at', 'id')[:10]
+        )
+        reply_previews = prefetch_reply_previews_for_comments(top_comments, 5)
+        all_ids = []
+        for c in top_comments:
+            all_ids.append(c.id)
+            for r in reply_previews.get(c.id, []):
+                all_ids.append(r.id)
+        ctx = dict(self.context)
+        ctx['reply_previews'] = reply_previews
+        ctx.update(build_comment_like_context(self.context.get('request'), all_ids))
+        return CommentSerializer(top_comments, many=True, context=ctx).data
 
 
 class ContentCreateSerializer(serializers.ModelSerializer):
@@ -485,17 +697,28 @@ class CommentSerializer(serializers.ModelSerializer):
         read_only_fields = ['authorId', 'likeCount']
 
     def get_replies(self, obj):
-        # 只返回前几条子评论，完整列表通过 /api/comments/{id}/replies/ 分页加载
-        replies = obj.replies.filter(status='NORMAL')[:5]
-        return CommentSerializer(replies, many=True, context=self.context).data
+        previews = self.context.get('reply_previews')
+        if previews is not None:
+            replies = previews.get(obj.id)
+            if replies is None:
+                replies = []
+        else:
+            replies = list(obj.replies.filter(status='NORMAL').order_by('created_at', 'id')[:5])
+        child_ctx = dict(self.context)
+        if self.context.get('liked_comment_ids') is not None:
+            child_ctx['liked_comment_ids'] = self.context['liked_comment_ids']
+        return CommentSerializer(replies, many=True, context=child_ctx).data
 
     def get_isLiked(self, obj):
         user = self.context.get('request').user
-        if user.is_authenticated:
-            return Like.objects.filter(
-                user=user, target_type='COMMENT', target_id=obj.id
-            ).exists()
-        return False
+        if not user.is_authenticated:
+            return False
+        liked_ids = self.context.get('liked_comment_ids')
+        if liked_ids is not None:
+            return obj.id in liked_ids
+        return Like.objects.filter(
+            user=user, target_type='COMMENT', target_id=obj.id
+        ).exists()
 
 
 class CommentCreateSerializer(serializers.ModelSerializer):

@@ -38,6 +38,8 @@ export interface AssetKlineData {
   resolution: string
   count: number
   items: AssetKlineItem[]
+  /** 无本地数据时后端提示（需定时 KLINE_SYNC 回补） */
+  hint?: string
 }
 
 // 分时数据条目

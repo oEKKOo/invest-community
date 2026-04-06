@@ -27,6 +27,15 @@ if Celery is not None:
     app = Celery("invest_backend")
     app.config_from_object("django.conf:settings", namespace="CELERY")
     app.autodiscover_tasks()
+    # 注册 market_data.celery_tasks 中的 @shared_task（默认只 autodiscover tasks.py）
+    try:
+        import market_data.celery_tasks  # noqa: F401
+    except Exception:
+        pass
+    try:
+        import notifications.community_tasks  # noqa: F401
+    except Exception:
+        pass
 
     @app.task(bind=True)
     def debug_task(self):  # type: ignore[no-redef]

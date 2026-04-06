@@ -50,9 +50,16 @@ export interface HoldingReturnPoint {
 export interface HoldingReturnsHistory {
   totalCostValue: string
   holdingsCount: number
+  /** 与请求 days/from-to 窗口一致（后端新增） */
+  dateFrom?: string
+  dateTo?: string
   items: HoldingReturnPoint[]
 }
 
-export const getHoldingReturnsHistory = (): Promise<HoldingReturnsHistory> => {
-  return get('/holdings/returns-history/')
+export const getHoldingReturnsHistory = (params?: {
+  days?: number
+  from?: string
+  to?: string
+}): Promise<HoldingReturnsHistory> => {
+  return get('/holdings/returns-history/', { params })
 }

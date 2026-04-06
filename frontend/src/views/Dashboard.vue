@@ -228,7 +228,10 @@
 
             <!-- 帖子内容 -->
             <h3 class="post-title">{{ post.title }}</h3>
-            <p class="post-excerpt">{{ post.content }}</p>
+            <div v-if="post.thumbUrl" class="post-card-thumb">
+              <img :src="post.thumbUrl" alt="" loading="lazy" decoding="async" />
+            </div>
+            <p class="post-excerpt">{{ post.excerpt || post.content }}</p>
 
             <!-- 关联标的 -->
             <div v-if="post.assets?.length" class="post-assets">
@@ -1669,6 +1672,22 @@ onBeforeUnmount(() => {
   line-height: 1.4;
   letter-spacing: -0.01em;
   font-family: $apple-font-family;
+}
+
+.post-card-thumb {
+  margin: 0 0 $apple-space-3 0;
+  border-radius: 12px;
+  overflow: hidden;
+  max-height: 180px;
+  background: rgba(0, 0, 0, 0.04);
+
+  img {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: cover;
+    max-height: 180px;
+  }
 }
 
 .post-excerpt {

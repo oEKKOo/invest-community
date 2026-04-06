@@ -180,7 +180,7 @@
           >
             <div class="content-item-main">
               <h4 class="content-title">{{ item.title }}</h4>
-              <p class="content-excerpt" v-if="item.content">{{ item.content }}</p>
+              <p class="content-excerpt" v-if="item.excerpt || item.content">{{ item.excerpt || item.content }}</p>
             </div>
             <div class="content-item-meta">
               <span

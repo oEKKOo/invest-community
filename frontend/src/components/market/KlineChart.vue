@@ -70,7 +70,7 @@ interface KlineChartProps {
 
 const props = withDefaults(defineProps<KlineChartProps>(), {
   interval: '1d',
-  limit: 200
+  limit: 90
 })
 
 const currentInterval = ref(props.interval)

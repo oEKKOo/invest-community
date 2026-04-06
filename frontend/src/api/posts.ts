@@ -66,11 +66,19 @@ export const unfavoritePost = (id: number): Promise<void> => {
   return del(`/posts/${id}/favorite/`)
 }
 
+/** 帖子顶级评论分页（默认 page=1、pageSize=20） */
+export interface PostCommentsPage {
+  items: Comment[]
+  page: number
+  pageSize: number
+  total: number
+}
+
 // 获取帖子评论
 export const getPostComments = (
   postId: number,
   params?: { page?: number; pageSize?: number }
-): Promise<Comment[]> => {
+): Promise<PostCommentsPage> => {
   return get(`/posts/${postId}/comments/`, { params })
 }
 

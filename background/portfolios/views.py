@@ -8,8 +8,11 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
-from django.db.models import Count, Q
+from django.db.models import Count, Q, F, Sum, DecimalField, ExpressionWrapper
+from django.db.models.functions import Greatest
 from django.utils import timezone
+from django.core.cache import cache
+from django.conf import settings as django_settings
 
 from .models import (
     Portfolio,
@@ -151,6 +154,23 @@ def _build_portfolio_metrics(portfolios):
     return metrics
 
 
+def get_portfolio_metrics(portfolios):
+    """
+    组合加权收益指标，带短 TTL 缓存（键为当前页组合 id 集合），减轻列表页重复扫日 K。
+    """
+    if not portfolios:
+        return {}
+    ids = tuple(sorted(p.id for p in portfolios))
+    ttl = int(getattr(django_settings, 'PORTFOLIO_METRICS_CACHE_TTL', 120))
+    cache_key = f'portfolio_metrics:v1:{ids}'
+    hit = cache.get(cache_key)
+    if hit is not None:
+        return hit
+    metrics = _build_portfolio_metrics(portfolios)
+    cache.set(cache_key, metrics, ttl)
+    return metrics
+
+
 def _build_portfolio_holding_details(portfolio):
     """组合持仓明细：weight + latest price + market value + return rate（可降级）"""
     assets = list(portfolio.assets.select_related('asset'))
@@ -254,7 +274,7 @@ class PortfolioListView(APIView):
         offset = (page - 1) * page_size
         portfolios = queryset[offset:offset + page_size]
 
-        metrics = _build_portfolio_metrics(portfolios)
+        metrics = get_portfolio_metrics(portfolios)
         serializer = PortfolioListSerializer(
             portfolios,
             many=True,
@@ -289,7 +309,7 @@ class PortfolioListView(APIView):
                 portfolio,
                 context={
                     'request': request,
-                    'portfolio_metrics': _build_portfolio_metrics([portfolio]),
+                    'portfolio_metrics': get_portfolio_metrics([portfolio]),
                     'portfolio_holding_details': {portfolio.id: _build_portfolio_holding_details(portfolio)},
                 }
             ).data
@@ -322,7 +342,7 @@ def portfolio_top(request):
         asset_count=Count('assets', distinct=True),
     ).order_by('-returns_ytd')[:limit]
 
-    metrics = _build_portfolio_metrics(portfolios)
+    metrics = get_portfolio_metrics(portfolios)
     serializer = PortfolioListSerializer(
         portfolios,
         many=True,
@@ -361,7 +381,7 @@ def portfolio_detail(request, pk):
             portfolio,
             context={
                 'request': request,
-                'portfolio_metrics': _build_portfolio_metrics([portfolio]),
+                'portfolio_metrics': get_portfolio_metrics([portfolio]),
                 'portfolio_holding_details': {portfolio.id: _build_portfolio_holding_details(portfolio)},
             }
         )
@@ -389,7 +409,7 @@ def portfolio_detail(request, pk):
                 portfolio,
                 context={
                     'request': request,
-                    'portfolio_metrics': _build_portfolio_metrics([portfolio]),
+                    'portfolio_metrics': get_portfolio_metrics([portfolio]),
                     'portfolio_holding_details': {portfolio.id: _build_portfolio_holding_details(portfolio)},
                 }
             ).data
@@ -474,8 +494,14 @@ def portfolio_subscribe(request, pk):
         sub_qs = PortfolioSubscription.objects.filter(portfolio=portfolio, user=request.user)
         if sub_qs.exists():
             sub_qs.delete()
+            Portfolio.objects.filter(pk=portfolio.pk).update(
+                subscription_count=Greatest(F('subscription_count') - 1, 0)
+            )
             return Response({'code': 0, 'message': '已取消订阅'})
         PortfolioSubscription.objects.create(portfolio=portfolio, user=request.user)
+        Portfolio.objects.filter(pk=portfolio.pk).update(
+            subscription_count=F('subscription_count') + 1
+        )
         return Response({'code': 0, 'message': '订阅成功'})
 
 
@@ -865,15 +891,16 @@ class HoldingReturnsHistoryView(APIView):
     GET /api/holdings/returns-history/
     返回用户持仓的每日累计收益时间序列，用于前端绘制净值曲线。
 
+    Query:
+      - days: 回溯天数（默认见 settings），上限见 settings
+      - from / to: YYYY-MM-DD 可选，与 days 二选一；区间宽度超过上限时截断为最近 max_days 天
+
     逻辑：
-      对每一个有快照数据的日期，汇总所有持仓的市值 = Σ(quantity × close_price)
-      累计收益率 = (当日总市值 - 总成本) / 总成本
+      按日期 SQL 聚合：Σ(quantity × close_price)；收益率 = (当日总市值 - 总成本) / 总成本
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        from collections import defaultdict
-
         holdings = UserHolding.objects.filter(
             user=request.user
         ).select_related('asset')
@@ -887,43 +914,78 @@ class HoldingReturnsHistoryView(APIView):
             for h in holdings
         )
 
-        # 建立 holding_id → UserHolding 的映射
-        holding_map = {h.id: h for h in holdings}
-        holding_ids = list(holding_map.keys())
+        max_days = int(getattr(django_settings, 'HOLDING_RETURNS_HISTORY_MAX_DAYS', 3650))
+        default_days = int(getattr(django_settings, 'HOLDING_RETURNS_HISTORY_DEFAULT_DAYS', 365))
+        today = timezone.now().date()
 
-        # 拉取所有快照，按日期聚合
-        snapshots = (
-            HoldingDailySnapshot.objects
-            .filter(holding_id__in=holding_ids)
-            .values('date', 'holding_id', 'close_price')
+        from_q = request.query_params.get('from')
+        to_q = request.query_params.get('to')
+        days_q = request.query_params.get('days')
+
+        if from_q and to_q:
+            try:
+                start_date = date.fromisoformat(from_q)
+                end_date = date.fromisoformat(to_q)
+            except ValueError:
+                return Response(
+                    {'code': 4001, 'message': 'from / to 格式应为 YYYY-MM-DD'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if start_date > end_date:
+                return Response(
+                    {'code': 4001, 'message': 'from 不能晚于 to'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            span = (end_date - start_date).days + 1
+            if span > max_days:
+                start_date = end_date - timedelta(days=max_days - 1)
+        elif from_q or to_q:
+            return Response(
+                {'code': 4001, 'message': '请同时提供 from 与 to，或改用 days'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        else:
+            try:
+                nd = int(days_q) if days_q is not None else default_days
+            except ValueError:
+                return Response({'code': 4001, 'message': 'days 应为整数'}, status=status.HTTP_400_BAD_REQUEST)
+            nd = max(1, min(nd, max_days))
+            end_date = today
+            start_date = end_date - timedelta(days=nd - 1)
+
+        rows = (
+            HoldingDailySnapshot.objects.filter(
+                holding__user=request.user,
+                date__gte=start_date,
+                date__lte=end_date,
+            )
+            .values('date')
+            .annotate(
+                day_market_value=Sum(
+                    ExpressionWrapper(
+                        F('holding__quantity') * F('close_price'),
+                        output_field=DecimalField(max_digits=28, decimal_places=6),
+                    )
+                ),
+                coverage=Count('holding_id', distinct=True),
+            )
             .order_by('date')
         )
 
-        # {date: {holding_id: close_price}}
-        date_snap_map = defaultdict(dict)
-        for snap in snapshots:
-            date_snap_map[snap['date']][snap['holding_id']] = Decimal(str(snap['close_price']))
-
         items = []
-        for date in sorted(date_snap_map.keys()):
-            snap = date_snap_map[date]
-            day_market_value = Decimal('0')
-            for h_id, close_price in snap.items():
-                holding = holding_map.get(h_id)
-                if holding:
-                    day_market_value += Decimal(str(holding.quantity)) * close_price
-
-            unrealized_pnl = day_market_value - total_cost
+        for row in rows:
+            d = row['date']
+            day_mv = row['day_market_value'] or Decimal('0')
+            unrealized_pnl = day_mv - total_cost
             unrealized_return = (
                 unrealized_pnl / total_cost if total_cost else Decimal('0')
             )
-
             items.append({
-                'date': str(date),
-                'totalMarketValue': _fmt(day_market_value),
+                'date': str(d),
+                'totalMarketValue': _fmt(day_mv),
                 'unrealizedPnl': _fmt(unrealized_pnl),
                 'unrealizedReturn': _fmt4(unrealized_return),
-                'coverage': len(snap),      # 当日有数据的持仓数
+                'coverage': row['coverage'] or 0,
             })
 
         return Response({
@@ -931,6 +993,8 @@ class HoldingReturnsHistoryView(APIView):
             'data': {
                 'totalCostValue': _fmt(total_cost),
                 'holdingsCount': len(holdings),
+                'dateFrom': str(start_date),
+                'dateTo': str(end_date),
                 'items': items,
             }
         })

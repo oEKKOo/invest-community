@@ -302,45 +302,70 @@
           {{ portfolio.description }}
         </p>
 
-        <!-- 第二层：收益表现（前置并突出） -->
-        <div class="portfolio-return-section">
-          <div class="return-value" :class="pnlClass(getDisplayTotalReturn(portfolio))">
-            {{ fmtRate(getDisplayTotalReturn(portfolio)) || '--' }}
+        <!-- 第二层：收益主面板 -->
+        <div class="portfolio-return-section portfolio-card__performance">
+          <div
+            class="return-value portfolio-card__return"
+            :class="returnToneClass(portfolio)"
+          >
+            <template v-for="rp in [returnParts(portfolio)]" :key="portfolio.id">
+              <template v-if="rp">
+                <span class="return-value__sign portfolio-card__return-sign">{{ rp.sign }}</span>
+                <span class="return-value__core portfolio-card__return-core">{{ rp.body }}</span>
+                <span class="return-value__unit portfolio-card__return-unit">%</span>
+              </template>
+              <span v-else class="return-value__core portfolio-card__return-core">--</span>
+            </template>
           </div>
           <div class="return-label">总收益率</div>
-          <div class="return-stats">
-            <div class="return-stat">
+          <div class="return-stats performance-meta">
+            <div class="return-stat performance-meta__item">
               <span class="return-stat-label">今日</span>
-              <span class="return-stat-value" :class="pnlClass(portfolio.dailyReturn)">{{ fmtRate(portfolio.dailyReturn) || '—' }}</span>
+              <span class="return-stat-value" :class="pnlClass(portfolio.dailyReturn) || 'pnl-zero'">{{ fmtRate(portfolio.dailyReturn) || '—' }}</span>
             </div>
-            <div class="return-stat">
+            <div class="return-stat performance-meta__item">
               <span class="return-stat-label">7 日</span>
-              <span class="return-stat-value" :class="pnlClass(portfolio.sevenDayReturn)">{{ fmtRate(portfolio.sevenDayReturn) || '—' }}</span>
+              <span class="return-stat-value" :class="pnlClass(portfolio.sevenDayReturn) || 'pnl-zero'">{{ fmtRate(portfolio.sevenDayReturn) || '—' }}</span>
             </div>
           </div>
         </div>
 
-        <!-- 第三层：配置可视化 -->
-        <div class="chart-section">
-          <div class="chart-container">
-            <v-chart 
-              class="pie-chart" 
-              :option="getPieChartOption(portfolio.assets)"
-              v-if="portfolio.assets?.length"
-              autoresize
-            />
-          </div>
-          <div class="chart-meta">
-            <span class="meta-chip">{{ (portfolio.assetCount ?? portfolio.assets?.length) || 0 }} 只标的</span>
-            <span class="meta-chip" v-if="portfolio.assets?.[0]">
-              主要 {{ portfolio.assets[0].symbol }}
-            </span>
-            <span class="meta-chip" v-if="portfolio.isPublic">公开</span>
-            <span class="meta-chip">更新 {{ formatDate(portfolio.updatedAt || portfolio.createdAt) }}</span>
+        <!-- 资产配置：横向占比条 -->
+        <div
+          v-if="sortedAssetsForCard(portfolio.assets).length"
+          class="allocation-section portfolio-card__allocation"
+        >
+          <div class="allocation-section-title portfolio-card__allocation-title">资产配置</div>
+          <div class="allocation-list">
+            <div
+              v-for="(row, idx) in sortedAssetsForCard(portfolio.assets)"
+              :key="`${portfolio.id}-${row.symbol}-${idx}`"
+              class="allocation-row"
+            >
+              <div class="allocation-row-head">
+                <span class="allocation-symbol portfolio-card__allocation-label">{{ row.symbol }}</span>
+                <span class="allocation-pct portfolio-card__allocation-value">{{ row.pct.toFixed(1) }}%</span>
+              </div>
+              <div class="allocation-track allocation-bar">
+                <div
+                  class="allocation-fill allocation-bar__fill"
+                  :class="`allocation-fill--${idx % 4}`"
+                  :style="{ width: `${Math.min(100, Math.max(0, row.pct))}%` }"
+                />
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- 第四层：创建者信息（轻量展示） -->
+        <div class="chart-meta">
+          <span class="meta-chip">{{ (portfolio.assetCount ?? portfolio.assets?.length) || 0 }} 只标的</span>
+          <span class="meta-chip" v-if="primarySymbol(portfolio)">
+            主要 {{ primarySymbol(portfolio) }}
+          </span>
+          <span class="meta-chip" v-if="portfolio.isPublic">公开</span>
+          <span class="meta-chip">最近调仓 {{ formatDate(portfolio.updatedAt || portfolio.createdAt) }}</span>
+        </div>
+
         <div class="portfolio-footer">
           <div class="portfolio-author">
             <el-avatar
@@ -361,21 +386,21 @@
           <div class="portfolio-actions">
             <el-button
               type="text"
-              :class="{ liked: portfolio.isLiked }"
-              @click.stop="handleLike(portfolio.id)"
-              class="like-btn"
-            >
-              <el-icon><Star /></el-icon>
-              <span>{{ portfolio.likes }}</span>
-            </el-button>
-            <el-button
-              type="text"
               :class="{ liked: portfolio.isFavorited }"
               @click.stop="handleFavorite(portfolio.id)"
-              class="like-btn"
+              class="like-btn like-btn--fav"
             >
               <el-icon><StarFilled /></el-icon>
               <span>{{ portfolio.favorites || 0 }}</span>
+            </el-button>
+            <el-button
+              type="text"
+              :class="{ liked: portfolio.isLiked }"
+              @click.stop="handleLike(portfolio.id)"
+              class="like-btn like-btn--like"
+            >
+              <el-icon><Star /></el-icon>
+              <span>{{ portfolio.likes }}</span>
             </el-button>
           </div>
         </div>
@@ -406,7 +431,6 @@ import { getAssetsWithQuote } from '../api/market'
 import { getMyHoldings, getHoldingPerformance } from '../api/holdings'
 import type { HoldingPerformance, HoldingPerformanceItem } from '../types'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { createLazyChartComponent, loadPortfoliosChartComponent } from '@/utils/chart-loader'
 import { getAvatarPlaceholderDataUrl } from '@/utils/avatarPlaceholder'
 import {
   Plus,
@@ -414,8 +438,6 @@ import {
   StarFilled,
   InfoFilled
 } from '@element-plus/icons-vue'
-
-const VChart = createLazyChartComponent(loadPortfoliosChartComponent)
 
 // 扩展资产类型，包含持仓金额字段
 interface FormAsset extends PortfolioAsset {
@@ -489,37 +511,43 @@ const createRules: FormRules = {
   ]
 }
 
-/** 组合卡片饼图：蓝系为主、克制统一（与 variables $portfolio-chart-colors 对齐） */
-const PIE_PALETTE = ['#2563eb', '#3b82f6', '#60a5fa', '#38bdf8', '#94a3b8']
-
-interface PieSliceItem {
-  value: number
-  name: string
+/** 列表卡资产配置行（降序；项多合并为「其他」） */
+interface CardAllocationRow {
+  symbol: string
+  pct: number
 }
 
-/** 取前若干大项，其余合并为「其他」，避免扇区与图例过多 */
-const buildPieSliceData = (assets: PortfolioAsset[]): PieSliceItem[] => {
+const sortedAssetsForCard = (assets: PortfolioAsset[]): CardAllocationRow[] => {
   if (!assets?.length) return []
   const sorted = [...assets].sort(
     (a, b) => (Number(b.allocation) || 0) - (Number(a.allocation) || 0)
   )
-  const maxSlices = 4
-  if (sorted.length <= maxSlices) {
+  const maxRows = 4
+  if (sorted.length <= maxRows) {
     return sorted.map((a) => ({
-      value: Number(a.allocation) || 0,
-      name: (a.symbol || a.name || '—').slice(0, 14)
+      symbol: (a.symbol || a.name || '—').slice(0, 14),
+      pct: Number(a.allocation) || 0
     }))
   }
-  const head = sorted.slice(0, maxSlices - 1)
-  const tail = sorted.slice(maxSlices - 1)
-  const otherVal = tail.reduce((s, a) => s + (Number(a.allocation) || 0), 0)
+  const head = sorted.slice(0, maxRows - 1)
+  const tail = sorted.slice(maxRows - 1)
+  const otherPct = tail.reduce((s, a) => s + (Number(a.allocation) || 0), 0)
   return [
     ...head.map((a) => ({
-      value: Number(a.allocation) || 0,
-      name: (a.symbol || a.name || '—').slice(0, 14)
+      symbol: (a.symbol || a.name || '—').slice(0, 14),
+      pct: Number(a.allocation) || 0
     })),
-    { value: otherVal, name: '其他' }
+    { symbol: '其他', pct: otherPct }
   ]
+}
+
+const primarySymbol = (portfolio: { assets?: PortfolioAsset[] }): string => {
+  const assets = portfolio.assets
+  if (!assets?.length) return ''
+  const top = [...assets].sort(
+    (a, b) => (Number(b.allocation) || 0) - (Number(a.allocation) || 0)
+  )[0]
+  return (top?.symbol || top?.name || '').slice(0, 14)
 }
 
 // ============ 计算属性============
@@ -752,6 +780,25 @@ const getDisplayTotalReturn = (portfolio: any): number | null => {
   return null
 }
 
+/** 收益主数字拆分为符号 + 数值（与 % 分开展示） */
+const returnParts = (portfolio: any): { sign: string; body: string } | null => {
+  const v = getDisplayTotalReturn(portfolio)
+  if (v === null || v === undefined) return null
+  const n = Number(v)
+  if (isNaN(n)) return null
+  const sign = n < 0 ? '-' : '+'
+  const body = Math.abs(n * 100).toFixed(2)
+  return { sign, body }
+}
+
+const returnToneClass = (portfolio: any): string => {
+  const v = getDisplayTotalReturn(portfolio)
+  const c = pnlClass(v)
+  if (c === 'pnl-up') return 'portfolio-card__return--positive'
+  if (c === 'pnl-down') return 'portfolio-card__return--negative'
+  return 'portfolio-card__return--neutral'
+}
+
 // ============ 分页 / 列表 ============
 const handlePageChange = (page: number) => {
   currentPage.value = page
@@ -762,6 +809,19 @@ const handleFilterChange = (filter: string) => {
   currentFilter.value = filter
   currentPage.value = 1
   fetchPortfolios()
+}
+
+/** 列表接口优先；持仓收益仅用于卡片展示，延后到 idle 避免与首屏 JSON 并行争抢 */
+const scheduleFetchHoldingPerf = () => {
+  if (!authStore.isLoggedIn) return
+  const run = () => {
+    void fetchHoldingPerf()
+  }
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(run, { timeout: 2000 })
+  } else {
+    setTimeout(run, 0)
+  }
 }
 
 const fetchPortfolios = async () => {
@@ -777,10 +837,8 @@ const fetchPortfolios = async () => {
       // 这里需要后端支持，暂时在前端过滤
     }
     
-    await Promise.all([
-      portfoliosStore.fetchPortfolios(params),
-      fetchHoldingPerf()
-    ])
+    await portfoliosStore.fetchPortfolios(params)
+    scheduleFetchHoldingPerf()
   } catch (error) {
     ElMessage.error('获取投资组合失败')
   }
@@ -889,121 +947,6 @@ const formatDate = (dateStr?: string) => {
   const m = `${d.getMonth() + 1}`.padStart(2, '0')
   const day = `${d.getDate()}`.padStart(2, '0')
   return `${m}-${day}`
-}
-
-const getPieChartOption = (assets: PortfolioAsset[]) => {
-  const data = buildPieSliceData(assets)
-  const n = assets.length
-  return {
-    color: PIE_PALETTE,
-    animationDuration: 480,
-    animationEasing: 'cubicOut',
-    tooltip: {
-      trigger: 'item',
-      confine: true,
-      formatter: (params: unknown) => {
-        const p = (Array.isArray(params) ? params[0] : params) as {
-          name?: string
-          value?: number
-          percent?: number
-          marker?: string
-        }
-        if (!p?.name) return ''
-        const v = Number(p.value ?? 0).toFixed(1)
-        const pct = p.percent != null ? Number(p.percent).toFixed(1) : '—'
-        return `${p.marker ?? ''}<span style="font-weight:600">${p.name}</span><br/><span style="color:#64748b;font-size:11px">占比 ${v}% · 扇区 ${pct}%</span>`
-      },
-      backgroundColor: 'rgba(255, 255, 255, 0.96)',
-      borderColor: 'rgba(148, 163, 184, 0.45)',
-      borderWidth: 1,
-      padding: [10, 12],
-      extraCssText: 'box-shadow: 0 4px 20px rgba(15,23,42,0.08); border-radius: 10px;',
-      textStyle: {
-        color: '#334155',
-        fontSize: 12,
-        fontFamily: 'Inter, system-ui, sans-serif'
-      }
-    },
-    legend: {
-      type: 'scroll',
-      orient: 'horizontal',
-      bottom: 0,
-      left: 'center',
-      width: '92%',
-      itemGap: 14,
-      itemWidth: 7,
-      itemHeight: 7,
-      icon: 'circle',
-      pageIconColor: '#64748b',
-      pageTextStyle: { color: '#64748b' },
-      textStyle: {
-        color: '#64748b',
-        fontSize: 11,
-        fontWeight: 500,
-        fontFamily: 'Inter, system-ui, sans-serif'
-      },
-      formatter: (name: string) => (name.length > 10 ? `${name.slice(0, 9)}…` : name)
-    },
-    graphic: [
-      {
-        type: 'text',
-        left: 'center',
-        top: '36%',
-        style: {
-          text: '资产配置',
-          textAlign: 'center',
-          fill: '#94a3b8',
-          fontSize: 11,
-          fontWeight: 500,
-          fontFamily: 'Inter, system-ui, sans-serif'
-        }
-      },
-      {
-        type: 'text',
-        left: 'center',
-        top: '44%',
-        style: {
-          text: `${n} 项持仓`,
-          textAlign: 'center',
-          fill: '#0f172a',
-          fontSize: 15,
-          fontWeight: 600,
-          fontFamily: 'Inter, system-ui, "Segoe UI", sans-serif'
-        }
-      }
-    ],
-    series: [
-      {
-        name: '资产配置',
-        type: 'pie',
-        radius: ['52%', '74%'],
-        center: ['50%', '46%'],
-        clockwise: true,
-        minAngle: 2,
-        avoidLabelOverlap: true,
-        itemStyle: {
-          borderColor: '#f8fafc',
-          borderWidth: 2,
-          borderRadius: 2
-        },
-        label: { show: false },
-        labelLine: { show: false },
-        emphasis: {
-          itemStyle: {
-            shadowBlur: 14,
-            shadowOffsetY: 2,
-            shadowColor: 'rgba(37, 99, 235, 0.2)'
-          }
-        },
-        data: data.map((d, index) => ({
-          ...d,
-          itemStyle: {
-            color: PIE_PALETTE[index % PIE_PALETTE.length]
-          }
-        }))
-      }
-    ]
-  }
 }
 
 const getAvatarUrl = (id: number) => getAvatarPlaceholderDataUrl(id, 40)
@@ -1458,11 +1401,11 @@ onMounted(() => {
 }
 
 .portfolio-skeleton {
-  background: #f8fafc;
-  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: #fbfaf9;
+  border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 22px;
   padding: 1.5rem;
-  box-shadow: $apple-shadow-sm;
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.06);
 }
 
 .empty-state {
@@ -1478,28 +1421,47 @@ onMounted(() => {
 
 .portfolio-card {
   font-family: $apple-font-family;
-  background: #f8fafc;
-  border: 1px solid rgba(148, 163, 184, 0.38);
-  border-radius: 22px;
-  padding: 1.65rem 1.5rem 1.5rem;
+  color: #334155;
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(18px) saturate(1.06);
+  -webkit-backdrop-filter: blur(18px) saturate(1.06);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 28px;
+  padding: 28px 28px 24px;
   cursor: pointer;
-  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1),
-    box-shadow 0.28s cubic-bezier(0.4, 0, 0.2, 1),
-    border-color 0.28s ease;
+  transition:
+    transform 220ms ease,
+    box-shadow 220ms ease,
+    border-color 220ms ease,
+    background 220ms ease;
   display: flex;
   flex-direction: column;
   position: relative;
   overflow: hidden;
   box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.04),
-    0 6px 20px rgba(15, 23, 42, 0.05);
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    0 10px 30px rgba(15, 23, 42, 0.06),
+    0 2px 8px rgba(15, 23, 42, 0.03);
 
   &:hover {
-    border-color: rgba(37, 99, 235, 0.22);
+    transform: translateY(-4px);
+    border-color: rgba(15, 23, 42, 0.08);
     box-shadow:
-      0 4px 12px rgba(15, 23, 42, 0.06),
-      0 12px 32px rgba(15, 23, 42, 0.08);
-    transform: translateY(-3px);
+      inset 0 1px 0 rgba(255, 255, 255, 0.85),
+      0 18px 40px rgba(15, 23, 42, 0.08),
+      0 8px 18px rgba(15, 23, 42, 0.04);
+  }
+
+  &:hover .portfolio-card__performance {
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.96) 0%,
+      rgba(248, 250, 252, 0.97) 100%
+    );
+  }
+
+  &:hover .allocation-bar__fill {
+    filter: saturate(1.03);
   }
 }
 
@@ -1507,26 +1469,31 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: $portfolio-space-3;
-  margin-bottom: $portfolio-space-3;
+  gap: 12px;
+  margin-bottom: 0;
+}
+
+.portfolio-header + .portfolio-return-section {
+  margin-top: 22px;
 }
 
 .portfolio-title {
-  font-size: 1.0625rem;
-  font-weight: 600;
-  color: #1e293b;
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
   margin: 0;
   flex: 1;
   min-width: 0;
-  line-height: 1.35;
+  line-height: 1.2;
   letter-spacing: -0.02em;
 }
 
 .portfolio-summary {
-  margin: 0 0 $portfolio-space-4 0;
-  color: $text-secondary;
-  font-size: $portfolio-caption;
-  line-height: 1.55;
+  margin: 10px 0 22px;
+  color: rgba(71, 85, 105, 0.82);
+  font-size: 14px;
+  line-height: 1.65;
+  font-weight: 500;
   display: -webkit-box;
   line-clamp: 2;
   -webkit-line-clamp: 2;
@@ -1536,141 +1503,256 @@ onMounted(() => {
 
 .risk-pill {
   flex-shrink: 0;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  padding: 5px 11px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  padding: 6px 10px;
   border-radius: 999px;
-  border: none;
   line-height: 1.2;
+  border: 1px solid transparent;
 
   &--low {
-    background: rgba(22, 163, 74, 0.12);
+    background: rgba(22, 163, 74, 0.1);
     color: #15803d;
+    border-color: rgba(22, 163, 74, 0.12);
   }
 
   &--medium {
-    background: rgba(217, 119, 6, 0.12);
-    color: #b45309;
+    background: rgba(245, 158, 11, 0.12);
+    color: #b7791f;
+    border-color: rgba(245, 158, 11, 0.1);
   }
 
   &--high {
-    background: rgba(220, 38, 38, 0.1);
-    color: #b91c1c;
+    background: rgba(239, 68, 68, 0.1);
+    color: #c24141;
+    border-color: rgba(239, 68, 68, 0.1);
   }
 }
 
-// 收益率区域（前置并突出）
 .portfolio-return-section {
   text-align: center;
-  margin: $portfolio-space-2 0 $portfolio-space-5;
-  padding: $portfolio-space-5 $portfolio-space-3;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.65);
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  margin: 0 0 20px;
+  padding: 1.25rem 1.15rem 1.2rem;
+  border-radius: 24px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(248, 250, 252, 0.94) 100%
+  );
+  border: 1px solid rgba(15, 23, 42, 0.04);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  transition: background 220ms ease;
 }
 
-.return-value {
-  font-size: clamp(1.75rem, 4.5vw, 2.125rem);
+.portfolio-card__return {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0;
+  font-family: $apple-font-family;
+  font-size: clamp(1.875rem, 5.5vw, 2.75rem);
+  line-height: 1;
   font-weight: 600;
+  letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum' 1, 'lnum' 1;
-  font-family: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  line-height: 1.15;
-  margin-bottom: $portfolio-space-2;
-  letter-spacing: -0.03em;
+  text-rendering: geometricPrecision;
+  margin-bottom: 12px;
+  color: #334155;
 
-  &.pnl-up {
-    color: #15803d;
+  &--positive {
+    color: #12805c;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.42);
+
+    .portfolio-card__return-unit {
+      text-shadow: none;
+    }
   }
 
-  &.pnl-down {
-    color: #b91c1c;
+  &--negative {
+    color: #a12f2f;
+    text-shadow: none;
   }
 
-  &.pnl-zero {
-    color: #94a3b8;
+  &--neutral {
+    color: rgba(100, 116, 139, 0.82);
+    text-shadow: none;
   }
+}
+
+.return-value__sign,
+.portfolio-card__return-sign {
+  font-size: 0.88em;
+  font-weight: 600;
+  margin-right: 1px;
+  font-variant-numeric: tabular-nums;
+}
+
+.return-value__core,
+.portfolio-card__return-core {
+  font-weight: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.return-value__unit,
+.portfolio-card__return-unit {
+  font-size: 0.58em;
+  font-weight: 600;
+  margin-left: 1px;
+  vertical-align: 0.1em;
+  opacity: 0.9;
 }
 
 .return-label {
-  font-size: 11px;
-  font-weight: 500;
-  color: #94a3b8;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  margin-bottom: $portfolio-space-4;
+  font-size: 13px;
+  font-weight: 600;
+  color: #7b8aa0;
+  letter-spacing: 0.01em;
+  margin-bottom: 18px;
 }
 
 .return-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: $portfolio-space-2;
-  max-width: 280px;
+  gap: 0;
+  max-width: 100%;
   margin: 0 auto;
+  border-radius: 18px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.52);
+  border: 1px solid rgba(15, 23, 42, 0.05);
+}
+
+.performance-meta__item + .performance-meta__item {
+  border-left: 1px solid rgba(15, 23, 42, 0.05);
 }
 
 .return-stat {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: $portfolio-space-2 $portfolio-space-2;
-  border-radius: 12px;
-  background: rgba(248, 250, 252, 0.9);
-  border: 1px solid rgba(226, 232, 240, 0.85);
+  gap: 6px;
+  padding: 12px 14px;
 }
 
 .return-stat-label {
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #94a3b8;
+  letter-spacing: 0.01em;
+  color: #7b8aa0;
 }
 
 .return-stat-value {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum' 1;
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  letter-spacing: -0.02em;
+  font-family: $apple-font-family;
+  letter-spacing: -0.03em;
 
   &.pnl-up {
-    color: #15803d;
+    color: #12805c;
   }
 
   &.pnl-down {
-    color: #b91c1c;
+    color: #a12f2f;
   }
 
   &.pnl-zero {
-    color: #94a3b8;
+    color: rgba(100, 116, 139, 0.72);
   }
 }
 
-// 图表区域
-.chart-section {
-  margin: $portfolio-space-2 0 $portfolio-space-4;
+.allocation-section {
+  margin: 0 0 18px;
+  padding: 1rem 1rem 1.15rem;
+  border-radius: 22px;
+  background: rgba(248, 250, 252, 0.72);
+  border: 1px solid rgba(15, 23, 42, 0.04);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
 }
 
-.chart-container {
-  height: 208px;
-  margin-bottom: $portfolio-space-2;
+.allocation-section-title,
+.portfolio-card__allocation-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: -0.01em;
+  margin-bottom: 16px;
+  text-align: left;
 }
 
-.pie-chart {
-  width: 100%;
+.allocation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.allocation-row-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.allocation-symbol,
+.portfolio-card__allocation-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e293b;
+  letter-spacing: -0.01em;
+}
+
+.allocation-pct,
+.portfolio-card__allocation-value {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #74859b;
+}
+
+.allocation-track,
+.allocation-bar {
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(186, 230, 253, 0.45);
+  overflow: hidden;
+}
+
+.allocation-fill,
+.allocation-bar__fill {
   height: 100%;
+  border-radius: 999px;
+  min-width: 0;
+  transition: width 0.35s ease;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+
+  &--0 {
+    background: linear-gradient(90deg, #7dd3fc 0%, #38bdf8 100%);
+  }
+
+  &--1 {
+    background: linear-gradient(90deg, #93c5fd 0%, #60a5fa 100%);
+  }
+
+  &--2 {
+    background: linear-gradient(90deg, #a5d8ff 0%, #74c0fc 100%);
+  }
+
+  &--3 {
+    background: linear-gradient(90deg, #bae6fd 0%, #7dd3fc 100%);
+  }
 }
 
 .chart-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
+  margin-bottom: 18px;
 }
 
 .meta-chip {
@@ -1678,65 +1760,23 @@ onMounted(() => {
   align-items: center;
   height: 26px;
   padding: 0 11px;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  color: #475569;
-  background: rgba(241, 245, 249, 0.95);
-  border: 1px solid rgba(203, 213, 225, 0.75);
-  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  color: rgba(71, 85, 105, 0.9);
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 100px;
   white-space: nowrap;
   max-width: 100%;
-}
-
-.stat-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.25rem;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
-}
-
-.stat-label {
-  font-size: 0.7rem;
-  color: $text-muted;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.stat-value {
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: $text-primary;
-  font-family: 'IBM Plex Mono', monospace;
-
-  &.positive {
-    color: $success-color;
-  }
-
-  &.pnl-up {
-    color: #10b981;
-  }
-
-  &.pnl-down {
-    color: #f43f5e;
-  }
-
-  &.pnl-zero {
-    color: $text-muted;
-  }
 }
 
 .portfolio-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: $portfolio-space-4;
-  border-top: 1px solid rgba(226, 232, 240, 0.95);
+  padding-top: 18px;
+  border-top: 1px solid rgba(15, 23, 42, 0.05);
   margin-top: auto;
 }
 
@@ -1753,9 +1793,10 @@ onMounted(() => {
 }
 
 .author-name {
-  font-size: $portfolio-caption;
-  color: $text-muted;
-  font-weight: 400;
+  font-size: 13px;
+  color: #334155;
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 
 .author-clickable {
@@ -1770,22 +1811,33 @@ onMounted(() => {
 .like-btn {
   display: flex !important;
   align-items: center !important;
-  gap: $portfolio-space-2 !important;
-  color: $text-muted !important;
-  font-size: $portfolio-caption !important;
-  border-radius: $apple-radius-sm !important;
+  gap: 5px !important;
+  color: rgba(100, 116, 139, 0.88) !important;
+  font-size: 13px !important;
+  border-radius: 10px !important;
   padding: 4px 8px !important;
-  transition: $transition-all !important;
-  font-family: 'IBM Plex Mono', monospace !important;
+  transition: background 200ms ease, color 200ms ease !important;
+  font-family: $apple-font-family !important;
+  font-variant-numeric: tabular-nums;
 
-  &:hover {
-    color: $error-color !important;
-    background: rgba(239, 68, 68, 0.08) !important;
+  span {
+    font-weight: 500;
+    letter-spacing: -0.02em;
   }
 
-  &.liked {
-    color: $error-color !important;
-    background: rgba(239, 68, 68, 0.06) !important;
+  &:hover {
+    color: #334155 !important;
+    background: rgba(15, 23, 42, 0.05) !important;
+  }
+
+  &--fav.liked {
+    color: #b45309 !important;
+    background: rgba(180, 83, 9, 0.1) !important;
+  }
+
+  &--like.liked {
+    color: #a12b2b !important;
+    background: rgba(161, 43, 43, 0.08) !important;
   }
 }
 
