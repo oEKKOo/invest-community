@@ -3,6 +3,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from django.shortcuts import get_object_or_404
 from django.db import transaction
@@ -54,6 +55,7 @@ from .user_score_service import apply_points
 from .oauth.wechat_client import WeChatOAuthClient
 from .oauth.weibo_client import WeiboOAuthClient
 from .message_service import send_email_verification_code, send_sms_verification_code
+from invest_backend.api_response import ok, fail
 
 User = get_user_model()
 
@@ -194,24 +196,14 @@ def login(request):
 
         # 封禁用户禁止登录
         if user.status == 'BANNED' or not user.is_active:
-            return Response({
-                'code': 4030,
-                'message': '账户已被封禁，无法登录'
-            }, status=status.HTTP_403_FORBIDDEN)
+            return fail(4030, '账户已被封禁，无法登录', status.HTTP_403_FORBIDDEN)
         tokens = get_tokens_for_user(user)
-        return Response({
-            'code': 0,
-            'data': {
-                'access': tokens['access'],
-                'refresh': tokens['refresh'],
-                'user': _auth_user_payload(user)
-            }
+        return ok({
+            'access': tokens['access'],
+            'refresh': tokens['refresh'],
+            'user': _auth_user_payload(user)
         })
-    return Response({
-        'code': 4001,
-        'message': '登录失败',
-        'errors': serializer.errors
-    }, status=status.HTTP_400_BAD_REQUEST)
+    return fail(4001, '登录失败', status.HTTP_400_BAD_REQUEST, serializer.errors)
 
 
 @api_view(['POST'])
@@ -928,13 +920,24 @@ def my_star_following(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])  
 def logout(request):
-    """用户登出（可选实现）"""
-    # 这里可以实现token黑名单逻辑
-    # 目前前端清除token即可
-    return Response({
-        'code': 0,
-        'message': '登出成功'
-    })
+    """
+    用户登出（兼容模式）：
+    - 提供 refresh：加入 black list
+    - 不提供 refresh：兼容旧前端，仅返回成功
+    """
+    refresh = request.data.get('refresh')
+    if not refresh:
+        return ok(message='登出成功')
+
+    try:
+        token = RefreshToken(refresh)
+        token.blacklist()
+    except TokenError:
+        return fail(4001, 'refresh token 无效或已过期', status.HTTP_400_BAD_REQUEST)
+    except AttributeError:
+        return fail(5001, '黑名单功能未启用', status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    return ok(message='登出成功')
 
 
 @api_view(['GET'])
@@ -1614,26 +1617,6 @@ class UserFavoritesView(generics.ListAPIView):
             'data': {
                 'items': serializer.data,
                 'total': len(contents)
-            }
-        })
-
-
-class UserReportsView(generics.ListAPIView):
-    """用户举报列表"""
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request, *args, **kwargs):
-        from reports.models import Report
-        from reports.serializers import ReportListSerializer
-        
-        reports = Report.objects.filter(reporter=request.user).order_by('-created_at')
-        serializer = ReportListSerializer(reports, many=True)
-        
-        return Response({
-            'code': 0,
-            'data': {
-                'items': serializer.data,
-                'total': reports.count()
             }
         })
 

@@ -44,6 +44,23 @@ export const getUserFollowing = (userId: number): Promise<UserFollowItem[]> => {
   return get(`/users/${userId}/following/`)
 }
 
+// 获取用户公开资料（统一走 request 封装，避免页面直接 fetch）
+export const getUserProfile = async (userId: number): Promise<User> => {
+  const d = await get<any>(`/users/${userId}/`)
+  return {
+    id: d.id,
+    username: d.username,
+    displayName: d.display_name ?? d.displayName ?? d.username,
+    avatar: d.avatar_url ?? d.avatar ?? '',
+    role: (d.role || 'USER') as User['role'],
+    bio: d.bio ?? '',
+    investmentExperience: d.investment_experience ?? d.investmentExperience ?? '',
+    followers: d.followers_count ?? d.followers ?? 0,
+    following: d.following_count ?? d.following ?? 0,
+    created_at: d.created_at
+  }
+}
+
 // 关注用户
 export const followUser = (userId: number): Promise<void> => {
   return post(`/users/${userId}/follow/`)

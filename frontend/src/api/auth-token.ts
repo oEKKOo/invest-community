@@ -8,9 +8,34 @@ const baseURL = import.meta.env.VITE_API_BASE_URL || '/api'
 
 export const getAccessToken = () => localStorage.getItem(TOKEN_KEY)
 export const getRefreshToken = () => localStorage.getItem(REFRESH_TOKEN_KEY)
+export const getStoredUser = () => localStorage.getItem(USER_KEY)
 
 export const setAccessToken = (token: string) => {
   localStorage.setItem(TOKEN_KEY, token)
+}
+
+export const setRefreshToken = (token: string) => {
+  localStorage.setItem(REFRESH_TOKEN_KEY, token)
+}
+
+export const setStoredUser = (user: string) => {
+  localStorage.setItem(USER_KEY, user)
+}
+
+export const setAuthStorage = (payload: { access?: string; refresh?: string; user?: string | null }) => {
+  if (payload.access !== undefined) {
+    setAccessToken(payload.access)
+  }
+  if (payload.refresh !== undefined) {
+    setRefreshToken(payload.refresh)
+  }
+  if (payload.user !== undefined) {
+    if (payload.user === null) {
+      localStorage.removeItem(USER_KEY)
+    } else {
+      setStoredUser(payload.user)
+    }
+  }
 }
 
 export const clearAuthStorage = () => {

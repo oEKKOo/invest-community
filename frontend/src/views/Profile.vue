@@ -660,14 +660,14 @@
       size="480px"
       destroy-on-close
     >
-      <template v-if="drawerType === 'likes'">
-        <div v-if="likesLoading" class="drawer-loading">
-          <el-skeleton :rows="5" animated />
-        </div>
-        <div v-else-if="allLikeRecords.length === 0" class="drawer-empty">
-          <el-empty description="暂无点赞记录" :image-size="100" />
-        </div>
-        <div v-else class="drawer-list">
+      <div v-if="activeDrawerLoading" class="drawer-loading">
+        <el-skeleton :rows="5" animated />
+      </div>
+      <div v-else-if="activeDrawerIsEmpty" class="drawer-empty">
+        <el-empty :description="isLikesDrawer ? '暂无点赞记录' : '暂无收藏记录'" :image-size="100" />
+      </div>
+      <template v-else>
+        <div v-if="drawerType === 'likes'" class="drawer-list">
           <div
             v-for="item in allLikeRecords"
             :key="item.id"
@@ -699,25 +699,7 @@
             </div>
           </div>
         </div>
-        <div v-if="likesHasMore" class="drawer-load-more">
-          <el-button
-            text
-            :loading="likesLoadingMore"
-            @click="loadMoreLikes"
-          >
-            加载更多
-          </el-button>
-        </div>
-      </template>
-
-      <template v-if="drawerType === 'favorites'">
-        <div v-if="favoritesLoading" class="drawer-loading">
-          <el-skeleton :rows="5" animated />
-        </div>
-        <div v-else-if="allFavoriteRecords.length === 0" class="drawer-empty">
-          <el-empty description="暂无收藏记录" :image-size="100" />
-        </div>
-        <div v-else class="drawer-list">
+        <div v-if="drawerType === 'favorites'" class="drawer-list">
           <div
             v-for="item in allFavoriteRecords"
             :key="item.id"
@@ -741,11 +723,11 @@
             </div>
           </div>
         </div>
-        <div v-if="favoritesHasMore" class="drawer-load-more">
+        <div v-if="activeDrawerHasMore" class="drawer-load-more">
           <el-button
             text
-            :loading="favoritesLoadingMore"
-            @click="loadMoreFavorites"
+            :loading="activeDrawerLoadingMore"
+            @click="loadMoreDrawerRecords"
           >
             加载更多
           </el-button>
@@ -847,7 +829,6 @@ import { ref, onMounted, computed, watch, defineAsyncComponent } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { usePostsStore } from '../stores/posts'
-import { usePortfoliosStore } from '../stores/portfolios'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import type { PostStatus, LikeRecord, Post, Portfolio } from '../types'
 import {
@@ -862,7 +843,6 @@ import {
   MessageBox,
   Checked
 } from '@element-plus/icons-vue'
-const ReportDialog = defineAsyncComponent(() => import('@/components/ReportDialog.vue'))
 import { dayjs } from '@/utils/date'
 import { getMyLikes } from '@/api/likes'
 import { getMyFavorites, uploadContentAttachment } from '@/api/posts'
@@ -873,6 +853,7 @@ import {
   getMyAchievements,
   getPrivacySettings,
   getMyStarFollowing,
+  getUserProfile,
   getUserFollowers,
   getUserFollowing,
   starFollowUser,
@@ -884,12 +865,12 @@ import {
 import { getInvestProfile, getKycStatus, updateCurrentUser, updateInvestProfile } from '@/api/auth'
 import { getPortfolios } from '@/api/portfolios'
 import { scheduleIdle } from '@/utils/scheduleIdle'
+const ReportDialog = defineAsyncComponent(() => import('@/components/ReportDialog.vue'))
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const postsStore = usePostsStore()
-const portfoliosStore = usePortfoliosStore()
 
 const goGroupInvites = () => {
   router.push('/groups/invites')
@@ -1094,27 +1075,7 @@ const fetchDisplayUser = async () => {
 
   try {
     const userId = Number(route.params.userId)
-    const res = await fetch(`/api/users/${userId}/`, {
-      headers: {
-        Authorization: authStore.token ? `Bearer ${authStore.token}` : ''
-      }
-    })
-    const data = await res.json()
-    if (data.code === 0) {
-      const d = data.data
-      displayUser.value = {
-        id: d.id,
-        username: d.username,
-        displayName: d.display_name,
-        avatar: d.avatar_url,
-        role: (d.role || 'USER') as User['role'],
-        bio: d.bio,
-        investmentExperience: d.investment_experience || d.investmentExperience || '',
-        followers: d.followers_count,
-        following: d.following_count,
-        created_at: d.created_at
-      }
-    }
+    displayUser.value = await getUserProfile(userId)
   } catch {
     // 忽略错误
   }
@@ -1166,6 +1127,19 @@ const toggleStarFollow = async () => {
 // ──────────── 抽屉 ────────────
 const drawerVisible = ref(false)
 const drawerType = ref<'likes' | 'favorites'>('likes')
+const isLikesDrawer = computed(() => drawerType.value === 'likes')
+const activeDrawerLoading = computed(() =>
+  isLikesDrawer.value ? likesLoading.value : favoritesLoading.value
+)
+const activeDrawerLoadingMore = computed(() =>
+  isLikesDrawer.value ? likesLoadingMore.value : favoritesLoadingMore.value
+)
+const activeDrawerIsEmpty = computed(() =>
+  isLikesDrawer.value ? allLikeRecords.value.length === 0 : allFavoriteRecords.value.length === 0
+)
+const activeDrawerHasMore = computed(() =>
+  isLikesDrawer.value ? likesHasMore.value : favoritesHasMore.value
+)
 
 const openDrawer = async (type: 'likes' | 'favorites') => {
   drawerType.value = type
@@ -1175,6 +1149,14 @@ const openDrawer = async (type: 'likes' | 'favorites') => {
   } else {
     await fetchAllFavorites(true)
   }
+}
+
+const loadMoreDrawerRecords = async () => {
+  if (isLikesDrawer.value) {
+    await loadMoreLikes()
+    return
+  }
+  await loadMoreFavorites()
 }
 
 // ──────────── 粉丝/关注列表抽屉 ────────────
@@ -1582,11 +1564,6 @@ const getRiskLevelType = (riskLevel: string) => {
 }
 
 const formatDate = (dateStr: string) => dayjs(dateStr).format('YYYY-MM-DD')
-
-const formatJoinDate = (dateStr?: string) => {
-  if (!dateStr) return '未知'
-  return dayjs(dateStr).format('YYYY年MM月')
-}
 
 const getLikeTagType = (targetType: string) => {
   if (targetType === 'POST') return 'primary'

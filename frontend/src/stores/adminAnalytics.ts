@@ -1,3 +1,5 @@
+// TODO(cleanup): 当前管理分析页仍以页面直调 API 为主，此 store 暂未正式接入。
+// 保留原因：后续若统一管理后台数据状态，可直接切换到该 store。
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import * as adminApi from '@/api/admin'

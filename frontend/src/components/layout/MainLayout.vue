@@ -141,8 +141,8 @@
       <MainLayoutNotificationDrawer
         v-if="notificationDrawerVisible"
         v-model="notificationDrawerVisible"
-        :items="notificationItems"
-        :loading="notificationLoading"
+        :items="notificationsStore.items"
+        :loading="notificationsStore.loading"
         @mark-all-read="handleMarkAllRead"
         @notification-click="handleNotificationClick"
       />
@@ -159,6 +159,7 @@
 import { ref, computed, onBeforeUnmount, watch, reactive, defineAsyncComponent } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
+import { useNotificationsStore } from '../../stores/notifications'
 import { ElMessage } from 'element-plus'
 import {
   House,
@@ -180,6 +181,7 @@ const MainLayoutNotificationDrawer = defineAsyncComponent(() => import('./MainLa
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const notificationsStore = useNotificationsStore()
 
 const searchQuery = ref('')
 const searchFocused = ref(false)
@@ -197,17 +199,7 @@ const notificationDrawerVisible = ref(false)
 let notificationEventSource: EventSource | null = null
 let notificationsBootstrapped = false
 let searchApiLoader: Promise<typeof import('../../api/search')> | null = null
-let notificationsApiLoader: Promise<typeof import('../../api/notifications')> | null = null
 const notificationsStreamPath = '/notifications/stream/'
-const notificationItems = ref<Notification[]>([])
-const notificationLoading = ref(false)
-
-const loadNotificationsApi = async () => {
-  if (!notificationsApiLoader) {
-    notificationsApiLoader = import('../../api/notifications')
-  }
-  return notificationsApiLoader
-}
 
 const loadSearchApi = async () => {
   if (!searchApiLoader) {
@@ -219,18 +211,6 @@ const loadSearchApi = async () => {
 const bootstrapNotifications = async () => {
   if (notificationsBootstrapped || !authStore.isLoggedIn) return
   notificationsBootstrapped = true
-  try {
-    // 首次打开通知时再拉数据，避免主布局首屏阻塞。
-    notificationLoading.value = true
-    const notificationsApi = await loadNotificationsApi()
-    const res = await notificationsApi.getNotifications({ page: 1, pageSize: 20 })
-    notificationItems.value = res.items
-  } catch {
-    // ignore
-  } finally {
-    notificationLoading.value = false
-  }
-
   try {
     // @ts-ignore
     const base = (window.__VITE_API_BASE_URL__ as string | undefined) || '/api'
@@ -244,7 +224,10 @@ const bootstrapNotifications = async () => {
       try {
         const data = JSON.parse(event.data)
         if (data && Array.isArray(data.items)) {
-          notificationItems.value = data.items
+          notificationsStore.applyStreamSnapshot({
+            unreadCount: typeof data.unreadCount === 'number' ? data.unreadCount : 0,
+            items: data.items
+          })
         }
       } catch {
         // ignore
@@ -303,7 +286,7 @@ const handleLogout = async () => {
   }
 }
 
-const unreadCountComputed = computed(() => notificationItems.value.filter((item) => !item.is_read).length)
+const unreadCountComputed = computed(() => notificationsStore.unreadCount)
 
 const toggleNotifications = async () => {
   if (!authStore.isLoggedIn) {
@@ -312,29 +295,16 @@ const toggleNotifications = async () => {
   }
   notificationDrawerVisible.value = !notificationDrawerVisible.value
   if (notificationDrawerVisible.value) {
-    await bootstrapNotifications()
-    if (!notificationItems.value.length) {
-      const notificationsApi = await loadNotificationsApi()
-      notificationLoading.value = true
-      try {
-        const res = await notificationsApi.getNotifications({ page: 1, pageSize: 20 })
-        notificationItems.value = res.items
-      } finally {
-        notificationLoading.value = false
-      }
+    if (!notificationsStore.items.length) {
+      await notificationsStore.fetchNotifications({ page: 1, pageSize: 20 })
     }
+    await bootstrapNotifications()
   }
 }
 
 const handleMarkAllRead = async () => {
   try {
-    const notificationsApi = await loadNotificationsApi()
-    await notificationsApi.markAllNotificationsRead()
-    notificationItems.value = notificationItems.value.map((item) => ({
-      ...item,
-      is_read: true,
-      read_at: item.read_at || new Date().toISOString()
-    }))
+    await notificationsStore.markAllRead()
     ElMessage.success('已全部标记为已读')
   } catch (error) {
     ElMessage.error('操作失败')
@@ -344,10 +314,7 @@ const handleMarkAllRead = async () => {
 const handleNotificationClick = async (item: Notification) => {
   try {
     if (!item.is_read) {
-      const notificationsApi = await loadNotificationsApi()
-      await notificationsApi.markNotificationRead(item.id)
-      item.is_read = true
-      item.read_at = item.read_at || new Date().toISOString()
+      await notificationsStore.markRead(item.id)
     }
 
     // 根据关联对象类型跳转到对应页面
@@ -356,7 +323,7 @@ const handleNotificationClick = async (item: Notification) => {
     } else if (item.related_object_type === 'PORTFOLIO' && item.related_object_id) {
       router.push({ name: 'PortfolioDetail', params: { id: item.related_object_id } })
     } else if (item.related_object_type === 'USER' && item.related_object_id) {
-      router.push({ name: 'Profile', params: { userId: item.related_object_id } })
+      router.push({ name: 'UserProfile', params: { userId: item.related_object_id } })
     }
   } catch (error) {
     ElMessage.error('操作失败')
@@ -467,7 +434,7 @@ watch(
     if (loggedIn) {
       notificationsBootstrapped = false
     } else {
-      notificationItems.value = []
+      notificationsStore.items = []
       notificationsBootstrapped = false
       if (notificationEventSource) {
         notificationEventSource.close()

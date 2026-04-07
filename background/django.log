@@ -71975,3 +71975,155 @@ INFO 2026-04-06 15:17:01,099 perf_timing 29692 33788 api_timing endpoint=get_or_
 INFO 2026-04-06 15:17:06,109 perf_timing 29692 33788 api_timing endpoint=get_or_refresh_quote duration_ms=0.15 asset_id=556 code=000010 layer=L1
 INFO 2026-04-06 15:17:11,121 perf_timing 29692 33788 api_timing endpoint=get_or_refresh_quote duration_ms=0.20 asset_id=556 code=000010 layer=L1
 INFO 2026-04-06 15:17:16,130 perf_timing 29692 33788 api_timing endpoint=get_or_refresh_quote duration_ms=0.15 asset_id=556 code=000010 layer=L1
+INFO 2026-04-07 14:39:33,491 tushare_service 30428 13932 [Tushare] Pro API 初始化成功（Token 已配置）
+INFO 2026-04-07 14:39:36,246 tushare_service 30428 13932 [Tushare] get_stock_basic: 获取 5497 只 A 股
+INFO 2026-04-07 14:39:59,914 tushare_service 30428 13932 [Tushare] get_daily_klines_by_date: 20260403 获取 5486 条（全市场）
+INFO 2026-04-07 14:40:18,111 tushare_service 30428 13932 [Tushare] get_daily_klines_by_date: 20260403 获取 5486 条（全市场）
+INFO 2026-04-07 14:40:18,112 tushare_service 30428 13932 [Tushare] get_latest_daily_quotes_all: 取到 20260403 共 5486 条
+INFO 2026-04-07 14:42:43,199 autoreload 29632 26504 Watching for file changes with StatReloader
+WARNING 2026-04-07 14:42:54,654 log 29632 20104 Unauthorized: /api/dashboard/overview/
+WARNING 2026-04-07 14:42:54,655 log 29632 22748 Unauthorized: /api/market/rankings/
+WARNING 2026-04-07 14:42:59,350 log 29632 29808 Unauthorized: /api/dashboard/overview/
+WARNING 2026-04-07 14:42:59,358 log 29632 13948 Unauthorized: /api/market/rankings/
+WARNING 2026-04-07 14:42:59,820 log 29632 28636 Unauthorized: /api/posts/
+WARNING 2026-04-07 14:42:59,824 log 29632 7004 Unauthorized: /api/portfolios/top/
+WARNING 2026-04-07 14:42:59,843 log 29632 9600 Unauthorized: /api/market/rankings/
+INFO 2026-04-07 14:43:00,499 perf_timing 29632 13972 api_timing endpoint=market_rankings duration_ms=85.09 path=/api/market/rankings/
+INFO 2026-04-07 14:43:00,501 perf_timing 29632 29728 api_timing endpoint=market_rankings duration_ms=136.62 path=/api/market/rankings/
+INFO 2026-04-07 14:58:47,496 perf_timing 29632 10304 api_timing endpoint=market_rankings duration_ms=35.22 path=/api/market/rankings/
+INFO 2026-04-07 14:58:47,679 perf_timing 29632 30488 api_timing endpoint=market_rankings duration_ms=73.36 path=/api/market/rankings/
+INFO 2026-04-07 15:42:15,513 autoreload 29632 26504 D:\invest\background\invest_backend\settings.py changed, reloading.
+INFO 2026-04-07 15:42:16,947 autoreload 25556 15096 Watching for file changes with StatReloader
+INFO 2026-04-07 15:42:22,955 autoreload 25556 15096 D:\invest\background\accounts\user_urls.py changed, reloading.
+INFO 2026-04-07 15:42:24,215 autoreload 21072 10948 Watching for file changes with StatReloader
+INFO 2026-04-07 15:42:35,669 autoreload 21072 10948 D:\invest\background\accounts\views.py changed, reloading.
+INFO 2026-04-07 15:42:36,872 autoreload 7344 26812 Watching for file changes with StatReloader
+INFO 2026-04-07 15:43:07,373 autoreload 7344 26812 D:\invest\background\reports\views.py changed, reloading.
+INFO 2026-04-07 15:43:08,620 autoreload 19224 30392 Watching for file changes with StatReloader
+INFO 2026-04-07 15:43:18,376 autoreload 19224 30392 D:\invest\background\reports\views.py changed, reloading.
+INFO 2026-04-07 15:43:19,736 autoreload 33684 33552 Watching for file changes with StatReloader
+WARNING 2026-04-07 15:45:16,017 log 33684 33008 Unauthorized: /api/market/rankings/
+WARNING 2026-04-07 15:45:16,020 log 33684 33412 Unauthorized: /api/posts/
+WARNING 2026-04-07 15:45:16,024 log 33684 31708 Unauthorized: /api/portfolios/top/
+WARNING 2026-04-07 15:45:16,028 log 33684 30064 Unauthorized: /api/dashboard/overview/
+WARNING 2026-04-07 15:45:16,030 log 33684 30388 Unauthorized: /api/market/rankings/
+ERROR 2026-04-07 15:45:16,984 log 33684 30664 Internal Server Error: /api/auth/refresh/
+Traceback (most recent call last):
+  File "D:\invest\.venv\Lib\site-packages\django\db\backends\utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\db\backends\mysql\base.py", line 75, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\MySQLdb\cursors.py", line 179, in execute
+    res = self._query(mogrified_query)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\MySQLdb\cursors.py", line 330, in _query
+    db.query(q)
+  File "D:\invest\.venv\Lib\site-packages\MySQLdb\connections.py", line 255, in query
+    _mysql.connection.query(self, query)
+MySQLdb.ProgrammingError: (1146, "Table 'community_db.token_blacklist_blacklistedtoken' doesn't exist")
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\invest\.venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\views\decorators\csrf.py", line 56, in wrapper_view
+    return view_func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\views\generic\base.py", line 104, in view
+    return self.dispatch(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+  File "D:\invest\.venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "D:\invest\.venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\rest_framework\decorators.py", line 50, in handler
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\background\accounts\views.py", line 213, in token_refresh
+    if serializer.is_valid():
+       ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\rest_framework\serializers.py", line 227, in is_valid
+    self._validated_data = self.run_validation(self.initial_data)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\rest_framework\serializers.py", line 429, in run_validation
+    value = self.validate(value)
+            ^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\rest_framework_simplejwt\serializers.py", line 108, in validate
+    refresh = self.token_class(attrs["refresh"])
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\rest_framework_simplejwt\tokens.py", line 61, in __init__
+    self.verify()
+  File "D:\invest\.venv\Lib\site-packages\rest_framework_simplejwt\tokens.py", line 245, in verify
+    self.check_blacklist()
+  File "D:\invest\.venv\Lib\site-packages\rest_framework_simplejwt\tokens.py", line 256, in check_blacklist
+    if BlacklistedToken.objects.filter(token__jti=jti).exists():
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\db\models\query.py", line 1241, in exists
+    return self.query.has_results(using=self.db)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\db\models\sql\query.py", line 598, in has_results
+    return compiler.has_results()
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\db\models\sql\compiler.py", line 1530, in has_results
+    return bool(self.execute_sql(SINGLE))
+                ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\db\models\sql\compiler.py", line 1562, in execute_sql
+    cursor.execute(sql, params)
+  File "D:\invest\.venv\Lib\site-packages\debug_toolbar\panels\sql\tracking.py", line 252, in execute
+    return self._record(super().execute, sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\debug_toolbar\panels\sql\tracking.py", line 177, in _record
+    return method(sql, params)
+           ^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\db\backends\utils.py", line 102, in execute
+    return super().execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\db\backends\utils.py", line 67, in execute
+    return self._execute_with_wrappers(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\db\backends\utils.py", line 80, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\db\backends\utils.py", line 84, in _execute
+    with self.db.wrap_database_errors:
+  File "D:\invest\.venv\Lib\site-packages\django\db\utils.py", line 91, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "D:\invest\.venv\Lib\site-packages\django\db\backends\utils.py", line 89, in _execute
+    return self.cursor.execute(sql, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\django\db\backends\mysql\base.py", line 75, in execute
+    return self.cursor.execute(query, args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\MySQLdb\cursors.py", line 179, in execute
+    res = self._query(mogrified_query)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\invest\.venv\Lib\site-packages\MySQLdb\cursors.py", line 330, in _query
+    db.query(q)
+  File "D:\invest\.venv\Lib\site-packages\MySQLdb\connections.py", line 255, in query
+    _mysql.connection.query(self, query)
+django.db.utils.ProgrammingError: (1146, "Table 'community_db.token_blacklist_blacklistedtoken' doesn't exist")
+INFO 2026-04-07 15:51:37,910 autoreload 27448 1936 Watching for file changes with StatReloader
+INFO 2026-04-07 15:51:54,392 perf_timing 27448 5528 api_timing endpoint=market_rankings duration_ms=174.22 path=/api/market/rankings/
+INFO 2026-04-07 15:51:54,398 perf_timing 27448 32908 api_timing endpoint=market_rankings duration_ms=250.51 path=/api/market/rankings/
+INFO 2026-04-07 16:41:53,543 perf_timing 27448 33728 api_timing endpoint=market_rankings duration_ms=205.80 path=/api/market/rankings/
+INFO 2026-04-07 16:41:53,640 perf_timing 27448 17244 api_timing endpoint=market_rankings duration_ms=271.30 path=/api/market/rankings/
+INFO 2026-04-07 16:43:24,414 perf_timing 27448 20828 api_timing endpoint=market_rankings duration_ms=15.05 path=/api/market/rankings/
+INFO 2026-04-07 16:43:24,513 perf_timing 27448 33236 api_timing endpoint=market_rankings duration_ms=19.07 path=/api/market/rankings/
+INFO 2026-04-07 16:44:15,665 perf_timing 27448 32584 api_timing endpoint=market_rankings duration_ms=15.34 path=/api/market/rankings/
+INFO 2026-04-07 16:44:15,756 perf_timing 27448 33440 api_timing endpoint=market_rankings duration_ms=42.45 path=/api/market/rankings/
+INFO 2026-04-07 16:47:34,496 perf_timing 27448 14364 api_timing endpoint=market_rankings duration_ms=23.77 path=/api/market/rankings/
+INFO 2026-04-07 16:47:34,583 perf_timing 27448 22044 api_timing endpoint=market_rankings duration_ms=62.13 path=/api/market/rankings/
+WARNING 2026-04-07 16:53:50,666 log 27448 29748 Unauthorized: /api/users/me/

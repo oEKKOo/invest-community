@@ -22,7 +22,7 @@ except ImportError:
 
 
 if Celery is not None:
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "invest_backend.settings")
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "invest_backend.settings.dev")
 
     app = Celery("invest_backend")
     app.config_from_object("django.conf:settings", namespace="CELERY")

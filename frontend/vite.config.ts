@@ -67,6 +67,11 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
+    sourcemap: false,
+    minify: 'esbuild',
+    esbuild: {
+      drop: ['console', 'debugger']
+    },
     rollupOptions: {
       output: {
         manualChunks(id, { getModuleInfo }) {
@@ -94,6 +99,9 @@ export default defineConfig(({ mode }) => ({
             normalizedId.includes('/node_modules/vue-router/')
           ) {
             return 'vendor-vue'
+          }
+          if (normalizedId.includes('/node_modules/@element-plus/icons-vue/')) {
+            return 'vendor-element-icons'
           }
           if (
             normalizedId.includes('/node_modules/element-plus/es/components/table') ||

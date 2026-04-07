@@ -39,7 +39,7 @@ echo [3] 检查依赖包...
 pip show Django >nul 2>&1
 if errorlevel 1 (
     echo ❌ Django 未安装，正在安装依赖...
-    pip install -r requirements.txt
+    pip install -r requirements/dev.txt
 )
 
 REM 数据库迁移

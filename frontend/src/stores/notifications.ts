@@ -14,10 +14,9 @@ export const useNotificationsStore = defineStore('notifications', () => {
   const page = ref(1)
   const pageSize = ref(20)
   const total = ref(0)
+  const unreadTotal = ref(0)
 
-  const unreadCount = computed(
-    () => items.value.filter((n) => !n.is_read).length
-  )
+  const unreadCount = computed(() => unreadTotal.value)
 
   const hasMore = computed(() => page.value * pageSize.value < total.value)
 
@@ -39,6 +38,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
       page.value = res.page
       pageSize.value = res.pageSize
       total.value = res.total
+      unreadTotal.value = res.items.filter((n) => !n.is_read).length
     } finally {
       loading.value = false
     }
@@ -51,13 +51,16 @@ export const useNotificationsStore = defineStore('notifications', () => {
       page: 1,
       pageSize: 1
     })
-    total.value = res.total
+    unreadTotal.value = res.total
   }
 
   const markRead = async (id: number) => {
     await notificationsApi.markNotificationRead(id)
     const target = items.value.find((n) => n.id === id)
     if (target) {
+      if (!target.is_read && unreadTotal.value > 0) {
+        unreadTotal.value -= 1
+      }
       target.is_read = true
       target.read_at = new Date().toISOString()
     }
@@ -70,12 +73,13 @@ export const useNotificationsStore = defineStore('notifications', () => {
       is_read: true,
       read_at: n.read_at || new Date().toISOString()
     }))
+    unreadTotal.value = 0
   }
 
   const applyStreamSnapshot = (payload: NotificationStreamPayload) => {
     // 后端返回的是最新 10 条，直接替换本地列表
     items.value = payload.items
-    // 这里的 total 保持分页意义；未读数量单独由 unreadCount 计算或前端使用 payload.unreadCount
+    unreadTotal.value = payload.unreadCount
   }
 
   return {

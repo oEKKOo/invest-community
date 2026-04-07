@@ -20,6 +20,5 @@ urlpatterns = [
     
     # 用户收藏列表
     path('me/favorites/', views.UserFavoritesView.as_view(), name='user_favorites'),
-    path('me/reports/', views.UserReportsView.as_view(), name='user_reports'),
     path('me/likes/', views.UserLikesView.as_view(), name='user_likes'),
 ]

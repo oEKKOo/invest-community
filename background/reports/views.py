@@ -10,6 +10,7 @@ from django.db.models import Count, Avg, Sum
 from datetime import timedelta, datetime
 from accounts.models import UserBehaviorDaily
 from invest_backend.permissions import IsModeratorOrAdmin
+from invest_backend.api_response import ok, fail, paged, parse_page_params, require_roles
 
 from .models import (
     Report, Alert, ModerationQueueItem, ModerationRule, ModerationHit,
@@ -22,15 +23,6 @@ from .serializers import (
 )
 
 
-def _ensure_admin_role(request):
-    if request.user.role not in ['MODERATOR', 'ADMIN']:
-        return Response({
-            'code': 4030,
-            'message': '无权限'
-        }, status=status.HTTP_403_FORBIDDEN)
-    return None
-
-
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_report(request):
@@ -39,17 +31,9 @@ def create_report(request):
     
     if serializer.is_valid():
         report = serializer.save()
-        return Response({
-            'code': 0, 
-            'message': '举报提交成功',
-            'data': {'id': report.id}
-        }, status=status.HTTP_201_CREATED)
+        return ok({'id': report.id}, message='举报提交成功', status_code=status.HTTP_201_CREATED)
     
-    return Response({
-        'code': 4001, 
-        'message': '举报失败',
-        'errors': serializer.errors
-    }, status=status.HTTP_400_BAD_REQUEST)
+    return fail(4001, '举报失败', status.HTTP_400_BAD_REQUEST, serializer.errors)
 
 
 class UserReportsView(generics.ListAPIView):
@@ -60,6 +44,14 @@ class UserReportsView(generics.ListAPIView):
     def get_queryset(self):
         return Report.objects.filter(reporter=self.request.user).order_by('-created_at')
 
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        page, page_size, offset = parse_page_params(request)
+        total = queryset.count()
+        rows = queryset[offset:offset + page_size]
+        serializer = self.get_serializer(rows, many=True)
+        return ok(paged(serializer.data, page, page_size, total))
+
 
 # 以下为管理员功能，需要相应权限
 
@@ -69,9 +61,7 @@ class AdminReportsView(generics.ListAPIView):
     permission_classes = [IsAuthenticated, IsModeratorOrAdmin]
 
     def get_queryset(self):
-        # 检查权限
-        if self.request.user.role not in ['MODERATOR', 'ADMIN']:
-            return Report.objects.none()
+        require_roles(self.request.user)
         
         queryset = Report.objects.all()
         
@@ -82,48 +72,21 @@ class AdminReportsView(generics.ListAPIView):
         return queryset.order_by('-created_at')
 
     def list(self, request, *args, **kwargs):
-        """重写list方法，返回统一的响应格式"""
-        # 权限检查
-        if request.user.role not in ['MODERATOR', 'ADMIN']:
-            return Response({
-                'code': 4030,
-                'message': '无权限'
-            }, status=status.HTTP_403_FORBIDDEN)
-
+        """重写 list 方法，返回统一分页结构"""
         queryset = self.get_queryset()
 
-        # 手动分页
-        page = int(request.query_params.get('page', 1))
-        page_size = int(request.query_params.get('pageSize', 20))
-
+        page, page_size, offset = parse_page_params(request)
         total = queryset.count()
-        start = (page - 1) * page_size
-        end = start + page_size
-
-        paginated_queryset = queryset[start:end]
+        paginated_queryset = queryset[offset:offset + page_size]
         serializer = self.get_serializer(paginated_queryset, many=True)
-
-        return Response({
-            'code': 0,
-            'data': {
-                'items': serializer.data,
-                'page': page,
-                'pageSize': page_size,
-                'total': total
-            }
-        })
+        return ok(paged(serializer.data, page, page_size, total))
 
 
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 def handle_report(request, pk):
     """处理举报"""
-    # 权限检查
-    if request.user.role not in ['MODERATOR', 'ADMIN']:
-        return Response({
-            'code': 4030, 
-            'message': '无权限'
-        }, status=status.HTTP_403_FORBIDDEN)
+    require_roles(request.user)
     
     report = get_object_or_404(Report, pk=pk)
     
@@ -133,10 +96,7 @@ def handle_report(request, pk):
     action_taken = request.data.get('actionTaken', '')
 
     if status_value not in ['PENDING', 'RESOLVED']:
-        return Response({
-            'code': 4001, 
-            'message': '无效的状态'
-        }, status=status.HTTP_400_BAD_REQUEST)
+        return fail(4001, '无效的状态', status.HTTP_400_BAD_REQUEST)
     
     report.status = status_value
     report.handle_result = handle_result
@@ -172,27 +132,20 @@ def handle_report(request, pk):
                 report.linked_queue_item = queue_item
     report.save()
     
-    return Response({
-        'code': 0, 
-        'message': '处理成功'
-    })
+    return ok(message='处理成功')
 
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def admin_stats(request):
     """管理员统计数据"""
-    if request.user.role not in ['MODERATOR', 'ADMIN']:
-        return Response({
-            'code': 4030, 
-            'message': '无权限'
-        }, status=status.HTTP_403_FORBIDDEN)
+    require_roles(request.user)
 
     ttl = int(getattr(settings, 'ADMIN_STATS_CACHE_TTL', 45))
     cache_key = 'admin:stats:v1'
     cached = cache.get(cache_key)
     if cached is not None:
-        return Response(cached)
+        return ok(cached)
 
     from content.models import Content
     from django.contrib.auth import get_user_model
@@ -207,15 +160,12 @@ def admin_stats(request):
     new_users_24h = User.objects.filter(created_at__gte=yesterday).count()
 
     payload = {
-        'code': 0,
-        'data': {
-            'pendingPostsCount': pending_posts_count,
-            'openReportsCount': open_reports_count,
-            'newUsers24h': new_users_24h,
-        },
+        'pendingPostsCount': pending_posts_count,
+        'openReportsCount': open_reports_count,
+        'newUsers24h': new_users_24h,
     }
     cache.set(cache_key, payload, ttl)
-    return Response(payload)
+    return ok(payload)
 
 
 class ModerationQueueView(generics.ListAPIView):

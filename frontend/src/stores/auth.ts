@@ -3,10 +3,10 @@ import { ref, computed } from 'vue'
 import type { User, LoginResponse } from '../types'
 import * as authApi from '../api/auth'
 import type { RegisterResponse } from '../api/auth'
+import { setAuthStorage, clearAuthStorage, getStoredUser } from '@/api/auth-token'
 
 const TOKEN_KEY = 'investhub_token'
 const REFRESH_TOKEN_KEY = 'investhub_refresh_token'
-const USER_KEY = 'investhub_user'
 
 export const useAuthStore = defineStore('auth', () => {
   // State
@@ -16,14 +16,14 @@ export const useAuthStore = defineStore('auth', () => {
   // 安全地从 localStorage 读取用户信息
   let initialUser: User | null = null
   try {
-    const userStr = localStorage.getItem(USER_KEY)
+    const userStr = getStoredUser()
     if (userStr && userStr !== 'undefined' && userStr !== 'null') {
       initialUser = JSON.parse(userStr)
     }
   } catch (error) {
     console.warn('Failed to parse user from localStorage:', error)
-    // 清除无效数据
-    localStorage.removeItem(USER_KEY)
+    // 清除无效数据（复用统一存储方法）
+    setAuthStorage({ user: null })
   }
   
   const user = ref<User | null>(initialUser)
@@ -45,22 +45,21 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = authData.access
     refreshToken.value = authData.refresh
     user.value = authData.user
-    
-    // 持久化到localStorage
-    localStorage.setItem(TOKEN_KEY, authData.access)
-    localStorage.setItem(REFRESH_TOKEN_KEY, authData.refresh)
-    localStorage.setItem(USER_KEY, JSON.stringify(authData.user))
+
+    // 持久化：统一走 auth-token 辅助方法，避免多处散写 localStorage
+    setAuthStorage({
+      access: authData.access,
+      refresh: authData.refresh,
+      user: JSON.stringify(authData.user)
+    })
   }
 
   const clearAuth = () => {
     token.value = ''
     refreshToken.value = ''
     user.value = null
-    
-    // 清除localStorage
-    localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(REFRESH_TOKEN_KEY)
-    localStorage.removeItem(USER_KEY)
+
+    clearAuthStorage()
   }
 
   const login = async (params: authApi.LoginParams) => {
@@ -149,7 +148,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await authApi.refreshToken(refreshToken.value)
       token.value = response.access
-      localStorage.setItem(TOKEN_KEY, response.access)
+      setAuthStorage({ access: response.access })
       return response
     } catch (error) {
       // 刷新失败，清除所有认证信息
@@ -166,7 +165,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const userData = await authApi.getCurrentUser()
       user.value = userData
-      localStorage.setItem(USER_KEY, JSON.stringify(userData))
+      setAuthStorage({ user: JSON.stringify(userData) })
       return userData
     } catch (error) {
       // 获取用户信息失败，可能token无效

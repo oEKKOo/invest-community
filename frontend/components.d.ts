@@ -11,7 +11,6 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    AssetChip: typeof import('./src/components/market/AssetChip.vue')['default']
     AssetSelect: typeof import('./src/components/market/AssetSelect.vue')['default']
     ElAlert: typeof import('element-plus/es')['ElAlert']
     ElAvatar: typeof import('element-plus/es')['ElAvatar']
@@ -57,8 +56,6 @@ declare module 'vue' {
     MainLayout: typeof import('./src/components/layout/MainLayout.vue')['default']
     MainLayoutNotificationDrawer: typeof import('./src/components/layout/MainLayoutNotificationDrawer.vue')['default']
     MainLayoutSearchDropdown: typeof import('./src/components/layout/MainLayoutSearchDropdown.vue')['default']
-    QuoteMini: typeof import('./src/components/market/QuoteMini.vue')['default']
-    QuoteTag: typeof import('./src/components/market/QuoteTag.vue')['default']
     ReportDialog: typeof import('./src/components/ReportDialog.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']

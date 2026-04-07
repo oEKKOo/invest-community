@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
-// 导入页面组件
 const MainLayout = () => import('../components/layout/MainLayout.vue')
 const Dashboard = () => import('../views/Dashboard.vue')
 const Community = () => import('../views/Community.vue')
@@ -13,7 +12,6 @@ const Login = () => import('../views/Login.vue')
 const OAuthCallback = () => import('../views/auth/OAuthCallback.vue')
 const PostDetail = () => import('../views/PostDetail.vue')
 const PortfolioDetail = () => import('../views/PortfolioDetail.vue')
-// 新增页面
 const AssetDetail = () => import('../views/AssetDetail.vue')
 const MarketList = () => import('../views/MarketList.vue')
 const MarketRankings = () => import('../views/MarketRankings.vue')
@@ -143,7 +141,6 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'Portfolio Detail' },
         props: true
       },
-      // 个人持仓
       {
         path: '/holdings',
         name: 'MyHoldings',
@@ -180,7 +177,6 @@ const routes: RouteRecordRaw[] = [
         component: RiskAssessment,
         meta: { title: '风险评估', requiresAuth: true }
       },
-      // 新增路由
       {
         path: '/assets/:assetId',
         name: 'AssetDetail',
