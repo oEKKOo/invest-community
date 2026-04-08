@@ -1649,19 +1649,1086 @@ Authorization: Bearer {{access_token}}
 - 同时关注同一用户
 - 并发创建内容
 
+
+---
+
+# 附录：行情数据与市场模块（新增与改动接口）
+
+# 📡 新增 & 改动接口文档（行情扩展迭代）
+
+> **文档说明**：本文档仅记录本次迭代**新增**和**改动**的接口，原有未变动接口请参阅 `接口文档.mdc`。
+> **Base URL**：`http://127.0.0.1:8000`
+> **认证方式**：JWT Bearer Token（需要登录的接口在 Header 中携带 `Authorization: Bearer {access_token}`）
+
+---
+
+## 📋 本次变更清单
+
+| 序号 | 类型 | 接口 | 说明 |
+|---|---|---|---|
+| 1 | 🆕 新增 | `GET /api/assets/{id}/quote/` | 单资产最新行情 |
+| 2 | 🆕 新增 | `GET /api/assets/{id}/kline/` | K线数据（ECharts） |
+| 3 | 🆕 新增 | `GET /api/assets/{id}/intraday/` | 当日分时数据 |
+| 4 | 🆕 新增 | `POST /api/assets/quotes/` | 批量行情（列表页必备） |
+| 5 | 🆕 新增 | `GET /api/assets/{id}/quote/stream/` | 行情 SSE 实时推送 |
+| 6 | 🆕 新增 | `GET /api/assets/{id}/contents/` | 资产内容聚合（通用版） |
+| 7 | 🆕 新增 | `GET /api/market/rankings/` | 涨跌幅榜单 |
+| 8 | 🆕 新增 | `GET /api/market/status/` | 系统数据状态（管理员） |
+| 9 | 🆕 新增 | `GET /api/market/jobs/` | 数据任务日志（管理员） |
+| 10 | 🆕 新增 | `POST /api/market/jobs/trigger/` | 手动触发数据同步（管理员） |
+| 11 | ✏️ 改动 | `GET /api/assets/` | 新增 `withQuote=1` 参数，可附带行情字段 |
+| 12 | ✏️ 改动 | `GET /api/assets/{id}/` | 响应新增 `quote` 嵌套对象 |
+| 13 | ✏️ 改动 | `POST /api/posts/` | 新增 `assetCodes` 参数支持（兼容原 `assetIds`） |
+| 14 | ✏️ 改动 | 帖子列表/详情 `assets[]` | 字段统一：`assetType`、`market` |
+
+---
+
+## 🆕 一、新增接口详情
+
+---
+
+### 1.1 单资产最新行情
+
+- **接口**：`GET /api/assets/{asset_id}/quote/`
+- **权限**：游客可访问
+- **描述**：获取指定资产最新行情快照。优先读 60 秒内的 DB 快照，缓存 miss 时实时调 Finnhub 并写入快照表。
+
+#### 路径参数
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| asset_id | int | 资产 ID（来自 `GET /api/assets/` 搜索） |
+
+#### 成功响应 (200)
+```json
+{
+  "code": 0,
+  "data": {
+    "assetId": 1,
+    "code": "AAPL",
+    "name": "Apple Inc.",
+    "market": "US",
+    "quoteTime": "2026-02-20T20:00:01Z",
+    "price": "182.350000",
+    "change": "1.230000",
+    "changePct": "0.6791",
+    "open": "181.500000",
+    "high": "183.200000",
+    "low": "181.100000",
+    "prevClose": "181.120000",
+    "volume": 45678901,
+    "amount": null,
+    "dataUpdatedAt": "2026-02-20T20:00:05Z",
+    "isStale": false
+  }
+}
+```
+
+#### 字段说明
+| 字段 | 说明 |
+|---|---|
+| price | 最新价（Finnhub `c` 字段） |
+| change | 涨跌额（Finnhub `d` 字段） |
+| changePct | 涨跌幅，单位 % |
+| open / high / low / prevClose | 开高低昨收 |
+| volume | 成交量（部分标的可能为 null） |
+| quoteTime | 行情时间（Finnhub 原始时间戳转换） |
+| dataUpdatedAt | 快照写入 DB 时间 |
+| isStale | true 表示行情数据超过 60 秒，可能不是最新 |
+
+#### 失败响应
+```json
+{
+  "code": 4040,
+  "message": "暂无 AAPL 的行情数据，请确认资产的 finnhub_symbol 已配置"
+}
+```
+
+#### 自测命令（curl）
+```bash
+curl -X GET http://127.0.0.1:8000/api/assets/1/quote/
+```
+
+---
+
+### 1.2 K 线数据
+
+- **接口**：`GET /api/assets/{asset_id}/kline/`
+- **权限**：游客可访问
+- **描述**：获取资产 K 线数据，用于 ECharts K 线图。优先读数据库，无数据时实时从 Finnhub 拉取落库。
+
+#### 路径参数
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| asset_id | int | 资产 ID |
+
+#### Query 参数
+| 参数 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| interval | string | `1d` | K 线周期：`1d` / `60m` / `1h` / `30m` / `15m` / `5m` / `1m` / `1w` / `1mo` |
+| limit | int | 200 | 返回数量上限，最大 500 |
+| from | string | - | 开始时间（`YYYY-MM-DD` 或 ISO 时间，可选） |
+| to | string | - | 结束时间（`YYYY-MM-DD` 或 ISO 时间，可选） |
+
+#### interval 与内部 resolution 映射
+| interval 值 | 实际 resolution | 说明 |
+|---|---|---|
+| `1d` / `1D` | `D` | 日 K（推荐 MVP 首选） |
+| `60m` / `1h` | `60` | 60 分钟线 |
+| `30m` | `30` | 30 分钟线 |
+| `15m` | `15` | 15 分钟线 |
+| `5m` | `5` | 5 分钟线 |
+| `1m` | `1` | 1 分钟线 |
+| `1w` / `W` | `W` | 周 K |
+| `1mo` / `M` | `M` | 月 K |
+
+#### 成功响应 (200)
+```json
+{
+  "code": 0,
+  "data": {
+    "assetId": 1,
+    "code": "AAPL",
+    "interval": "1d",
+    "resolution": "D",
+    "count": 200,
+    "items": [
+      {
+        "time": "2025-08-05T00:00:00Z",
+        "open": "180.100000",
+        "high": "182.500000",
+        "low": "179.800000",
+        "close": "181.200000",
+        "volume": 32456789
+      },
+      {
+        "time": "2025-08-06T00:00:00Z",
+        "open": "181.500000",
+        "high": "183.200000",
+        "low": "181.100000",
+        "close": "182.350000",
+        "volume": 45678901
+      }
+    ]
+  }
+}
+```
+
+> **注意**：返回结果按时间**升序**排列（ECharts 要求升序）。
+
+#### 失败响应
+```json
+{
+  "code": 4001,
+  "message": "from 参数格式错误，支持 YYYY-MM-DD 或 ISO 时间"
+}
+```
+
+#### 自测命令（curl）
+```bash
+# 日K，最近200根
+curl "http://127.0.0.1:8000/api/assets/1/kline/?interval=1d&limit=200"
+
+# 带时间范围
+curl "http://127.0.0.1:8000/api/assets/1/kline/?interval=1d&from=2026-01-01&to=2026-02-20"
+
+# 60分钟线
+curl "http://127.0.0.1:8000/api/assets/1/kline/?interval=60m&limit=100"
+```
+
+---
+
+### 1.3 当日分时数据
+
+- **接口**：`GET /api/assets/{asset_id}/intraday/`
+- **权限**：游客可访问
+- **描述**：获取指定日期的分钟 K 线聚合数据，用于展示当日走势图（分时图）。数据来自 `AssetKline`（分钟周期），无数据时实时从 Finnhub 拉取。
+
+#### Query 参数
+| 参数 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| date | string | 今天 | 日期，格式 `YYYY-MM-DD` |
+| interval | string | `5m` | 分时粒度：`1m` / `5m` / `15m` |
+
+#### 成功响应 (200)
+```json
+{
+  "code": 0,
+  "data": {
+    "assetId": 1,
+    "code": "AAPL",
+    "date": "2026-02-20",
+    "interval": "5m",
+    "items": [
+      {
+        "time": "09:30",
+        "price": 181.50,
+        "avgPrice": 181.50,
+        "volume": 1234567,
+        "open": 181.20,
+        "high": 181.80,
+        "low": 181.00
+      },
+      {
+        "time": "09:35",
+        "price": 182.10,
+        "avgPrice": 181.75,
+        "volume": 987654,
+        "open": 181.50,
+        "high": 182.30,
+        "low": 181.40
+      }
+    ]
+  }
+}
+```
+
+#### 字段说明
+| 字段 | 说明 |
+|---|---|
+| time | 时间（HH:MM 格式） |
+| price | 该分钟收盘价 |
+| avgPrice | 当日累计均价（按成交量加权） |
+| volume | 该分钟成交量 |
+| open / high / low | 分钟内开高低 |
+
+#### 自测命令（curl）
+```bash
+# 当日5分钟线
+curl "http://127.0.0.1:8000/api/assets/1/intraday/"
+
+# 指定日期1分钟线
+curl "http://127.0.0.1:8000/api/assets/1/intraday/?date=2026-02-19&interval=1m"
+```
+
+---
+
+### 1.4 批量获取最新行情
+
+- **接口**：`POST /api/assets/quotes/`
+- **权限**：游客可访问
+- **描述**：一次请求获取多个资产的最新行情快照（读 DB 快照，不实时调 Finnhub）。适用于资产列表页、投资组合持仓列表等场景。最多支持 **50 个** assetId。
+
+#### 请求体
+```json
+{
+  "assetIds": [1, 2, 3]
+}
+```
+
+#### 请求参数说明
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| assetIds | array\[int\] | ✅ | 资产 ID 数组，最多 50 个 |
+
+#### 成功响应 (200)
+```json
+{
+  "code": 0,
+  "data": {
+    "items": [
+      {
+        "assetId": 1,
+        "code": "AAPL",
+        "name": "Apple Inc.",
+        "market": "US",
+        "price": 182.35,
+        "changePct": 0.6791,
+        "change": 1.23,
+        "quoteTime": "2026-02-20T20:00:01Z",
+        "dataUpdatedAt": "2026-02-20T20:00:05Z"
+      },
+      {
+        "assetId": 2,
+        "code": "MSFT",
+        "name": "Microsoft Corporation",
+        "market": "US",
+        "price": null,
+        "changePct": null,
+        "change": null,
+        "quoteTime": null,
+        "dataUpdatedAt": null
+      },
+      {
+        "assetId": 999,
+        "error": "资产不存在"
+      }
+    ],
+    "total": 3
+  }
+}
+```
+
+> **说明**：
+> - 无快照的资产：价格字段返回 `null`（不报错）
+> - 不存在的资产 ID：返回 `error` 字段
+
+#### 失败响应
+```json
+{
+  "code": 4001,
+  "message": "参数错误",
+  "errors": {
+    "assetIds": ["此字段是必填项。"]
+  }
+}
+```
+
+#### 自测命令（curl）
+```bash
+curl -X POST http://127.0.0.1:8000/api/assets/quotes/ \
+  -H "Content-Type: application/json" \
+  -d '{"assetIds": [1, 2, 3]}'
+```
+
+---
+
+### 1.5 行情 SSE 实时推送
+
+- **接口**：`GET /api/assets/{asset_id}/quote/stream/`
+- **权限**：游客可访问
+- **返回**：`text/event-stream`（SSE）
+- **描述**：服务端每 **3 秒**推送一次最新行情快照，数据来自 DB，最长推送 **5 分钟**后自动关闭。前端使用 `EventSource` 接入。
+
+#### 前端接入示例（JavaScript）
+```javascript
+const es = new EventSource('/api/assets/1/quote/stream/');
+
+es.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  console.log('行情更新:', data);
+  // data: { assetId, code, price, changePct, change, quoteTime, dataUpdatedAt }
+};
+
+es.addEventListener('error', (e) => {
+  console.log('推送错误:', e);
+  es.close();
+});
+
+es.addEventListener('close', () => {
+  console.log('推送已关闭（5分钟超时）');
+  es.close();
+});
+```
+
+#### 推送数据格式（每条 SSE 消息）
+```json
+{
+  "assetId": 1,
+  "code": "AAPL",
+  "price": 182.35,
+  "changePct": 0.6791,
+  "change": 1.23,
+  "quoteTime": "2026-02-20T20:00:01Z",
+  "dataUpdatedAt": "2026-02-20T20:00:05Z"
+}
+```
+
+#### 特殊事件
+| 事件名 | 说明 |
+|---|---|
+| `message`（默认） | 正常行情推送数据 |
+| `error` | 行情获取异常时触发 |
+| `close` | 推送超时（5 分钟）关闭 |
+
+#### Nginx 注意事项
+SSE 需要在 Nginx 配置中禁用缓冲：
+```nginx
+proxy_buffering off;
+proxy_cache off;
+```
+
+#### curl 测试（观察推送）
+```bash
+curl -N http://127.0.0.1:8000/api/assets/1/quote/stream/
+```
+
+---
+
+### 1.6 资产内容聚合（通用版）
+
+- **接口**：`GET /api/assets/{asset_id}/contents/`
+- **权限**：游客可访问
+- **描述**：获取与指定资产关联的已发布内容列表（通用版，向后兼容原 `/posts/` 路由）。支持按类型和排序筛选。
+
+#### Query 参数
+| 参数 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| type | string | - | 内容类型（预留扩展，当前不生效） |
+| sort | string | `new` | 排序方式：`new`（最新） / `hot`（热门） |
+| page | int | 1 | 页码 |
+| pageSize | int | 20 | 每页数量 |
+
+#### 成功响应 (200)
+```json
+{
+  "code": 0,
+  "data": {
+    "assetId": 1,
+    "assetCode": "AAPL",
+    "assetName": "Apple Inc.",
+    "items": [
+      {
+        "id": 10,
+        "authorId": 2,
+        "authorName": "投资达人",
+        "authorAvatar": "https://example.com/avatar.jpg",
+        "title": "苹果Q4业绩分析",
+        "content": "内容摘要...",
+        "status": "PUBLISHED",
+        "tags": ["科技股", "业绩"],
+        "likes": 25,
+        "comments": 12,
+        "createdAt": "2026-02-19T10:00:00Z",
+        "assets": [
+          {
+            "id": 1,
+            "code": "AAPL",
+            "name": "Apple Inc.",
+            "assetType": "STOCK",
+            "market": "US"
+          }
+        ]
+      }
+    ],
+    "page": 1,
+    "pageSize": 20,
+    "total": 45
+  }
+}
+```
+
+#### 自测命令（curl）
+```bash
+# 最新帖子
+curl "http://127.0.0.1:8000/api/assets/1/contents/"
+
+# 热门帖子，第2页
+curl "http://127.0.0.1:8000/api/assets/1/contents/?sort=hot&page=2&pageSize=10"
+```
+
+---
+
+### 1.7 涨跌幅榜单
+
+- **接口**：`GET /api/market/rankings/`
+- **权限**：游客可访问
+- **描述**：读取最新行情快照，返回涨幅榜 / 跌幅榜 / 活跃榜。
+
+#### Query 参数
+| 参数 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| type | string | `gainers` | 榜单类型：`gainers`（涨幅榜）/ `losers`（跌幅榜）/ `active`（成交量榜） |
+| limit | int | 10 | 返回数量，最大 50 |
+| market | string | - | 市场过滤：`SH` / `SZ` / `HK` / `US`（可选） |
+
+#### 成功响应 (200)
+```json
+{
+  "code": 0,
+  "data": {
+    "type": "gainers",
+    "market": null,
+    "items": [
+      {
+        "rank": 1,
+        "assetId": 5,
+        "code": "NVDA",
+        "name": "NVIDIA Corporation",
+        "market": "US",
+        "price": 875.50,
+        "changePct": 8.2345,
+        "change": 66.60,
+        "volume": 98765432,
+        "quoteTime": "2026-02-20T20:00:00Z"
+      },
+      {
+        "rank": 2,
+        "assetId": 3,
+        "code": "TSLA",
+        "name": "Tesla Inc.",
+        "market": "US",
+        "price": 210.30,
+        "changePct": 5.1234,
+        "change": 10.22,
+        "volume": 56789012,
+        "quoteTime": "2026-02-20T20:00:00Z"
+      }
+    ]
+  }
+}
+```
+
+#### 自测命令（curl）
+```bash
+# 涨幅榜 Top10（全市场）
+curl "http://127.0.0.1:8000/api/market/rankings/"
+
+# 跌幅榜 Top5，只看美股
+curl "http://127.0.0.1:8000/api/market/rankings/?type=losers&limit=5&market=US"
+
+# 活跃榜
+curl "http://127.0.0.1:8000/api/market/rankings/?type=active&limit=20"
+```
+
+---
+
+### 1.8 系统数据状态（管理员）
+
+- **接口**：`GET /api/market/status/`
+- **权限**：游客可访问（不暴露 Key 本身，只返回是否配置）
+- **描述**：查询 Finnhub Key 配置状态、数据库统计、各类任务最近执行结果。
+
+#### 成功响应 (200)
+```json
+{
+  "code": 0,
+  "data": {
+    "finnhubKeyConfigured": true,
+    "assetCount": 1250,
+    "snapshotCount": 8900,
+    "klineCount": 250000,
+    "recentJobs": {
+      "SYMBOLS_SYNC": {
+        "status": "SUCCESS",
+        "started_at": "2026-02-20T06:00:00Z",
+        "affected_rows": 1250
+      },
+      "KLINE_SYNC": {
+        "status": "SUCCESS",
+        "started_at": "2026-02-20T07:00:00Z",
+        "affected_rows": 180000
+      },
+      "QUOTE_REFRESH": {
+        "status": "SUCCESS",
+        "started_at": "2026-02-20T20:00:00Z",
+        "affected_rows": 1250
+      },
+      "DQ_CHECK": {
+        "status": "SUCCESS",
+        "started_at": "2026-02-20T08:00:00Z",
+        "affected_rows": 0
+      }
+    }
+  }
+}
+```
+
+#### 自测命令
+```bash
+curl http://127.0.0.1:8000/api/market/status/
+```
+
+---
+
+### 1.9 数据任务日志（管理员）
+
+- **接口**：`GET /api/market/jobs/`
+- **权限**：需要登录（MODERATOR 或 ADMIN 角色）
+- **描述**：查询数据同步任务日志列表。
+
+#### 请求头
+```
+Authorization: Bearer {admin_access_token}
+```
+
+#### Query 参数
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| jobType | string | 任务类型：`SYMBOLS_SYNC` / `KLINE_SYNC` / `QUOTE_REFRESH` / `DQ_CHECK` / `CLEANUP` |
+| status | string | 任务状态：`RUNNING` / `SUCCESS` / `FAILED` |
+| page | int | 页码 |
+| pageSize | int | 每页数量 |
+
+#### 成功响应 (200)
+```json
+{
+  "code": 0,
+  "data": {
+    "items": [
+      {
+        "id": 42,
+        "jobType": "KLINE_SYNC",
+        "status": "SUCCESS",
+        "message": "同步完成，写入 180000 条 K 线",
+        "affectedRows": 180000,
+        "startedAt": "2026-02-20T07:00:00Z",
+        "finishedAt": "2026-02-20T07:45:23Z",
+        "durationSeconds": 2723
+      }
+    ],
+    "page": 1,
+    "pageSize": 20,
+    "total": 156
+  }
+}
+```
+
+#### 自测命令
+```bash
+curl -H "Authorization: Bearer {token}" \
+  "http://127.0.0.1:8000/api/market/jobs/?jobType=KLINE_SYNC&status=SUCCESS"
+```
+
+---
+
+### 1.10 手动触发数据同步任务（管理员）
+
+- **接口**：`POST /api/market/jobs/trigger/`
+- **权限**：需要登录（MODERATOR 或 ADMIN 角色）
+- **描述**：管理员后台手动触发各类数据同步任务（同步执行，适合回补少量数据）。
+
+#### 请求头
+```
+Authorization: Bearer {admin_access_token}
+Content-Type: application/json
+```
+
+#### jobType 类型说明
+
+##### A. 同步股票列表（SYMBOLS_SYNC）
+```json
+{
+  "jobType": "SYMBOLS_SYNC",
+  "exchange": "US",
+  "market": "US"
+}
+```
+
+| 参数 | 说明 |
+|---|---|
+| exchange | Finnhub 交易所代码：`US` / `HK` / `SH` / `SZ` |
+| market | 写入 Asset.market 的值：`US` / `HK` / `SH` / `SZ` |
+
+##### B. 同步 K 线数据（KLINE_SYNC）
+```json
+{
+  "jobType": "KLINE_SYNC",
+  "assetIds": [1, 2, 3],
+  "resolution": "D",
+  "daysBack": 365,
+  "forceRefetch": false
+}
+```
+
+| 参数 | 说明 |
+|---|---|
+| assetIds | 指定资产 ID 数组（不传则同步所有有 finnhub_symbol 的资产） |
+| resolution | K 线周期：`D`（日线）/ `60` / `15` / `5` / `1` |
+| daysBack | 同步回溯天数，默认 365 |
+| forceRefetch | true 时强制重新拉取已有数据 |
+
+##### C. 刷新行情快照（QUOTE_REFRESH）
+```json
+{
+  "jobType": "QUOTE_REFRESH",
+  "assetIds": [1, 2, 3]
+}
+```
+
+| 参数 | 说明 |
+|---|---|
+| assetIds | 指定资产（不传则刷新全部活跃资产） |
+
+##### D. 数据质量校验（DQ_CHECK）
+```json
+{
+  "jobType": "DQ_CHECK",
+  "assetIds": [1, 2, 3],
+  "days": 30
+}
+```
+
+| 参数 | 说明 |
+|---|---|
+| assetIds | 指定资产（不传则全部检查） |
+| days | 检查最近 N 天的数据，默认 30 |
+
+##### E. 清理过期快照（CLEANUP）
+```json
+{
+  "jobType": "CLEANUP",
+  "daysToKeep": 7
+}
+```
+
+| 参数 | 说明 |
+|---|---|
+| daysToKeep | 保留最近 N 天快照，默认 7 |
+
+#### 成功响应 (200)
+```json
+{
+  "code": 0,
+  "data": {
+    "id": 43,
+    "jobType": "KLINE_SYNC",
+    "status": "SUCCESS",
+    "message": "同步完成",
+    "affectedRows": 365,
+    "startedAt": "2026-02-20T10:00:00Z",
+    "finishedAt": "2026-02-20T10:02:35Z"
+  }
+}
+```
+
+#### CLEANUP 响应
+```json
+{
+  "code": 0,
+  "data": {
+    "deleted": 12500
+  }
+}
+```
+
+#### 失败响应
+```json
+{
+  "code": 4001,
+  "message": "不支持的 jobType: UNKNOWN_TYPE"
+}
+```
+
+#### 自测命令
+```bash
+# 同步 AAPL 的日 K（asset_id=1）
+curl -X POST http://127.0.0.1:8000/api/market/jobs/trigger/ \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{"jobType": "KLINE_SYNC", "assetIds": [1], "resolution": "D", "daysBack": 365}'
+
+# 刷新全部资产行情快照
+curl -X POST http://127.0.0.1:8000/api/market/jobs/trigger/ \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{"jobType": "QUOTE_REFRESH"}'
+
+# 清理 7 天前的快照
+curl -X POST http://127.0.0.1:8000/api/market/jobs/trigger/ \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{"jobType": "CLEANUP", "daysToKeep": 7}'
+```
+
+---
+
+## ✏️ 二、原有接口改动说明
+
+---
+
+### 2.1 资产搜索 —— 新增 `withQuote` 参数
+
+- **接口（不变）**：`GET /api/assets/`
+- **改动**：新增 Query 参数 `withQuote=1`，返回带行情的数据格式
+
+#### 新增 Query 参数
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| withQuote | int | `1` 时返回附带行情字段（price / changePct / quoteTime），默认不返回 |
+
+#### 原始响应（withQuote 不传或 =0）
+```json
+{
+  "code": 0,
+  "data": {
+    "items": [
+      {
+        "id": 1,
+        "code": "000001",
+        "name": "平安银行",
+        "asset_type": "STOCK",
+        "market": "SZ"
+      }
+    ]
+  }
+}
+```
+
+#### 新增响应（withQuote=1）
+```json
+{
+  "code": 0,
+  "data": {
+    "items": [
+      {
+        "id": 1,
+        "code": "000001",
+        "name": "平安银行",
+        "asset_type": "STOCK",
+        "market": "SZ",
+        "price": "12.340000",
+        "changePct": "1.2300",
+        "quoteTime": "2026-02-20T15:00:00Z"
+      }
+    ]
+  }
+}
+```
+
+#### 自测命令
+```bash
+# 带行情字段搜索
+curl "http://127.0.0.1:8000/api/assets/?q=平安&withQuote=1"
+```
+
+---
+
+### 2.2 资产详情 —— 响应新增 `quote` 对象
+
+- **接口（不变）**：`GET /api/assets/{asset_id}/`
+- **改动**：响应 `data` 中新增 `quote` 嵌套对象，包含最新行情
+
+#### 改动后完整响应 (200)
+```json
+{
+  "code": 0,
+  "data": {
+    "id": 1,
+    "code": "000001",
+    "name": "平安银行",
+    "asset_type": "STOCK",
+    "market": "SZ",
+    "finnhub_symbol": "0001.SZ",
+    "exchange": "SZ",
+    "currency": "CNY",
+    "isin": "CNE000001R84",
+    "industry": "银行",
+    "logo_url": "",
+    "description": "公司简介...",
+    "status": "ACTIVE",
+    "last_sync_at": "2026-02-20T06:00:00Z",
+    "quote": {
+      "assetId": 1,
+      "code": "000001",
+      "name": "平安银行",
+      "quoteTime": "2026-02-20T15:00:00Z",
+      "price": "12.340000",
+      "change": "0.150000",
+      "changePct": "1.2300",
+      "open": "12.100000",
+      "high": "12.500000",
+      "low": "12.000000",
+      "prevClose": "12.190000",
+      "volume": 123456789,
+      "amount": null
+    }
+  }
+}
+```
+
+> **说明**：若该资产无行情快照，则 `quote` 字段不存在（不返回 null）
+
+#### 自测命令
+```bash
+curl http://127.0.0.1:8000/api/assets/1/
+```
+
+---
+
+### 2.3 创建帖子 —— 新增 `assetCodes` 参数支持
+
+- **接口（不变）**：`POST /api/posts/`
+- **改动**：新增 `assetCodes` 参数，支持直接传股票代码关联资产（与 `assetIds` 兼容并存）
+
+#### 改动前（仍支持）
+```json
+{
+  "title": "我看好平安银行",
+  "content": "理由如下...",
+  "tags": ["银行", "价值投资"],
+  "status": "PENDING_REVIEW",
+  "assetIds": [1]
+}
+```
+
+#### 改动后（新增 assetCodes）
+```json
+{
+  "title": "我看好平安银行",
+  "content": "理由如下...",
+  "tags": ["银行", "价值投资"],
+  "status": "PENDING_REVIEW",
+  "assetCodes": ["000001"]
+}
+```
+
+#### 同时传两者（合并去重）
+```json
+{
+  "title": "组合分析：平安 + 茅台",
+  "content": "详细分析内容...",
+  "tags": ["价值投资"],
+  "status": "PENDING_REVIEW",
+  "assetIds": [2],
+  "assetCodes": ["000001", "600519"]
+}
+```
+
+#### `assetCodes` 字段说明
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| assetCodes | array\[string\] | ❌ | 资产代码数组，如 `["000001", "AAPL"]` |
+
+#### 后端处理规则
+1. 同时传 `assetIds` 与 `assetCodes`：合并去重后关联
+2. `assetCodes` 中的代码不存在时：仅记录警告日志，不返回错误（宽松模式）
+3. `assetCodes` 匹配逻辑：按 `code` 字段模糊匹配（同代码可能对应多个市场的资产，均关联）
+
+#### 自测命令
+```bash
+# 使用 assetCodes 发帖
+curl -X POST http://127.0.0.1:8000/api/posts/ \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "我看好苹果",
+    "content": "长期价值投资...",
+    "tags": ["科技股"],
+    "status": "PENDING_REVIEW",
+    "assetCodes": ["AAPL"]
+  }'
+```
+
+---
+
+### 2.4 帖子列表/详情 —— assets 字段命名统一
+
+- **接口**：`GET /api/posts/` 和 `GET /api/posts/{post_id}/`
+- **改动**：`assets[]` 数组中的字段命名规范化
+
+#### 改动前（旧格式）
+```json
+{
+  "assets": [
+    {
+      "id": 1,
+      "code": "QQQ",
+      "name": "Invesco QQQ",
+      "type": "ETF"
+    }
+  ]
+}
+```
+
+#### 改动后（新格式）
+```json
+{
+  "assets": [
+    {
+      "id": 1,
+      "code": "QQQ",
+      "name": "Invesco QQQ",
+      "assetType": "ETF",
+      "market": "US"
+    }
+  ]
+}
+```
+
+#### 改动说明
+| 字段 | 改动 | 说明 |
+|---|---|---|
+| `type` | ➡️ 改为 `assetType` | 与 Asset 模型字段命名一致 |
+| `market` | ✅ 新增 | 市场标识（SH / SZ / HK / US） |
+
+---
+
+## 🔧 三、管理命令（CLI 调试工具）
+
+除了 HTTP 接口，可通过 Django 管理命令手动触发数据同步：
+
+```bash
+# 进入项目目录
+cd D:\invest\background
+
+# 同步美股股票列表
+python manage.py sync_market_data --symbols --exchange=US
+
+# 同步港股股票列表
+python manage.py sync_market_data --symbols --exchange=HK
+
+# 同步指定资产日 K 线（asset_id=1，最近1年）
+python manage.py sync_market_data --candles --asset-id=1 --days-to-sync=365
+
+# 同步全部活跃资产日 K 线
+python manage.py sync_market_data --candles
+
+# 数据质量检查
+python manage.py sync_market_data --dq-check
+```
+
+---
+
+## 🚦 四、接口状态速查表
+
+| 接口 | 状态 | 依赖 | 备注 |
+|---|---|---|---|
+| `GET /api/assets/{id}/quote/` | ✅ 可用 | Finnhub API Key、Asset.finnhub_symbol | 第一次访问较慢（实时拉取） |
+| `GET /api/assets/{id}/kline/` | ✅ 可用 | Finnhub API Key、Asset.finnhub_symbol | 需先同步数据或自动触发拉取 |
+| `GET /api/assets/{id}/intraday/` | ✅ 可用 | Finnhub API Key、分钟级数据权限 | 免费 Finnhub 账户对分钟线有限制 |
+| `POST /api/assets/quotes/` | ✅ 可用 | DB 快照数据 | 无快照时 price 返回 null |
+| `GET /api/assets/{id}/quote/stream/` | ✅ 可用 | DB 快照数据 | 无快照时推送 price=null |
+| `GET /api/assets/{id}/contents/` | ✅ 可用 | 无 | - |
+| `GET /api/market/rankings/` | ✅ 可用 | DB 快照数据 | 无快照时返回空列表 |
+| `GET /api/market/status/` | ✅ 可用 | 无 | - |
+| `GET /api/market/jobs/` | ✅ 可用 | JWT（管理员） | 需 ADMIN 或 MODERATOR 角色 |
+| `POST /api/market/jobs/trigger/` | ✅ 可用 | JWT（管理员）、Finnhub API Key | 同步执行，耗时较长 |
+
+---
+
+## 🔑 五、环境配置检查
+
+在测试前，确保以下配置正确：
+
+### `.env` 文件（参考 `env.example`）
+```env
+# Finnhub API Key（必须）
+FINNHUB_API_KEY=your_actual_key_here
+
+# Redis（可选，不配置则使用内存缓存）
+REDIS_LOCATION=redis://127.0.0.1:6379/1
+```
+
+### 验证配置是否生效
+```bash
+curl http://127.0.0.1:8000/api/market/status/
+# 返回 "finnhubKeyConfigured": true 即正确配置
+```
+
+### 首次自测流程
+1. 先在后台添加一个 Asset（或通过 admin 页面）
+2. 设置 `finnhub_symbol`（如 `AAPL`）
+3. 访问 `GET /api/assets/1/quote/` 触发首次实时拉取
+4. 再访问 `GET /api/assets/1/kline/` 触发 K 线同步
+
+---
+
+## 📝 六、错误码补充说明
+
+本次迭代新增的错误场景：
+
+| Code | HTTP Status | 场景 |
+|---|---|---|
+| 0 | 200 | 成功 |
+| 4001 | 400 | 参数错误（interval 格式、date 格式、jobType 不支持） |
+| 4030 | 403 | 无权限（非管理员访问任务接口） |
+| 4040 | 404 | 资产不存在 / 暂无行情数据（finnhub_symbol 未配置） |
+| 5000 | 500 | Finnhub API 异常 / 任务执行异常 |
+| 5010 | 501 | （历史遗留）SSE 未实现提示（当前已实现） |
 ---
 
 # 🎯 总结
 
-本文档提供了投研社区后端API的完整规范，包含：
+本文档提供了投研社区后端 API 的完整规范，包含：
 
-- ✅ **45个API接口** 的详细说明
+- ✅ **基础模块接口**（认证、用户、帖子、资产搜索与讨论区等）的详细说明
+- ✅ **附录：行情数据与市场模块**（`quote` / `kline` / `intraday`、批量行情、SSE、`/api/market/*` 及资产列表/发帖字段改动等）
 - ✅ **完整的请求响应示例**
 - ✅ **权限控制规则**
 - ✅ **错误处理机制**
-- ✅ **完整的测试指南**
+- ✅ **测试与联调要点**
 
-所有接口均已实现并测试通过，可直接用于前端开发和接口调试。
+具体路由与字段以正文及附录章节为准；开发与答辩以本文档与仓库内 `views.py`/`serializers.py` 实现一致性为准。
 
 ## 快速开始
 1. 启动Django服务器：`python manage.py runserver`

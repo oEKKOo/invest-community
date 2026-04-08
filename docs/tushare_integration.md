@@ -339,3 +339,33 @@ TUSHARE_API_TOKEN=your_tushare_token_here
 ---
 
 *文档由开发记录自动整理，对应 commit：Tushare A 股数据接入*
+
+---
+
+## 附录：股票数据模块扫描结论（已合并）
+
+以下内容合并自 `docs/股票数据模块代码扫描文档.md`，用于统一保留 Tushare 相关的后续维护要点。
+
+### A. 当前数据源分工（统一口径）
+
+- A 股（`SH/SZ/BJ`）：以 Tushare 为主，覆盖标的同步、日 K、按日批量行情。
+- 美股（`US`）：以 Finnhub 为主。
+- 港股（`HK`）：混合模式，日线与标的清单可走 Tushare，单资产实时刷新仍以 Finnhub 路径为主（取决于 `finnhub_symbol` 配置）。
+
+### B. Tushare 调用面（代码扫描）
+
+- 进程内通过 `ts.pro_api(token)` 懒初始化单例，入口在 `market_data/tushare_service.py`。
+- 已使用接口：`stock_basic`、`daily`、`hk_basic`、`hk_daily`。
+- 未使用接口：`pro_bar`（当前仓库扫描未发现）。
+- 关键重试与限流逻辑由 `_call_with_retry` 统一封装（重试、退避、限流等待）。
+
+### C. 任务与导入入口（维护索引）
+
+- 管理命令：`import_cn_stocks`、`sync_market_data`（通用同步入口）。
+- 任务函数：`cn_symbols_sync`、`hk_symbols_sync`、`kline_sync`、`quote_refresh`、`quote_refresh_popular`。
+- 管理端触发：`POST /api/market/jobs/trigger/`。
+
+### D. 扩展建议（保留）
+
+- 若继续沿用「A 股走 Tushare、海外走 Finnhub」：改造成本中等偏低，主要在路由、校验与运维参数治理。
+- 若计划统一由单一供应商覆盖全市场：改造成本中等偏高，需补齐接口封装、字段映射、任务路由与配额策略。

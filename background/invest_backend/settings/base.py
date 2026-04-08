@@ -98,14 +98,22 @@ TEMPLATES = [
     },
 ]
 
+def _db_env(django_key: str, legacy_key: str, default: str = "") -> str:
+    """Prefer DJANGO_DB_* (explicit); fall back to README / setup 脚本里的 DB_*。"""
+    v = os.environ.get(django_key)
+    if v is not None and str(v).strip() != "":
+        return v
+    return os.environ.get(legacy_key, default)
+
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
-        "NAME": os.environ.get("DJANGO_DB_NAME", "community_db"),
-        "USER": os.environ.get("DJANGO_DB_USER", "root"),
-        "PASSWORD": os.environ.get("DJANGO_DB_PASSWORD", ""),
-        "HOST": os.environ.get("DJANGO_DB_HOST", "127.0.0.1"),
-        "PORT": os.environ.get("DJANGO_DB_PORT", "3306"),
+        "NAME": _db_env("DJANGO_DB_NAME", "DB_NAME", "community_db"),
+        "USER": _db_env("DJANGO_DB_USER", "DB_USER", "root"),
+        "PASSWORD": _db_env("DJANGO_DB_PASSWORD", "DB_PASSWORD", ""),
+        "HOST": _db_env("DJANGO_DB_HOST", "DB_HOST", "127.0.0.1"),
+        "PORT": _db_env("DJANGO_DB_PORT", "DB_PORT", "3306"),
         "OPTIONS": {
             "charset": "utf8mb4",
             "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",

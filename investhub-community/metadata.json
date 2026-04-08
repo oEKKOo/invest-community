@@ -1,9 +1,0 @@
-
-{
-  "name": "InvestHub Community",
-  "description": "A comprehensive stock fund investment community platform featuring portfolio sharing, real-time discussions, content lifecycle management, and administrative governance.",
-  "requestFramePermissions": [
-    "camera",
-    "microphone"
-  ]
-}

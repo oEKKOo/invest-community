@@ -1,211 +1,245 @@
 # InvestHub Frontend
 
-InvestHub Community 投资社区前端应用，基于Vue 3 + Element Plus + TypeScript开发。
+InvestHub 投资社区主站前端：**Vue 3 + TypeScript + Vite**，UI 为 **Element Plus**。与仓库内 Django 后端（`background/`）通过 REST API 联调，认证采用 **JWT**（Access + Refresh，请求拦截器内自动刷新）。
 
-## 🚀 技术栈
+---
 
-- **Vue 3** - 渐进式前端框架
-- **TypeScript** - 类型安全的JavaScript超集
-- **Element Plus** - 基于Vue 3的组件库
-- **Vue Router** - Vue.js官方路由管理器
-- **Pinia** - Vue状态管理库
-- **Axios** - HTTP客户端
-- **ECharts** - 数据可视化图表库
-- **Vite** - 现代前端构建工具
-- **SCSS** - CSS预处理器
+## 功能概览
 
-## 📦 安装依赖
+| 模块 | 说明 |
+|------|------|
+| **首页 / Dashboard** | 市场概览、榜单、社区与组合信息流、ECharts 可视化 |
+| **行情** | 行情列表、涨跌幅榜；个股详情（K 线 / 分时，lightweight-charts） |
+| **社区** | 帖子流、发帖与编辑、详情与评论（楼中楼）、点赞 / 收藏 / 举报 |
+| **投资组合** | 组合列表与详情、公开策略展示与互动 |
+| **我的持仓** | 个人持仓与收益相关视图 |
+| **搜索** | 全站搜索入口（帖子 / 标的 / 组合等，与后端约定一致） |
+| **用户与资料** | 登录 / 注册相关页、个人主页（含 `/users/:userId`） |
+| **认证与合规流程** | 基础认证、实名、专业认证、风险评估等引导页（需登录） |
+| **私信** | 会话列表与消息（需登录） |
+| **群组** | 群组列表、详情、邀请与入群审核 |
+| **管理后台** | 总览入口；数据监控、内容审核队列、用户风险中心、运营数据分析（需管理员角色） |
+
+游客可访问部分页面（如登录、OAuth 回调、部分行情与资产页）；主布局下多数路由默认 **需要登录**，管理类路由额外校验 **管理员**。
+
+---
+
+## 技术栈
+
+- **框架**：Vue 3（Composition API）、TypeScript  
+- **构建**：Vite 6  
+- **UI**：Element Plus、`@element-plus/icons-vue`  
+- **路由 / 状态**：Vue Router 4、Pinia  
+- **HTTP**：Axios（统一 `code === 0` 业务成功约定、401 刷新 Token）  
+- **图表**：ECharts、`vue-echarts`；**lightweight-charts**（K 线 / 分时）  
+- **工具**：Day.js、`@vueuse/core`  
+- **工程化**：`unplugin-auto-import`、`unplugin-vue-components`（Element Plus 按需解析）、Sass、`vite-plugin-compression`（构建产出 `.gz` / `.br`）、`rollup-plugin-visualizer`（`analyze` 模式）
+
+---
+
+## 环境要求
+
+- **Node.js**：建议 **18.x 或 20.x LTS**（与 Vite 6 生态兼容）  
+- **包管理**：本仓库使用 **npm**（见 `package-lock.json`）  
+- **后端**：本地开发时后端默认 `http://127.0.0.1:8000`（与 Vite 代理一致）
+
+---
+
+## 快速开始
+
+### 1. 安装依赖
 
 ```bash
+cd frontend
 npm install
 ```
 
-## 🛠 开发
+### 2. 环境变量
+
+复制示例文件并按需修改：
 
 ```bash
-# 启动开发服务器
+cp env.example .env.local
+```
+
+变量说明见下文 [环境变量](#环境变量)。
+
+### 3. 启动开发服务
+
+```bash
 npm run dev
+```
 
-# 构建生产版本
+- 开发服务器默认 **http://localhost:3000**（见 `vite.config.ts`）  
+- 请求路径 **`/api`** 会代理到 **`http://127.0.0.1:8000`**，因此若使用代理，可将 `VITE_API_BASE_URL` 设为 **`/api`**；若直接请求完整后端地址，则设为 **`http://127.0.0.1:8000/api`** 等。
+
+**Windows** 也可双击项目内 `start.bat`（自动检测 `node_modules` 并执行 `npm run dev`）。
+
+### 4. 同时启动后端
+
+在仓库 `background/` 中按该目录文档启动 Django（例如 `runserver` 监听 `8000`），否则除静态页外接口将失败。
+
+---
+
+## 环境变量
+
+| 变量 | 说明 | 示例 |
+|------|------|------|
+| `VITE_API_BASE_URL` | Axios `baseURL`；未设置时代码侧回退为 **`/api`** | `http://127.0.0.1:8000/api` 或 `/api` |
+| `VITE_APP_TITLE` | 应用标题（若业务中有使用） | `InvestHub Community` |
+
+模板文件：[env.example](./env.example)。本地覆盖请使用 **`.env.local`**（勿提交密钥；Vite 仅暴露 `VITE_` 前缀变量）。
+
+---
+
+## 常用脚本
+
+| 命令 | 作用 |
+|------|------|
+| `npm run dev` | 启动开发服务器 |
+| `npm run build` | `vue-tsc` 类型检查 + 生产构建，输出 `dist/` |
+| `npm run preview` | 本地预览生产构建 |
+| `npm run analyze` | 构建 `analyze` 模式，生成 `dist/stats.html` 体积分析报告 |
+| `npm run lint` | ESLint 检查并尝试修复 |
+
+生产构建默认 **移除 `console` / `debugger`**，并生成 **gzip / brotli** 侧车文件（`*.gz` / `*.br`），便于 Nginx `gzip_static` 等配置。
+
+---
+
+## 目录结构
+
+```
+frontend/
+├── env.example              # 环境变量示例
+├── index.html
+├── package.json
+├── tsconfig.json
+├── vite.config.ts           # Vite、代理、分包、压缩、analyze 插件
+├── start.bat                # Windows 一键安装依赖并 dev
+├── src/
+│   ├── api/                 # 按领域拆分的接口封装（见下表）
+│   ├── components/          # 布局、行情图表、举报弹窗等
+│   ├── composables/         # 组合式函数（如行情流）
+│   ├── router/              # 路由与全局前置守卫（登录 / 管理员）
+│   ├── stores/              # Pinia stores
+│   ├── styles/              # 全局 SCSS、设计变量 variables.scss
+│   ├── types/               # TypeScript 类型
+│   ├── utils/               # 图表懒加载、通知、日期等工具
+│   ├── views/               # 页面级组件（含 admin/、auth/ 子目录）
+│   ├── App.vue
+│   └── main.ts
+├── auto-imports.d.ts        # unplugin-auto-import 生成
+└── components.d.ts          # unplugin-vue-components 生成
+```
+
+### `src/api/` 模块
+
+| 文件 | 职责 |
+|------|------|
+| `index.ts` | Axios 实例、拦截器、`get/post/patch/del` 封装 |
+| `auth-token.ts` | Token 读写与刷新（供拦截器使用） |
+| `auth.ts` | 注册、登录等认证接口 |
+| `users.ts` | 用户资料与相关接口 |
+| `posts.ts` | 帖子与评论 |
+| `likes.ts` | 点赞 |
+| `portfolios.ts` | 投资组合 |
+| `holdings.ts` | 持仓 |
+| `market.ts` | 行情、K 线、榜单等 |
+| `dashboard.ts` | 首页聚合数据 |
+| `search.ts` | 搜索 |
+| `notifications.ts` | 通知 |
+| `reports.ts` | 举报 |
+| `admin.ts` | 管理端接口 |
+| `groups.ts` | 群组 |
+| `messages.ts` | 私信 |
+
+### `src/stores/` 模块
+
+包含：`auth`、`dashboard`、`posts`、`portfolios`、`market`、`notifications`、`messages`、`groups`，以及管理相关 `adminModeration`、`adminAnalytics` 等，与页面和 `api/` 分层对应。
+
+### 关键页面路由（摘录）
+
+- `/` Dashboard  
+- `/login`、`/auth/callback/:provider`  
+- `/community`、`/posts/:id`  
+- `/market`、`/market/rankings`、`/assets/:assetId`  
+- `/portfolios`、`/portfolios/:id`  
+- `/holdings`、`/profile`、`/users/:userId`  
+- `/search`、`/messages`  
+- `/groups`、`/groups/:groupId`、`/groups/invites`、`/groups/:groupId/requests`  
+- `/auth/verify`、`/auth/real-name`、`/auth/professional`、`/auth/risk`  
+- `/admin` 及子路由：`/admin/data-monitor`、`/admin/moderation-queue`、`/admin/user-risk`、`/admin/analytics`  
+
+路由均为懒加载；行情列表与涨跌幅榜进入时会按需预加载个股图表相关资源（见 `router/index.ts` 中 `meta.preload`）。
+
+---
+
+## 设计与样式
+
+- 全局样式入口：`src/styles/index.scss`  
+- 设计变量（主色、语义色、圆角、阴影等）：`src/styles/variables.scss`  
+- 主布局：`src/components/layout/MainLayout.vue`（侧栏 + 顶栏 + 内容区）  
+- 涨跌等展示在业务页面中遵循统一红涨 / 绿跌语义（与 A 股习惯一致处已在样式与页面中体现）；含行情的页面应保留「仅供参考、不构成投资建议」类说明（与后端数据来源说明一致）
+
+---
+
+## API 与联调说明
+
+- 后端成功响应约定：`{ code: 0, data: ... }`（`code !== 0` 时前端会提示 `message` 并 reject）  
+- 需登录接口在请求头携带：`Authorization: Bearer <access_token>`  
+- **401** 时尝试 Refresh；失败则清理本地认证并跳转 `/login`  
+- 开发环境推荐使用 Vite **`/api` 代理** 避免 CORS；生产环境通常由 **Nginx 反代** `/api` 到后端
+
+---
+
+## 性能与构建（摘要）
+
+- **路由级懒加载**；图表库（ECharts、lightweight-charts）异步加载与缓存，避免重复初始化  
+- **Rollup `manualChunks`**：拆分 `vendor-vue`、`vendor-echarts`、`vendor-lightweight-chart`、Element 相关块等，控制首包体积  
+- **`npm run analyze`** 生成 `dist/stats.html` 查看各 chunk gzip/brotli 体积  
+
+历史体积快照（仅供参考，以当前构建为准）：
+
+- Dashboard、AssetDetail 等页面 chunk 体积较小；`vendor-echarts`、`vendor-lightweight-chart` 已独立于首屏主包  
+
+---
+
+## 生产部署
+
+### 构建
+
+```bash
 npm run build
-
-# 预览生产构建
-npm run preview
-
-# 代码检查
-npm run lint
 ```
 
-## 🏗️ 项目结构
+将 `dist/` 部署到静态资源服务器；**SPA** 需将所有路由回退到 `index.html`。
 
-```
-src/
-├── api/           # API接口服务
-├── components/    # 公共组件
-│   └── layout/    # 布局组件
-├── router/        # 路由配置
-├── stores/        # 状态管理
-├── styles/        # 全局样式
-├── types/         # TypeScript类型定义
-├── views/         # 页面组件
-└── main.ts        # 应用入口
-```
-
-## 📱 功能特性
-
-### 🔐 用户认证
-
-- 用户注册/登录
-- JWT Token管理
-- 自动Token刷新
-- 权限控制
-
-### 🏠 Dashboard
-
-- 图表
-- 热门讨论展示
-- 顶级投资组合
-- 社区统计数据
-
-### 💬 社区论坛
-
-- 帖子发布与编辑
-- 内容状态管理（草稿/待审核/已发布）
-- 点赞和收藏功能
-- 标签分类系统
-
-### 📊 投资组合
-
-- 创建和管理投资组合
-- 资产配置可视化
-- 风险等级分类
-- 收益率展示
-
-### 🔧 管理后台
-
-- 内容审核队列
-- 用户举报处理
-- 统计数据展示
-- 社区治理工具
-
-### 👤 个人中心
-
-- 用户资料管理
-- 活动记录展示
-- 账户安全设置
-- 邀请好友功能
-
-## 🎨 设计系统
-
-### 配色方案
-
-- 主色调：蓝色 (#2563eb)
-- 辅助色：紫色 (#6366f1)
-- 成功色：绿色 (#10b981)
-- 警告色：橙色 (#f59e0b)
-- 错误色：红色 (#ef4444)
-
-### UI特点
-
-- 现代化圆角设计
-- 阴影层次感
-- 流畅的过渡动画
-- 响应式布局
-- 移动端适配
-
-## 🔌 API集成
-
-项目使用Axios进行HTTP请求，支持：
-
-- 请求/响应拦截器
-- 自动Token注入
-- 统一错误处理
-- 请求重试机制
-
-### API模块
-
-- `auth.ts` - 用户认证
-- `posts.ts` - 帖子管理
-- `portfolios.ts` - 投资组合
-- `likes.ts` - 点赞功能
-- `admin.ts` - 管理功能
-- `dashboard.ts` - Dashboard数据
-
-## 🏃‍♂️ 开发指南
-
-### 环境变量
-
-创建 `.env.local` 文件：
-
-```env
-VITE_API_BASE_URL=http://127.0.0.1:8000/api
-VITE_APP_TITLE=InvestHub Community
-```
-
-### 代码规范
-
-- 使用TypeScript进行类型检查
-- 组件使用Composition API
-- 样式采用SCSS + 工具类
-- 遵循Vue 3最佳实践
-
-### 状态管理
-
-使用Pinia进行状态管理，主要Store包括：
-
-- `useAuthStore` - 用户认证状态
-- `usePostsStore` - 帖子数据管理
-- `usePortfoliosStore` - 投资组合管理
-- `useDashboardStore` - Dashboard数据
-
-### 路由配置
-
-- 支持权限控制
-- 懒加载页面组件
-- 嵌套路由结构
-- 路由守卫验证
-
-### 首开性能优化（1s目标）
-
-- 路由级懒加载；个股 K 线/分时相关预取仅挂在行情列表、涨跌幅榜路由，其余入口依赖链接悬停/点击预热，减轻与首屏争用
-- ECharts/lightweight-charts 统一异步加载，图表库 Promise 缓存，避免重复下载与注册
-- 图表实例单次初始化，切换仅更新数据，不重复 init
-- 行情榜单、K线、分时接口增加 in-flight 去重和短TTL缓存
-- Vite 构建启用 `gzip + brotli` 压缩，细化 `vendor` 与页面级分包
-- 组合列表页：组合列表接口优先，持仓收益接口在浏览器空闲时再请求（用于卡片上的真实收益展示）
-
-### Nginx：构建产物与在线压缩
-
-`npm run build` / `npm run analyze` 会通过 `vite-plugin-compression` 在 `dist/assets/**` 旁生成同名 `.gz` / `.br` 文件。生产环境可二选一：
-
-1. **优先推荐**：启用静态预压缩文件（避免 CPU 实时压缩，带宽更省）：
+### Nginx 示例
 
 ```nginx
-# 需 http_gzip_static_module；Brotli 需第三方模块或 CDN 支持
-gzip_static on;
-# 若使用 brotli_static，需对应模块；否则仅发 .gz 亦可
+server {
+    listen 80;
+    server_name your-domain.com;
+    root /path/to/frontend/dist;
+    index index.html;
 
-location ~* \.(js|css)$ {
-    add_header Vary Accept-Encoding;
-    # 由 Nginx/OpenResty 根据 Accept-Encoding 选择 .br / .gz / 原文件
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location /api {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
 }
 ```
 
-2. **备选**：不部署 `.gz/.br` 时，用在线压缩（与开发机构建的预压缩无关）：
+若已部署构建时生成的 **`.gz` / `.br`** 文件，可启用 `gzip_static`（及环境支持的 brotli 静态模块）以减少 CPU 实时压缩开销；否则使用 `gzip on` / `brotli on` 在线压缩亦可。
 
-```nginx
-gzip on;
-gzip_vary on;
-gzip_min_length 10240;
-gzip_types text/plain text/css application/javascript application/json image/svg+xml;
-
-# 若编译了 ngx_brotli
-brotli on;
-brotli_comp_level 6;
-brotli_types text/plain text/css application/javascript application/json image/svg+xml;
-```
-
-长缓存示例：
+静态资源长缓存示例：
 
 ```nginx
 location ~* \.(js|css|png|jpg|jpeg|gif|svg|woff2)$ {
@@ -214,56 +248,19 @@ location ~* \.(js|css|png|jpg|jpeg|gif|svg|woff2)$ {
 }
 ```
 
-### 构建体积快照（`npm run analyze`，2026-04-06）
+---
 
-- `Dashboard`：`24.55 kB`（gzip ≈ `7.95 kB`，br ≈ `6.75 kB`）
-- `AssetDetail`：`15.60 kB`（gzip ≈ `6.12 kB`，br ≈ `5.18 kB`）
-- `vendor-lightweight-chart`：`190.88 kB`（gzip ≈ `59.23 kB`，br ≈ `51.32 kB`）
-- `vendor-echarts`：`529.54 kB`（gzip ≈ `174.47 kB`，br ≈ `146.96 kB`）
+## 仓库与文档
 
-说明：ECharts 与 lightweight-charts 已从首屏主 bundle 中剥离；分析报表见 `dist/stats.html`（仅 `--mode analyze` 构建时生成）。
+- 本目录为 monorepo 中的 **前端子项目**；后端与 API 细节见仓库 `background/` 及根目录 `docs/`。  
+- 接口契约以后端实现与 `background` 下文档为准；前端 `src/api/*` 为调用封装层。
 
-### 列表与评论（按需迭代）
+---
 
-- 社区帖子、组合与行情列表已分页；若单页数据量或评论树极大，再考虑虚拟列表或评论接口分页，需结合后端能力与实测。
-
-## 🚀 部署
-
-### 构建生产版本
-
-```bash
-npm run build
-```
-
-### 部署到Nginx
-
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
-    root /path/to/dist;
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    location /api {
-        proxy_pass http://backend-server:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-```
-
-## 📄 许可证
+## 许可证
 
 MIT License
 
-## 🤝 贡献
+## 贡献与反馈
 
-欢迎提交Issue和Pull Request来帮助改进项目。
-
-## 📞 联系方式
-
-如有问题，请通过Issue联系我们。
+欢迎通过 Issue / Pull Request 提交问题与改进。若联调失败，请优先检查：**后端是否启动**、**`.env.local` 中 `VITE_API_BASE_URL`** 是否与代理/跨域策略一致、**JWT 是否过期**。

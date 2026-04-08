@@ -86,7 +86,24 @@
         </el-card>
       </el-tab-pane>
     </el-tabs>
-    <el-empty v-else-if="group" description="暂无权限查看群聊内容" />
+    <el-card v-else-if="group" class="no-access-card">
+      <div class="no-access-content">
+        <el-icon class="no-access-icon"><WarningFilled /></el-icon>
+        <h3>无权限查看群聊内容</h3>
+        <p>{{ noAccessMessage || '当前群组内容仅对成员开放' }}</p>
+        <div class="no-access-actions">
+          <el-button
+            v-if="group.visibility === 'APPROVAL' && !isMember && !pendingJoin"
+            type="primary"
+            @click="handleJoin"
+          >
+            申请加入群组
+          </el-button>
+          <el-button v-else-if="pendingJoin" type="warning" disabled>申请审核中</el-button>
+          <el-button @click="router.push('/groups')">返回群组广场</el-button>
+        </div>
+      </div>
+    </el-card>
 
     <el-dialog v-model="reviewerDialogVisible" title="审核人管理" width="560px">
       <div class="reviewer-panel">
@@ -164,7 +181,8 @@
 import { dayjs } from '../utils/date'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { WarningFilled } from '@element-plus/icons-vue'
 import type { User } from '../types'
 import { useGroupsStore } from '../stores/groups'
 import {
@@ -191,6 +209,7 @@ const activeTab = ref('posts')
 const postForm = ref({ title: '', body: '' })
 const pendingJoin = ref(false)
 const canShowContent = ref(false)
+const noAccessMessage = ref('')
 const reviewerDialogVisible = ref(false)
 const inviteDialogVisible = ref(false)
 const reviewerSearch = ref('')
@@ -225,15 +244,13 @@ const showJoinButton = computed(() => !isMember.value)
 const joinDisabled = computed(() => !group.value || group.value.visibility === 'PRIVATE' || pendingJoin.value)
 
 const getErrorData = (error: any) => error?.response?.data || {}
-const showNoAccessAlert = async (message: string) => {
-  await ElMessageBox.alert(message, '无权限查看', { type: 'warning' })
-}
 
 const loadAll = async () => {
   loading.value = true
   try {
     canShowContent.value = false
     pendingJoin.value = false
+    noAccessMessage.value = ''
     await Promise.all([
       groupsStore.fetchGroupDetail(groupId.value),
       groupsStore.fetchGroupMembers(groupId.value)
@@ -253,12 +270,12 @@ const loadAll = async () => {
     } catch (error: any) {
       const data = getErrorData(error)
       pendingJoin.value = data.reason === 'WAIT_REVIEW'
-      await showNoAccessAlert(data.message || '你暂无权限查看该群聊内容')
+      noAccessMessage.value = data.message || '你暂无权限查看该群聊内容'
     }
   } catch (error: any) {
     const data = getErrorData(error)
     if (error?.response?.status === 403) {
-      await showNoAccessAlert(data.message || '你暂无权限查看该群聊内容')
+      noAccessMessage.value = data.message || '你暂无权限查看该群聊内容'
     }
   } finally {
     loading.value = false
@@ -425,4 +442,37 @@ onMounted(loadAll)
 .reviewer-section-title { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
 .reviewer-list { display: flex; flex-direction: column; gap: 8px; }
 .reviewer-item { display: flex; align-items: center; justify-content: space-between; }
+.no-access-card { margin-top: 16px; }
+.no-access-content {
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 12px 20px;
+}
+.no-access-icon {
+  font-size: 34px;
+  color: #e6a23c;
+  margin-bottom: 8px;
+}
+.no-access-content h3 {
+  margin: 0 0 10px;
+  font-size: 20px;
+  color: #1f2937;
+}
+.no-access-content p {
+  margin: 0;
+  color: #6b7280;
+  max-width: 560px;
+  line-height: 1.6;
+}
+.no-access-actions {
+  margin-top: 16px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
 </style>

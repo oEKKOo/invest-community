@@ -1,0 +1,7 @@
+.vscode/
+
+# Python cache and bytecode (global)
+__pycache__/
+*.py[cod]
+*$py.class
+
