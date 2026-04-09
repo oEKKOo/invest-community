@@ -388,15 +388,41 @@ python manage.py migrate
 
 ## 生产部署要点
 
-1. `export DJANGO_SETTINGS_MODULE=invest_backend.settings.prod`（或在 systemd/supervisor 环境中等价配置）
-2. `DJANGO_DEBUG=false`、`DJANGO_ALLOWED_HOSTS`、`DJANGO_SECRET_KEY`、数据库与 `CORS_ALLOWED_ORIGINS`
+1. `export DJANGO_SETTINGS_MODULE=invest_backend.settings.prod`（或在托管平台环境变量中等价配置）
+2. 生产必填变量：`DJANGO_ALLOWED_HOSTS`、`DJANGO_SECRET_KEY`、`DATABASE_URL`、`CORS_ALLOWED_ORIGINS`、`DJANGO_CSRF_TRUSTED_ORIGINS`
 3. `pip install -r requirements/prod.txt`
-4. `python manage.py collectstatic`
-5. 使用 **Gunicorn + Nginx**（或同类）托管 WSGI，配置反向代理与 TLS
-6. 建议 **`USE_REDIS=true`**，并按需开启 **Celery Beat** 做行情与日终任务
-7. 媒体文件使用对象存储或 Nginx 直出 `MEDIA_ROOT`（按规模选择）
+4. `python manage.py collectstatic --noinput`
+5. `python manage.py migrate`
+6. 使用 Gunicorn 启动：`gunicorn invest_backend.wsgi:application`
+7. 建议 **`USE_REDIS=true`**，并按需开启 **Celery Beat** 做行情与日终任务
+8. 媒体文件使用对象存储或 Nginx 直出 `MEDIA_ROOT`（按规模选择）
 
 `wsgi.py` 默认仍指向 `invest_backend.settings.dev`，生产环境务必通过 **环境变量** 覆盖 `DJANGO_SETTINGS_MODULE`。
+
+### Render（Web Service）推荐配置
+
+- **Root Directory**：`background`
+- **Build Command**：`pip install -r requirements/prod.txt && python manage.py collectstatic --noinput && python manage.py migrate`
+- **Start Command**：`gunicorn invest_backend.wsgi:application`
+- **Runtime**：Python（建议 3.11）
+
+#### Render 环境变量最小集
+
+- `DJANGO_SETTINGS_MODULE=invest_backend.settings.prod`
+- `DJANGO_SECRET_KEY=<强随机密钥>`
+- `DJANGO_ALLOWED_HOSTS=<your-backend>.onrender.com[,后端自定义域]`
+- `DATABASE_URL=<Neon Postgres 连接串>`
+- `CORS_ALLOWED_ORIGINS=https://invest-community.pages.dev[,前端自定义域]`
+- `DJANGO_CSRF_TRUSTED_ORIGINS=https://invest-community.pages.dev[,前端自定义域]`
+- `DJANGO_SECURE_SSL_REDIRECT=true`（可选，通常建议开启）
+
+#### 部署后验收
+
+- `GET /healthz` 返回 `{\"status\":\"ok\"}`
+- `GET /admin/` 静态资源正常（无 CSS/JS 404）
+- 抽测一个公开 API（例如列表接口）返回 200
+- 前端 `https://invest-community.pages.dev` 调用后端无 CORS 报错
+- Render 日志中无数据库驱动或迁移失败报错
 
 ---
 

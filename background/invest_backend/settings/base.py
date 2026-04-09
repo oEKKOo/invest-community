@@ -16,6 +16,13 @@ def _str_to_list(value: str, default: list[str] | None = None) -> list[str]:
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+_WHITENOISE_AVAILABLE = False
+try:
+    import whitenoise  # type: ignore  # noqa: F401
+except ImportError:
+    _WHITENOISE_AVAILABLE = False
+else:
+    _WHITENOISE_AVAILABLE = True
 
 # Load .env if present; fallback to simple parser.
 _env_file = BASE_DIR / ".env"
@@ -75,6 +82,8 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+if _WHITENOISE_AVAILABLE:
+    MIDDLEWARE.insert(2, "whitenoise.middleware.WhiteNoiseMiddleware")
 
 INTERNAL_IPS = ["127.0.0.1", "::1"]
 
@@ -106,20 +115,37 @@ def _db_env(django_key: str, legacy_key: str, default: str = "") -> str:
     return os.environ.get(legacy_key, default)
 
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.mysql",
-        "NAME": _db_env("DJANGO_DB_NAME", "DB_NAME", "community_db"),
-        "USER": _db_env("DJANGO_DB_USER", "DB_USER", "root"),
-        "PASSWORD": _db_env("DJANGO_DB_PASSWORD", "DB_PASSWORD", ""),
-        "HOST": _db_env("DJANGO_DB_HOST", "DB_HOST", "127.0.0.1"),
-        "PORT": _db_env("DJANGO_DB_PORT", "DB_PORT", "3306"),
-        "OPTIONS": {
-            "charset": "utf8mb4",
-            "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
-        },
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+if DATABASE_URL:
+    try:
+        import dj_database_url  # type: ignore
+    except ImportError as exc:
+        raise ImportError(
+            "DATABASE_URL is set but 'dj-database-url' is not installed. "
+            "Run 'pip install dj-database-url' or remove DATABASE_URL."
+        ) from exc
+    DATABASES = {
+        "default": dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=not DEBUG,
+        )
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.mysql",
+            "NAME": _db_env("DJANGO_DB_NAME", "DB_NAME", "community_db"),
+            "USER": _db_env("DJANGO_DB_USER", "DB_USER", "root"),
+            "PASSWORD": _db_env("DJANGO_DB_PASSWORD", "DB_PASSWORD", ""),
+            "HOST": _db_env("DJANGO_DB_HOST", "DB_HOST", "127.0.0.1"),
+            "PORT": _db_env("DJANGO_DB_PORT", "DB_PORT", "3306"),
+            "OPTIONS": {
+                "charset": "utf8mb4",
+                "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+            },
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -135,6 +161,8 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+if _WHITENOISE_AVAILABLE:
+    STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
