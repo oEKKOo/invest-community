@@ -1,0 +1,1 @@
+import{g as s,p as t,h as r}from"./index-4x2tWxfz.js";import"./vendor-vue-DQ3gk47K.js";const n=e=>t("/likes/",e),k=e=>r("/likes/",{data:e}),l=e=>s("/users/me/likes/",{params:e});export{l as getMyLikes,n as like,k as unlike};

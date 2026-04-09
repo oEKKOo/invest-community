@@ -1,0 +1,1 @@
+import{_ as r}from"./index-4x2tWxfz.js";import"./vendor-vue-DQ3gk47K.js";let t=null;const e=()=>(t||(t=r(()=>import("./vendor-lightweight-chart-a2qZGTYg.js"),[])),t);export{e as loadLightweightCharts};
