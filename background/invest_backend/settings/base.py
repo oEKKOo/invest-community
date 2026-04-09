@@ -152,7 +152,8 @@ else:
     db_ssl_mode = _db_ssl_mode()
     db_ssl_ca = _db_ssl_ca()
     if _db_ssl_enabled() or db_ssl_mode or db_ssl_ca:
-        ssl_options = {}
+        # PyMySQL 需要非空 ssl 配置才会真正启用 TLS 连接。
+        ssl_options = {"fake_flag_to_enable_tls": True}
         if db_ssl_ca:
             ssl_options["ca"] = db_ssl_ca
         db_options["ssl"] = ssl_options
