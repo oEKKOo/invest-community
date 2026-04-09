@@ -46,8 +46,8 @@ SECRET_KEY = os.environ.get(
     "django-insecure-your-secret-key-here-change-in-production",
 )
 DEBUG = _str_to_bool(os.environ.get("DJANGO_DEBUG"), default=False)
-ALLOWED_HOSTS = _str_to_list(os.environ.get("DJANGO_ALLOWED_HOSTS"), default=[])
-CSRF_TRUSTED_ORIGINS = _str_to_list(os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS"), default=[])
+ALLOWED_HOSTS = [host.lower() for host in _str_to_list(os.environ.get("DJANGO_ALLOWED_HOSTS"), default=[])]
+CSRF_TRUSTED_ORIGINS = [origin.lower() for origin in _str_to_list(os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS"), default=[])]
 
 APPEND_SLASH = False
 
@@ -246,7 +246,7 @@ WEIBO_CLIENT_ID = os.environ.get("WEIBO_CLIENT_ID", "")
 WEIBO_CLIENT_SECRET = os.environ.get("WEIBO_CLIENT_SECRET", "")
 WEIBO_REDIRECT_URI = os.environ.get("WEIBO_REDIRECT_URI", "")
 
-CORS_ALLOWED_ORIGINS = _str_to_list(os.environ.get("CORS_ALLOWED_ORIGINS"), default=[])
+CORS_ALLOWED_ORIGINS = [origin.lower() for origin in _str_to_list(os.environ.get("CORS_ALLOWED_ORIGINS"), default=[])]
 CORS_ALLOW_CREDENTIALS = _str_to_bool(os.environ.get("CORS_ALLOW_CREDENTIALS"), default=True)
 
 EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")

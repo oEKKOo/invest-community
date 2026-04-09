@@ -7,7 +7,7 @@ let refreshingPromise: Promise<string> | null = null
 
 // 创建axios实例
 const api = axios.create({
-  baseURL: 'https://invest-community-api.onrender.com/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
