@@ -115,6 +115,19 @@ def _db_env(django_key: str, legacy_key: str, default: str = "") -> str:
     return os.environ.get(legacy_key, default)
 
 
+def _db_ssl_enabled() -> bool:
+    value = _db_env("DJANGO_DB_SSL", "DB_SSL", "").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
+def _db_ssl_mode() -> str:
+    return _db_env("DJANGO_DB_SSL_MODE", "DB_SSL_MODE", "").strip().upper()
+
+
+def _db_ssl_ca() -> str:
+    return _db_env("DJANGO_DB_SSL_CA", "DB_SSL_CA", "").strip()
+
+
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 if DATABASE_URL:
     try:
@@ -132,6 +145,22 @@ if DATABASE_URL:
         )
     }
 else:
+    db_options = {
+        "charset": "utf8mb4",
+        "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+    }
+    db_ssl_mode = _db_ssl_mode()
+    db_ssl_ca = _db_ssl_ca()
+    if _db_ssl_enabled() or db_ssl_mode or db_ssl_ca:
+        ssl_options = {}
+        if db_ssl_ca:
+            ssl_options["ca"] = db_ssl_ca
+        db_options["ssl"] = ssl_options
+    if db_ssl_mode in {"VERIFY_CA", "VERIFY_IDENTITY"}:
+        db_options["ssl_verify_cert"] = True
+    if db_ssl_mode == "VERIFY_IDENTITY":
+        db_options["ssl_verify_identity"] = True
+
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.mysql",
@@ -140,10 +169,7 @@ else:
             "PASSWORD": _db_env("DJANGO_DB_PASSWORD", "DB_PASSWORD", ""),
             "HOST": _db_env("DJANGO_DB_HOST", "DB_HOST", "127.0.0.1"),
             "PORT": _db_env("DJANGO_DB_PORT", "DB_PORT", "3306"),
-            "OPTIONS": {
-                "charset": "utf8mb4",
-                "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
-            },
+            "OPTIONS": db_options,
         }
     }
 
