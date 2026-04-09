@@ -1,1 +1,0 @@
-import{g as n,f as o,p as r,h as e}from"./index-4x2tWxfz.js";const d=()=>n("/holdings/"),a=s=>r("/holdings/",s),i=(s,t)=>o(`/holdings/${s}/`,t),l=s=>e(`/holdings/${s}/`),u=()=>n("/holdings/performance/"),c=s=>n("/holdings/returns-history/",{params:s});export{u as a,a as b,c,l as d,d as g,i as u};
