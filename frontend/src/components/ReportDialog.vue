@@ -142,14 +142,16 @@ const dialogTitle = computed(() => {
   return typeMap[props.targetType] || '举报'
 })
 
-const getTargetTypeTag = (type: string) => {
-  const map: Record<string, string> = {
+type TagType = 'danger' | 'warning' | 'primary' | 'info' | 'success'
+
+const getTargetTypeTag = (type: string): TagType => {
+  const map: Record<string, TagType> = {
     POST: 'primary',
     COMMENT: 'success',
     USER: 'warning',
     PORTFOLIO: 'info'
   }
-  return map[type] || 'info'
+  return map[type] ?? 'info'
 }
 
 const getTargetTypeText = (type: string) => {

@@ -90,6 +90,27 @@ npm run dev
 
 模板文件：[env.example](./env.example)。本地覆盖请使用 **`.env.local`**（勿提交密钥；Vite 仅暴露 `VITE_` 前缀变量）。
 
+开发与生产默认还可分别使用仓库内 **[`.env.development`](./.env.development)**（`VITE_API_BASE_URL=/api`，配合 Vite 代理）、**[`.env.production`](./.env.production)**（占位 Render 地址；线上以构建环境变量为准）。
+
+### Cloudflare Pages 部署
+
+本仓库为 monorepo，前端在 **`frontend/`** 子目录。
+
+| 配置项 | 值 |
+|--------|-----|
+| **Root directory** | `frontend` |
+| **Build command** | `npm run build` |
+| **Build output directory** | `dist` |
+
+在 Pages 项目 **Settings → Environment variables** 中至少设置：
+
+- **`VITE_API_BASE_URL`**：生产环境填完整后端 API 基址，例如 `https://<你的服务>.onrender.com/api`（须与 Django 的 `/api` 前缀一致）。
+- **`NODE_VERSION`**：建议 **`20`**（或 `22`），避免默认 Node 过旧导致 Vite 6 构建失败。
+
+`public/_redirects` 已配置 **`/*` → `/index.html` 200**，用于 Vue Router **history** 模式刷新子路径不 404。推送绑定分支后会自动重新构建部署。
+
+Cloudflare 构建阶段使用 **`npm ci`**（等价于 clean-install），依赖 **`package-lock.json` 与 `package.json` 同步提交**。`eslint` 为 **9.x**，与 `@vue/eslint-config-typescript` 14.x 的 peer 要求一致，无需 `legacy-peer-deps`。
+
 ---
 
 ## 常用脚本
@@ -100,7 +121,7 @@ npm run dev
 | `npm run build` | `vue-tsc` 类型检查 + 生产构建，输出 `dist/` |
 | `npm run preview` | 本地预览生产构建 |
 | `npm run analyze` | 构建 `analyze` 模式，生成 `dist/stats.html` 体积分析报告 |
-| `npm run lint` | ESLint 检查并尝试修复 |
+| `npm run lint` | ESLint 9（flat config，见 `eslint.config.mjs`）检查并尝试修复 |
 
 生产构建默认 **移除 `console` / `debugger`**，并生成 **gzip / brotli** 侧车文件（`*.gz` / `*.br`），便于 Nginx `gzip_static` 等配置。
 
@@ -111,8 +132,10 @@ npm run dev
 ```
 frontend/
 ├── env.example              # 环境变量示例
+├── eslint.config.mjs        # ESLint 9 flat config（Vue + TS）
 ├── index.html
 ├── package.json
+├── package-lock.json
 ├── tsconfig.json
 ├── vite.config.ts           # Vite、代理、分包、压缩、analyze 插件
 ├── start.bat                # Windows 一键安装依赖并 dev

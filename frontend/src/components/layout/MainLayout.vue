@@ -212,8 +212,7 @@ const bootstrapNotifications = async () => {
   if (notificationsBootstrapped || !authStore.isLoggedIn) return
   notificationsBootstrapped = true
   try {
-    // @ts-ignore
-    const base = (window.__VITE_API_BASE_URL__ as string | undefined) || '/api'
+    const base = import.meta.env.VITE_API_BASE_URL || '/api'
     const url =
       (base.startsWith('http') ? base : `${window.location.origin}${base}`) +
       notificationsStreamPath +
