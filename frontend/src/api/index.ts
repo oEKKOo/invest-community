@@ -7,7 +7,7 @@ let refreshingPromise: Promise<string> | null = null
 
 // 创建axios实例
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
+  baseURL: 'https://invest-community-api.onrender.com',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -55,7 +55,7 @@ api.interceptors.response.use(
         return api.request(error.config)
       } catch (refreshError) {
         clearAuthStorage()
-        window.location.href = '/login'
+        window.location.href = `${import.meta.env.BASE_URL}login`
         return Promise.reject(refreshError)
       }
     } else if (response?.status >= 500) {

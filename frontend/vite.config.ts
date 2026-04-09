@@ -42,6 +42,7 @@ export default defineConfig(({ mode }) => ({
         open: false,
       }),
   ].filter(Boolean),
+  base: '/invest-community/',
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
