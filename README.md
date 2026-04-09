@@ -11,6 +11,7 @@
 - [技术栈](#技术栈)
 - [系统架构](#系统架构)
 - [项目结构](#项目结构)
+- [线上部署](#线上部署)
 - [快速开始](#快速开始)
 - [功能模块说明](#功能模块说明)
 - [项目亮点](#项目亮点)
@@ -59,7 +60,7 @@
 | 数据库 | MySQL 8.x |
 | 缓存与任务 | Redis（可选）、Celery（可选） |
 | 行情数据 | Tushare、Finnhub |
-| 部署建议 | Nginx + Gunicorn |
+| 实际部署 | GitHub Pages、Render、TiDB Cloud |
 
 ## 系统架构
 
@@ -98,6 +99,25 @@ invest/
 - `background/` 包含用户、内容、组合、行情、通知、私信、群组、举报等后端业务模块
 - `frontend/` 包含首页、社区、行情、组合、持仓、消息、群组、管理后台等页面与前端状态管理
 - `docs/` 包含系统架构、数据库设计、接口规范、核心流程、性能优化等完整项目文档
+
+## 线上部署
+
+当前项目已完成前后端分离公网部署，部署结果如下：
+
+| 模块 | 平台 | 地址 |
+|------|------|------|
+| 前端 | GitHub Pages | [https://oekkoo.github.io/invest-community/](https://oekkoo.github.io/invest-community/) |
+| 后端 API | Render | [https://invest-community-api.onrender.com](https://invest-community-api.onrender.com) |
+| 健康检查 | Render | [https://invest-community-api.onrender.com/healthz](https://invest-community-api.onrender.com/healthz) |
+| 数据库 | TiDB Cloud | 云端 MySQL 兼容数据库（仅后端内网/公网安全连接使用） |
+
+说明：
+
+- 前端生产环境通过 `frontend/.env.production` 中的 `VITE_API_BASE_URL` 指向 Render 后端
+- 后端使用 `background/` 子项目部署到 Render，并通过 Gunicorn 启动 Django 服务
+- 后端连接 TiDB Cloud 时启用了 TLS，以满足云数据库安全连接要求
+- 后端根路径 `/` 未配置首页路由，返回 `Not Found` 属于正常现象；验收应访问 `/healthz` 或 `/api/...`
+- 更完整的部署过程与问题处理记录见 [项目部署上线总结文档](./docs/项目部署上线总结文档.md)
 
 ## 快速开始
 
@@ -188,6 +208,7 @@ npm run dev
 仓库内已整理较完整的项目文档，适合开发、展示与论文撰写参考：
 
 - [系统整体架构总结文档](./docs/系统整体架构总结文档.md)
+- [项目部署上线总结文档](./docs/项目部署上线总结文档.md)
 - [技术选型与设计决策文档](./docs/技术选型与设计决策文档.md)
 - [数据库设计总结文档](./docs/数据库设计总结文档.md)
 - [接口设计与接口规范总结文档](./docs/接口设计与接口规范总结文档.md)
